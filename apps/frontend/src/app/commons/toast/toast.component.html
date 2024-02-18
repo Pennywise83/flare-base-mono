@@ -1,0 +1,38 @@
+<div class="toaster" [ngClass]="position">
+    <div class="toast-message" *ngFor="let message of messages" [ngClass]="message.type" role="alert" @slideInBottom>
+        <div
+            class="flex items-center w-full max-w-sm p-4 mb-4  rounded-md shadow-md text-gray-500 dark:text-gray-400 dark:bg-gray-600 bg-white border bg-opacity-50 dark:bg-opacity-50 dark:backdrop-blur backdrop-blur">
+            <!-- Icona fissa -->
+            <div class="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-lg" [ngClass]="{
+          'text-primary-500 bg-primary-100 dark:bg-primary-800 dark:text-primary-200': message.type == toastTypes.INFO,
+          'text-red-500 bg-red-100 dark:bg-red-800 dark:text-red-200': message.type == toastTypes.DANGER,
+          'text-orange-500 bg-orange-100 dark:bg-orange-800 dark:text-orange-200': message.type == toastTypes.WARNING,
+          'text-green-500 bg-green-100 dark:bg-green-800 dark:text-green-200': message.type == toastTypes.SUCCESS}">
+                <ng-icon *ngIf="message.type == toastTypes.INFO" name="heroInformationCircleSolid"
+                    class="icon-size-6"></ng-icon>
+                <ng-icon *ngIf="message.type == toastTypes.SUCCESS" name="heroCheckCircleSolid"
+                    class="icon-size-6"></ng-icon>
+                <ng-icon *ngIf="message.type == toastTypes.WARNING" name="heroExclamationTriangleSolid"
+                    class="icon-size-6"></ng-icon>
+                <ng-icon *ngIf="message.type == toastTypes.DANGER" name="heroXCircleSolid"
+                    class="icon-size-6"></ng-icon>
+            </div>
+
+            <!-- Messaggio flessibile in altezza -->
+            <div class="ml-3 text-sm font-normal flex-grow">{{message.message}}.</div>
+
+            <!-- Button fissa -->
+            <button type="button" (click)="_removeMessage(message)"
+                class="flex-shrink-0 ml-2 -mx-1.5 -my-1.5 bg-white text-gray-400 hover:text-gray-900 rounded-lg focus:ring-2 focus:ring-gray-300 
+          p-1 hover:bg-gray-100 inline-flex items-center justify-center h-6 w-6 dark:text-gray-500 dark:hover:text-white dark:bg-gray-800 dark:hover:bg-gray-700"
+                data-dismiss-target="#toast-success" aria-label="Close">
+                <span class="sr-only">Close</span>
+                <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none"
+                    viewBox="0 0 14 14">
+                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6" />
+                </svg>
+            </button>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,157 @@
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 min-w-0 py-4 md:py-6 px-4 md:px-8">
+    <div class="col-span-1 overflow-hidden">
+        <h2
+            class="shrink-0 text-2xl md:text-3xl lg:text-4xl font-light tracking-tight leading-7 sm:leading-10 truncate">
+            Delegations Explorer
+        </h2>
+    </div>
+    <div class="flex col-span-2 justify-end">
+        <mat-form-field ngDefaultControl name="selectedRewardEpoch" class="ui-mat-dense w-full lg:w-1/3 mr-3"
+            subscriptSizing="dynamic">
+            <mat-select [ngModel]="selectedRewardEpoch" [disabled]="loading"
+                (selectionChange)="handleRewardEpochChange($event)" class="reward-epochs-select">
+                <ng-container *ngFor="let rewardEpoch of availableRewardEpochs">
+                    <mat-option [value]="rewardEpoch">{{rewardEpoch == rewardEpochSettings.getCurrentEpochId() ?
+                        rewardEpoch+' (current)' : (rewardEpoch == rewardEpochSettings.getNextEpochId() ? rewardEpoch+'
+                        (next)' : rewardEpoch)}}</mat-option>
+                </ng-container>
+            </mat-select>
+            <div class="flex items-center mr-4" matPrefix>
+                <mat-icon class="icon-size-5 mr-2" [svgIcon]="'heroicons_outline:clock'"></mat-icon>
+                <label for="selectedRewardEpoch">Reward epoch</label>
+            </div>
+        </mat-form-field>
+        <button [disabled]="loading" mat-icon-button (click)="refreshData(request)">
+            <mat-icon [ngClass]="{'animate-spin':loading}" [svgIcon]="'heroicons_outline:arrow-path'"></mat-icon>
+        </button>
+    </div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 min-w-0 pb-6 md:pt-0 px-4 md:px-8 ">
+    <div class="md:col-span-7 relative min-h-12">
+        <flare-base-loader skeletonType="text" [loading]="loadingMap.isLoading('getDataProviderInfo')">
+        </flare-base-loader>
+        <div class="flex items-top space-x-4">
+            <ng-container *ngIf="dataProviderInfo != null">
+                <div class="flex flex-auto justify-start gap-4" @slideInBottom>
+                    <img class="w-12 h-12 p-1 md:w-16 md:h-16 md:p-2 bg-white rounded-full ring-2 ring-gray-300 dark:ring-gray-500 bg:gray-200 dark:bg-gray-100"
+                        [src]="dataProviderInfo.icon" [alt]="dataProviderInfo.name+' icon'">
+                    <div class="overflow-hidden">
+                        <h3 class="text-2xl md:text-3xl lg:text-4xl font-medium tracking-tight leading-7 truncate">
+                            {{dataProviderInfo.name}}
+                        </h3>
+                        <div class="text-normal text-gray-500 dark:text-gray-400 truncate">
+                            {{dataProviderInfo.address}}</div>
+                        <div class="text-normal text-gray-700 dark:text-gray-200 mt-2 hidden md:block"
+                            *ngIf="dataProviderInfo.description && dataProviderInfo.description != null && dataProviderInfo.description.trim() != ''">
+                            {{dataProviderInfo.description}}</div>
+                    </div>
+                </div>
+            </ng-container>
+        </div>
+    </div>
+    <div class="flex md:col-span-5 justify-end">
+        <div class="grid grid-cols-2 gap-4 md:gap-6 w-full min-w-0 ">
+            <div class="flex flex-col flex-auto p-0 bg-card shadow rounded-lg h-full  overflow-hidden relative">
+                    <flare-base-counter
+                        [counterValue]="!delegatedVotePower ? 0 : delegatedVotePower.amount | number:'1.0-0'"
+                        label="Total vote power" [variationValue]="!votePowerChange ? 0 : votePowerChange"
+                        [loading]="loadingMap.isLoading('getDelegatedVotePowerHistory')"
+                        [variationLabel]="'from last reward epoch'">
+                    </flare-base-counter>
+            </div>
+            <div class="flex flex-col flex-auto p-0 bg-card shadow rounded-lg h-full  overflow-hidden relative">
+                    <flare-base-counter [counterValue]="!delegatedVotePower ? 0 : delegatedVotePower.delegators"
+                        label="Total delegators" [variationValue]="!totalDelegatorsChange ? 0 : totalDelegatorsChange"
+                        [variationLabel]="'from last reward epoch'"
+                        [loading]="loadingMap.isLoading('getDelegatedVotePowerHistory')">
+                    </flare-base-counter>
+            </div>
+        </div>
+    </div>
+
+</div>
+<div class="grid grid-cols-12 gap-4 md:gap-6 w-full min-w-0 pb-6 px-4 md:px-8">
+    <div class="flex flex-col flex-auto p-0 bg-card shadow rounded-lg overflow-hidden col-span-12 md:col-span-7">
+        <h3 class="shrink-0 p-6 py-4  text-lg font-medium tracking-tight leading-6 truncate truncate">
+            Delegations
+        </h3>
+        <div class="flex flex-col h-full p-0 relative min-h-96">
+            <flare-base-delegations-table [request]="request" (delegatorSelected)="selectDelegator($event)"
+                [delegationsData]="(delegationsData && delegationsData.numResults > 0 && !(loadingMap.isLoading('getDelegatorsAt') || loadingMap.isLoading('getDelegatedVotePowerHistory') || loadingMap.isLoading('getDataProviderInfo'))) ? delegationsData : null"
+                [dataProvidersInfo]="[dataProviderInfo]" [tableColumns]="['timestamp', 'rewardEpoch', 'from', 'amount']"
+                sortOnColumn="timestamp" [dynamicData]="true"
+                [loading]="(loadingMap.isLoading('getDelegatorsAt') || loadingMap.isLoading('getDelegatedVotePowerHistory') || loadingMap.isLoading('getDataProviderInfo'))"
+                (requestEvent)="handleRequestEvent($event)"></flare-base-delegations-table>
+        </div>
+    </div>
+
+    <div class="flex flex-col flex-auto p-0  col-span-12 md:col-span-5 ">
+        <div class="bg-card shadow rounded-lg overflow-hidden mb-6">
+            <h3 class="shrink-0 p-6 py-4  text-lg font-medium tracking-tight leading-6 truncate truncate">
+                Vote power over delegations
+            </h3>
+            <div class="flex flex-col flex-auto h-48 overflow-hidden relative">
+                <flare-base-vote-power-over-delegations-chart
+                    [loading]="loadingMap.isLoading('getDelegatedVotePowerHistory')"
+                    [votePowerHistory]="delegatedVotePowerHistory" [rewardEpochSettings]="rewardEpochSettings">
+
+                </flare-base-vote-power-over-delegations-chart>
+            </div>
+        </div>
+        <div class="bg-card shadow rounded-lg overflow-hidden mb-6">
+            <h3 class="shrink-0 p-6 py-4  text-lg font-medium tracking-tight leading-6 truncate truncate">
+                Vote power change
+            </h3>
+            <div class="flex flex-col flex-auto min-h-60  overflow-y-auto overflow-x-auto  relative">
+                <flare-base-vote-power-delegations-table
+                    [loading]="loadingMap.isLoading('getDelegatedVotePowerHistory')"
+                    [votePowerHistoryChange]="votePowerHistoryChange"
+                    [tableColumns]="['rewardEpoch','rewardEpochStartTime','votePower','votePowerChange']"
+                    [sortOnColumn]="'rewardEpoch'" [pageSize]="5">
+                </flare-base-vote-power-delegations-table>
+            </div>
+            <div class="p-4">
+                <button class="button-sm button-sm-light w-full px-6 mr-2" [disabled]="loading"
+                    (click)="showVotePowerHistory()" mat-stroked-button>Show Vote Power history</button>
+            </div>
+        </div>
+        <div class="bg-card shadow rounded-lg overflow-hidden mb-6">
+            <h3 class="shrink-0 p-6 py-4  text-lg font-medium tracking-tight leading-6 truncate truncate">
+                Delegators change
+            </h3>
+            <div class="flex flex-col flex-auto min-h-60  overflow-y-auto overflow-x-auto relative">
+                <flare-base-vote-power-delegations-table
+                    [loading]="loadingMap.isLoading('getDelegatedVotePowerHistory')"
+                    [votePowerHistoryChange]="votePowerHistoryChange"
+                    [tableColumns]="['rewardEpoch','rewardEpochStartTime','delegatorsCount','delegatorsCountChange']"
+                    [sortOnColumn]="'rewardEpoch'" [pageSize]="5">
+                </flare-base-vote-power-delegations-table>
+            </div>
+            <div class="p-4">
+                <button class="button-sm button-sm-light w-full rounded-md px-6 mr-2 " [disabled]="loading"
+                    (click)="showVotePowerHistory()" mat-stroked-button>Show Vote Power history</button>
+            </div>
+        </div>
+
+        <div class="bg-card shadow rounded-lg overflow-hidden mb-6">
+            <h3 class="shrink-0 p-6 py-4  text-lg font-medium tracking-tight leading-6 truncate truncate">
+                Latest delegations
+            </h3>
+            <div class="flex flex-col flex-auto min-h-60  relative">
+                <flare-base-loader [loading]="loadingMap.isLoading('getLatestDelegations')"
+                    skeletonType="table"></flare-base-loader>
+                <flare-base-no-data skeletonType="table"
+                    *ngIf="!loadingMap.isLoading('getLatestDelegations') && (!latestDelegations || latestDelegations.numResults == 0)"></flare-base-no-data>
+                <flare-base-delegations-table [delegationsData]="latestDelegations" [dynamicData]="false"
+                    (delegatorSelected)="selectDelegator($event)" [tableColumns]="latestDelegationsTableColumns"
+                    [loading]="loadingMap.isLoading('getLatestDelegations')" [hidePageSize]="true"
+                    [sortOnColumn]="'timestamp'" [pageSize]="10">
+                </flare-base-delegations-table>
+            </div>
+            <div class="p-4">
+                <button (click)="showDelegations()" class="button-sm button-sm-light w-full rounded-md px-6 mr-2 "
+                    mat-stroked-button>Show delegations</button>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,417 @@
+<flare-base-loader [overlay]="true" [loading]="loading || dataProvidersLoading" [skeletonType]="'table'"
+    skeletonType="text"></flare-base-loader>
+<div class="flex flex-col relative pt-0 pb-4 md:pb-6 px-4 md:px-6 h-full overflow-hidden justify-center text-center"
+    *ngIf="!isWalletConnected() && !(loading || dataProvidersLoading)">
+    <ng-icon name="heroWallet" size="2.5rem" class="mx-auto text-gray-400" strokeWidth="1"></ng-icon>
+    <p class="text-2xl text-gray-400">No wallet connected</p>
+</div>
+<div class=" relative pt-0 pb-4 md:pb-6 px-4 md:px-6 h-full overflow-hidden"
+    *ngIf="isWalletConnected() && !(loading || dataProvidersLoading)">
+
+    <ul
+        class="w-full text-on-white bg-white border border-gray-200 rounded-md dark:bg-gray-700 dark:border-gray-600 mb-2">
+        <li
+            class="relative inline-flex items-center justify-between w-full px-4 py-2 text-sm font-medium border-b border-gray-200 rounded-t-lg focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:border-gray-600 dark:hover:bg-gray-600 dark:hover:text-white dark:focus:ring-gray-500 dark:focus:text-white">
+            <span class="flex items-center">
+                <mat-icon class="mr-2" svgIcon="heroicons_outline:receipt-percent"></mat-icon>
+                Allocated {{selectedChain.wrappedCurrency.symbol}} %
+            </span>
+            <span>{{getAllocatedShare()|number:'1.0-0'}}%</span>
+
+        </li>
+        <li
+            class="relative inline-flex items-center justify-between w-full px-4 py-2 text-sm font-medium border-b border-gray-200 rounded-t-lg focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:border-gray-600 dark:hover:bg-gray-600 dark:hover:text-white dark:focus:ring-gray-500 dark:focus:text-white">
+            <span class="flex items-center">
+                <mat-icon class="mr-2" svgIcon="heroicons_outline:receipt-refund"></mat-icon>
+                Allocated {{selectedChain.wrappedCurrency.symbol}}
+            </span>
+            <span>
+                {{((getAllocatedValue()) | number).split('.')[0]}}<span
+                    class="text-xs">.{{(getAllocatedValue()).toFixed(4).split('.')[1]
+                    }}</span>
+                {{selectedChain.wrappedCurrency.symbol}}</span>
+
+        </li>
+        <li
+            class="relative inline-flex items-center justify-between w-full px-4 py-2 text-sm font-medium border-b border-gray-200 rounded-t-lg focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:border-gray-600 dark:hover:bg-gray-600 dark:hover:text-white dark:focus:ring-gray-500 dark:focus:text-white">
+            <span class="flex items-center">
+                <mat-icon class="mr-2" svgIcon="heroicons_outline:clock"></mat-icon>
+                Next Reward Epoch
+            </span>
+            <span>{{rewardEpochSettings.getCurrentEpochId()}} <span class="text-xs">
+                    (<flare-base-countdown
+                        [inputTimestamp]="rewardEpochSettings.getEndTimeForEpochId(rewardEpochSettings.getCurrentEpochId())"
+                        [displayUnits]="3"></flare-base-countdown>)</span></span>
+
+        </li>
+    </ul>
+    <div class="mb-4">
+        <div class="flex flex-auto items-center space-x-4 mb-2">
+            <button [disabled]="walletBalance.wrappedTokenBalance==0"
+                *ngIf="delegations.has(0)  && delegations.get(0).address == '' && getAllocableShare()>0"
+                class="flex w-full p-3 bg-gray-100 hover:bg-primary-200 dark:bg-gray-700 dark:hover:bg-gray-900 border-gray-200 dark:border-gray-600 border rounded-xl min-h-10 hover:cursor-pointer opacity-60 hover:opacity-100"
+                (click)="openDataProvidersDialog(0,false)">
+                <div class="flex overflow-hidden text-center justify-between items-center mx-auto">
+                    <mat-icon class="mr-2 text-gray-600 dark:text-gray-400"
+                        svgIcon="heroicons_outline:plus-circle"></mat-icon>
+                    <p>Delegation slot 1</p>
+                </div>
+            </button>
+        </div>
+        <div class="flex flex-auto items-center space-x-4 mb-2"
+            *ngIf="delegations.has(0) && delegations.get(0).address != ''">
+            <button
+                class="group flex space-x-3 w-full p-3 bg-gray-100 hover:bg-primary-200 dark:bg-gray-700 dark:hover:bg-gray-900 border-gray-200 dark:border-gray-600 border rounded-xl min-h-10 hover:cursor-pointer"
+                [disabled]="loading || slot0Input.invalid">
+                <img class="block p-1 ring-icon bg-white dark:bg-gray-200 h-8 w-8 md:h-10 md:w-10 rounded-full mx-0 shrink-0"
+                    [src]="getDataProviderInfoByAddress(delegations.get(0).address).icon" />
+                <div class="space-y-1 overflow-hidden w-full">
+                    <div class="flex justify-between overflow-hidden">
+                        <div class="text-left w-full truncate" (click)="openDataProvidersDialog(0,true)">
+                            <p class="text md:text-md leading-none font-semibold truncate">
+                                {{getDataProviderInfoByAddress(delegations.get(0).address).name}}</p>
+                            <p class="text-sm text-secondary  truncate">
+                                {{getDataProviderInfoByAddress(delegations.get(0).address).address}}</p>
+                        </div>
+                        <p class="text-md md:text-lg truncate flex-shrink-0">
+                            <mat-form-field class="flex w-24 ui-mat-dense mb-0 sm:mb-1 text-sm"
+                                subscriptSizing="dynamic">
+                                <input [disabled]="loading" name="slot0Input" matInput autocomplete="off"
+                                    spellcheck="false" #slot0Input="ngModel" min="0"
+                                    [max]="delegations.get(0).percentage+getAllocableShare()"
+                                    [(ngModel)]="delegations.get(0).percentage" class="numeric-field text-right"
+                                    type="number" placeholder="Amount">
+                                <span matTextSuffix class="text md:text-md leading-none font-semibold ml-1">%</span>
+                            </mat-form-field>
+                        </p>
+                    </div>
+                    <div class="w-full bg-gray-300 dark:bg-gray-800 group-hover:bg-gray-200 rounded-full h-1">
+                        <div class="bg-primary h-1 rounded-full dark:bg-primary transition-all duration-300  
+                        ease-in-out" [ngStyle]="{'width': delegations.get(0).percentage+'%'}">
+                        </div>
+                    </div>
+                </div>
+            </button>
+        </div>
+
+        <div class="flex flex-auto items-center space-x-4 mb-2">
+            <button [disabled]="walletBalance.wrappedTokenBalance==0"
+                *ngIf="delegations.has(1)  && delegations.get(1).address == '' && getAllocableShare()>0"
+                class="flex w-full p-3 bg-gray-100 hover:bg-primary-200 dark:bg-gray-700 dark:hover:bg-gray-900 border-gray-200 dark:border-gray-600 border rounded-xl min-h-10 hover:cursor-pointer opacity-60 hover:opacity-100"
+                (click)="openDataProvidersDialog(1,false)">
+                <div class="flex overflow-hidden text-center justify-between items-center mx-auto">
+                    <mat-icon class="mr-2 text-gray-600 dark:text-gray-400"
+                        svgIcon="heroicons_outline:plus-circle"></mat-icon>
+                    <p>Delegation slot 2</p>
+                </div>
+            </button>
+        </div>
+        <div class="flex flex-auto items-center space-x-4 mb-2"
+            *ngIf="delegations.has(1) && delegations.get(1).address != ''">
+            <button
+                class="group flex space-x-3 w-full p-3 bg-gray-100 hover:bg-primary-200 dark:bg-gray-700 dark:hover:bg-gray-900 border-gray-200 dark:border-gray-600 border rounded-xl min-h-10 hover:cursor-pointer"
+                [disabled]="loading || slot1Input.invalid">
+                <img class="block p-1 ring-icon bg-white dark:bg-gray-200 h-8 w-8 md:h-10 md:w-10 rounded-full mx-0 shrink-0"
+                    [src]="getDataProviderInfoByAddress(delegations.get(1).address).icon" />
+                <div class="space-y-1 overflow-hidden w-full">
+                    <div class="flex justify-between overflow-hidden">
+                        <div class="text-left truncate" (click)="openDataProvidersDialog(1,true)">
+                            <p class="text md:text-md leading-none font-semibold truncate">
+                                {{getDataProviderInfoByAddress(delegations.get(1).address).name}}</p>
+                            <p class="text-sm text-secondary  truncate">
+                                {{getDataProviderInfoByAddress(delegations.get(1).address).address}}</p>
+                        </div>
+                        <p class="text-md md:text-lg truncate flex-shrink-0">
+                            <mat-form-field class="flex w-24 ui-mat-dense mb-0 sm:mb-1 text-sm"
+                                subscriptSizing="dynamic">
+                                <input [disabled]="loading" name="slot1Input" matInput autocomplete="off"
+                                    spellcheck="false" #slot1Input="ngModel" min="0"
+                                    [max]="delegations.get(1).percentage+getAllocableShare()"
+                                    [(ngModel)]="delegations.get(1).percentage" class="numeric-field text-right"
+                                    type="number" placeholder="Amount">
+                                <span matTextSuffix class="text md:text-md leading-none font-semibold ml-1">%</span>
+                            </mat-form-field>
+                        </p>
+                    </div>
+                    <div class="w-full bg-gray-300 dark:bg-gray-800 group-hover:bg-gray-200 rounded-full h-1">
+                        <div class="bg-primary h-1 rounded-full dark:bg-primary transition-all duration-300  
+                        ease-in-out" [ngStyle]="{'width': delegations.get(1).percentage+'%'}">
+                        </div>
+                    </div>
+                </div>
+            </button>
+        </div>
+    </div>
+    <div class="flex flex-auto justify-end items-end space-x-4" *ngIf="hasBatchDelegate">
+        <button
+            [disabled]="(delegations.has(0) && delegations.get(0).address == '') && (delegations.has(1) && delegations.get(1).address == '')"
+            mat-flat-button class="button rounded-md" [color]="'warn'" (click)="openBatchDelegateDialog(true)">Remove
+            delegations</button>
+
+        <button (click)="openBatchDelegateDialog(false)"
+            [disabled]="((!delegations.has(0) || delegations.get(0).address == '') && (!delegations.has(1) || delegations.get(1).address == '')) || walletBalance.wrappedTokenBalance == 0"
+            mat-flat-button class="button rounded-md" [color]="'primary'">Submit delegations</button>
+    </div>
+</div>
+
+
+
+<ng-template #dialogTemplate let-dialogRef="dialogRef">
+    <h3 class="modal-title" id="modal-basic-title" *ngIf="operation == operations.selectDataProvider">Select a FTSO
+        Data Provider</h3>
+    <h3 class="modal-title" id="modal-basic-title"
+        *ngIf="operation == operations.delegate|| operation == operations.batchDelegate">Delegate to Data
+        Providers</h3>
+    <mat-dialog-content class="relative min-h-32">
+        <ng-container *ngIf="operation == operations.selectDataProvider">
+            <ui-alert class="flex flex-col mb-4" [appearance]="'outline'" [type]="'warning'" [showIcon]="true"
+                *ngIf="(delegateRequest.has(delegationSlot) &&  delegateRequest.get(delegationSlot).address != '') && getDataProviderInfoByAddress(delegateRequest.get(delegationSlot).address).votePowerPercentage > 2.5">
+                <h4 class="font-semibold">Over-delegated Data Provider</h4>
+                <p>Delegating to this Data Provider will yield fewer rewards due to it is over-delegated.</p>
+            </ui-alert>
+            <div class="flex justify-between items-center mb-4">
+                <mat-form-field class="flex w-full max-w-96 ui-mat-dense" subscriptSizing="dynamic"
+                    (input)="searchFilter$.next($event.target)">
+                    <input [disabled]="loading" name="filter" matInput autocomplete="off" spellcheck="false"
+                        [(ngModel)]="searchFilter" placeholder="Filter data providers...">
+                    <button [disabled]="loading" mat-icon-button matSuffix>
+                        <ng-icon class="text-lg" strokeWidth="2" name="heroMagnifyingGlass"></ng-icon>
+                    </button>
+                </mat-form-field>
+                <mat-slide-toggle class="mr-4" [color]="'primary'" [checked]="hideOverDelegated"
+                    (change)="toggleOverDelegated($event)">
+                    Hide over delegated
+                </mat-slide-toggle>
+            </div>
+            <div class="flex flex-col sm:flex-row items-top max-h-80 overflow-y-auto border rounded-md">
+                <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                        <tr>
+                            <th scope="col" class="px-6 py-1">
+                                Name
+                            </th>
+                            <th scope="col" class="px-6 py-1 w-40">
+                                Vote power %
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <ng-container *ngFor="let ftsoInfo of filteredDataProvidersData">
+                            <tr class="border-b dark:border-gray-700 hover:bg-primary-100 hover:dark:bg-gray-700 hover:cursor-pointer"
+                                [ngClass]="{'bg-primary text-on-primary hover:bg-primary-800 hover:dark:bg-primary-900' : delegateRequest.has(delegationSlot) && delegateRequest.get(delegationSlot).address == ftsoInfo.address}"
+                                (click)="delegateRequest.get(delegationSlot).address = ftsoInfo.address;">
+                                <td scope="row" class="px-6 py-1 font-medium whitespace-nowrap">
+                                    <span class="whitespace-nowrap">
+                                        <div class="flex items-center space-x-2">
+                                            <img class="w-9 h-9 p-1 rounded-full ring-icon" [src]="ftsoInfo.icon"
+                                                [alt]="ftsoInfo.name+' icon'">
+                                            <div class="leading-4">
+                                                <div>
+                                                    <a>{{ftsoInfo.name}}</a>
+                                                </div>
+                                                <div class="text-xs">
+                                                    {{ftsoInfo.address}}</div>
+
+                                            </div>
+                                        </div>
+                                    </span>
+
+                                </td>
+
+                                <td class="px-6 py-1 w-40 cursor-pointer">
+                                    <div class="flex text-md">
+                                        <span class="text-sm">
+                                            {{ftsoInfo.votePowerPercentage| number:'1.2-2'}}%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-0.5 dark:bg-gray-700">
+                                        <div class="bg-red-500 h-0.5 rounded-full dark:bg-red-400"
+                                            *ngIf="ftsoInfo.votePowerPercentage > 2.5"
+                                            [ngStyle]="{'width': (((ftsoInfo.votePowerPercentage*100)/2.5) <= 100 ? ((ftsoInfo.votePowerPercentage*100)/2.5) : 100) +'%'}">
+                                        </div>
+                                        <div class="bg-green-400 h-0.5 rounded-full dark:bg-green-300"
+                                            *ngIf="ftsoInfo.votePowerPercentage > 0 && ftsoInfo.votePowerPercentage < 2"
+                                            [ngStyle]="{'width': (((ftsoInfo.votePowerPercentage*100)/2.5) <= 100 ? ((ftsoInfo.votePowerPercentage*100)/2.5) : 100) +'%'}">
+                                        </div>
+                                        <div class="bg-orange-300 h-0.5 rounded-full dark:bg-orange-300"
+                                            *ngIf="ftsoInfo.votePowerPercentage > 2 && ftsoInfo.votePowerPercentage < 2.5"
+                                            [ngStyle]="{'width': (((ftsoInfo.votePowerPercentage*100)/2.5) <= 100 ? ((ftsoInfo.votePowerPercentage*100)/2.5) : 100) +'%'}">
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </ng-container>
+                    </tbody>
+                </table>
+            </div>
+            <div class="flex flex-col sm:flex-row items-center sm:space-x-4 space-y-2">
+
+                <mat-slider name="wrapSlider" class="flex flex-row sm:flex-col w-full" [showTickMarks]="false"
+                    [step]="0.01" [min]="0" [max]="delegateRequest.get(delegationSlot).allocablePercentage">
+                    <input matSliderThumb [(ngModel)]="delegateRequest.get(delegationSlot).percentage" #slider>
+                </mat-slider>
+                <mat-form-field class="flex flex-col w-full sm:w-fit ui-mat-dense" subscriptSizing="dynamic">
+                    <input name="allocablePercentageInput" #allocablePercentageInput="ngModel" [disabled]="loading"
+                        matInput autocomplete="off" spellcheck="false" min="0"
+                        [(ngModel)]="delegateRequest.get(delegationSlot).percentage"
+                        [max]="delegateRequest.get(delegationSlot).allocablePercentage" class="numeric-field text-right"
+                        type="number">
+                    <span matTextPrefix class="text md:text-md leading-none font-semibold mr-2">
+                        Delegation percentage</span>
+                    <span matTextSuffix class="text md:text-md leading-none font-semibold ml-0.5">
+                        /{{delegateRequest.get(delegationSlot).allocablePercentage|number:'1.2-2'}}%</span>
+                </mat-form-field>
+            </div>
+        </ng-container>
+
+        <ng-container *ngIf="operation == operations.batchDelegate">
+            <p class="mb-2">You are going to delegate <span
+                    class="font-semibold">{{getAllocatedShare()|number:'1.2-2'}}%</span> of your Wrapped Balance to
+                the following Data Providers.</p>
+            <ul
+                class="w-full text-on-white bg-white border border-gray-200 rounded-md dark:bg-gray-700 dark:border-gray-600 mb-2">
+                <ng-container *ngFor="let delegation of delegations|keyvalue">
+                    <li *ngIf="delegation.value.address != ''"
+                        class="relative inline-flex items-center justify-between w-full px-4 py-2 text-sm font-medium border-b border-gray-200 rounded-t-lg focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:border-gray-600 dark:hover:bg-gray-600 dark:hover:text-white dark:focus:ring-gray-500 dark:focus:text-white">
+                        <span class="flex items-center truncate overflow-hidden">
+                            <span class="whitespace-nowrap truncate">
+                                <div class="flex items-center space-x-2 p-1">
+                                    <img class="w-9 h-9 p-1 rounded-full ring-icon"
+                                        [src]="getDataProviderInfoByAddress(delegation.value.address).icon"
+                                        [alt]="getDataProviderInfoByAddress(delegation.value.address).name+' icon'">
+                                    <div class="leading-4 truncate">
+                                        <div class="truncate">
+                                            <a>{{getDataProviderInfoByAddress(delegation.value.address).name}}</a>
+                                        </div>
+                                        <div class="text-xs truncate">
+                                            {{getDataProviderInfoByAddress(delegation.value.address).address}}
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </span>
+                        </span>
+                        <div class="text-right">
+                            <div>{{((walletBalance.wrappedTokenBalance / 100)*delegation.value.percentage |
+                                number).split('.')[0]}}<span class="text-sm">.{{((walletBalance.wrappedTokenBalance /
+                                    100)*delegation.value.percentage).toFixed(4).split('.')[1]
+                                    }} <span
+                                        class="text-secondary">{{selectedChain.wrappedCurrency.symbol}}</span></span>
+                            </div>
+                            <div>{{delegation.value.percentage|number:'1.2-2'}}<span
+                                    class="text-secondary ml-0.5">%</span>
+                            </div>
+                        </div>
+                    </li>
+                </ng-container>
+            </ul>
+        </ng-container>
+        <ng-container *ngIf="operation == operations.removeDelegations">
+            <p class="mb-2">You are going to remove your delegations to the following Data Providers.</p>
+            <ul
+                class="w-full text-on-white bg-white border border-gray-200 rounded-md dark:bg-gray-700 dark:border-gray-600 mb-2">
+                <ng-container *ngFor="let delegation of delegations|keyvalue">
+                    <li *ngIf="delegation.value.address != ''"
+                        class="relative inline-flex items-center justify-between w-full px-4 py-2 text-sm font-medium border-b border-gray-200 rounded-t-lg focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:border-gray-600 dark:hover:bg-gray-600 dark:hover:text-white dark:focus:ring-gray-500 dark:focus:text-white">
+                        <span class="flex items-center truncate overflow-hidden">
+                            <span class="whitespace-nowrap truncate">
+                                <div class="flex items-center space-x-2 p-1">
+                                    <img class="w-9 h-9 p-1 rounded-full ring-icon"
+                                        [src]="getDataProviderInfoByAddress(delegation.value.address).icon"
+                                        [alt]="getDataProviderInfoByAddress(delegation.value.address).name+' icon'">
+                                    <div class="leading-4 truncate">
+                                        <div class="truncate">
+                                            <a>{{getDataProviderInfoByAddress(delegation.value.address).name}}</a>
+                                        </div>
+                                        <div class="text-xs truncate">
+                                            {{getDataProviderInfoByAddress(delegation.value.address).address}}
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </span>
+                        </span>
+                        <div class="text-right">
+                            <div>{{((walletBalance.wrappedTokenBalance / 100)*delegation.value.percentage |
+                                number).split('.')[0]}}<span class="text-sm">.{{((walletBalance.wrappedTokenBalance /
+                                    100)*delegation.value.percentage).toFixed(4).split('.')[1]
+                                    }} <span
+                                        class="text-secondary">{{selectedChain.wrappedCurrency.symbol}}</span></span>
+                            </div>
+                            <div>{{delegation.value.percentage|number:'1.2-2'}}<span
+                                    class="text-secondary ml-0.5">%</span>
+                            </div>
+                        </div>
+                    </li>
+                </ng-container>
+            </ul>
+        </ng-container>
+
+        <div *ngIf="operation == operations.submitting" class="text-center">
+            <div class="circle-loader justify-center items-center mx-auto">
+            </div>
+            <p class="font-semibold">Waiting for user confirmation</p>
+            <p class="text-secondary">Follow prompts from your wallet</p>
+        </div>
+
+        <div *ngIf="operation == operations.transacting" class="text-center">
+            <div class="line-loader justify-center items-center mx-auto">
+            </div>
+            <p class="font-semibold">Waiting for network confirmation</p>
+        </div>
+
+        <ui-alert [appearance]="'outline'" [type]="clientMessage.type ? clientMessage.type : 'basic'"
+            *ngIf="clientMessage.hasMessage()" [showIcon]="true" class="flex max-w-full">
+            <h4 class="font-semibold" *ngIf="clientMessage.title != null">{{clientMessage.title}}</h4>
+            <p *ngIf="clientMessage.message != null">{{clientMessage.message}}</p>
+            <a *ngIf="clientMessage.txUrl" class="button-sm button-sm-light w-full px-3 mt-3" target="_blank"
+                href="{{clientMessage.txUrl}}" mat-stroked-button>
+                <ng-icon name="heroLink" size="1.2rem" class="mr-2 text-gray-400" strokeWidth="1"></ng-icon>View on
+                block explorer</a>
+        </ui-alert>
+
+    </mat-dialog-content>
+    <mat-dialog-actions class="flex justify-between">
+        <div>
+            <button [disabled]="operation == operations.transacting ||operation == operations.submitting"
+                mat-flat-button class="button rounded-md" (click)="dialogRef.close();">Close</button>
+        </div>
+
+        <div>
+            <button *ngIf="operation==operations.selectDataProvider && hasBatchDelegate" mat-flat-button
+                class="button rounded-md"
+                [disabled]="delegateRequest.get(delegationSlot).address == '' || ((delegateRequest.get(delegationSlot).percentage > delegateRequest.get(delegationSlot).allocablePercentage) || delegateRequest.get(delegationSlot).percentage == 0)"
+                [color]="'primary'" (click)="dialogRef.close('addDelegation');">Add delegation</button>
+            <button *ngIf="operation==operations.batchDelegate" mat-flat-button class="button rounded-md"
+                [color]="'primary'" (click)="addBatchDelegation(delegations,false);">Submit delegation</button>
+
+            <button *ngIf="operation==operations.removeDelegations" mat-flat-button class="button rounded-md"
+                [color]="'warn'" (click)="addBatchDelegation(delegateRequest,true)">Remove delegation</button>
+
+
+            <button
+                *ngIf="operation==operations.selectDataProvider && !hasBatchDelegate && delegateRequest.get(delegationSlot).existingDelegation"
+                mat-flat-button class="button rounded-md" [color]="'warn'"
+                (click)="addDelegation(delegateRequest.get(delegationSlot),true)">Remove delegation</button>
+
+            <button
+                *ngIf="operation==operations.selectDataProvider && !hasBatchDelegate && delegateRequest.get(delegationSlot).existingDelegation"
+                mat-flat-button class="button rounded-md"
+                [disabled]="delegateRequest.get(delegationSlot).address == '' || ((delegateRequest.get(delegationSlot).percentage > delegateRequest.get(delegationSlot).allocablePercentage) || delegateRequest.get(delegationSlot).percentage == 0)"
+                [color]="'primary'" (click)="addDelegation(delegateRequest.get(delegationSlot),false)">Update
+                delegation</button>
+            <button
+                *ngIf="operation==operations.selectDataProvider && !hasBatchDelegate && !delegateRequest.get(delegationSlot).existingDelegation"
+                mat-flat-button class="button rounded-md"
+                [disabled]="delegateRequest.get(delegationSlot).address == '' || ((delegateRequest.get(delegationSlot).percentage > delegateRequest.get(delegationSlot).allocablePercentage) || delegateRequest.get(delegationSlot).percentage == 0)"
+                [color]="'primary'" (click)="addDelegation(delegateRequest.get(delegationSlot),false)">Submit
+                delegation</button>
+
+            <button *ngIf="operation==operations.submitting" disabled mat-flat-button class="button rounded-md"
+                [color]="'primary'">Waiting for authorization...</button>
+            <button *ngIf="operation==operations.submitted" disabled mat-flat-button class="button rounded-md"
+                [color]="'primary'">Transaction submitted...</button>
+            <button *ngIf="operation==operations.transacting" disabled mat-flat-button class="button rounded-md"
+                [color]="'primary'">Transaction in progress...</button>
+        </div>
+    </mat-dialog-actions>
+</ng-template>

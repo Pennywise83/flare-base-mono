@@ -1,0 +1,30 @@
+<flare-base-loader [loading]="loading" skeletonType="chart" [progress]="progress"> </flare-base-loader>
+
+<div @slideInBottom *ngIf="chartSeries != null && chartSeries.length > 0 && !loading">
+    <div class="flex flex-col  mx-4 mt-1">
+        <div class="text-3xl md:text-5xl font-semibold tracking-tighter leading-tight">{{counterValue| number:'1.0-0'}}
+        </div>
+        <div class="flex ">
+
+            <ng-container *ngIf="variationValue != null">
+                <mat-icon class="icon-size-5 text-red-500" *ngIf="variationValue < 0"
+                    [svgIcon]="'heroicons_mini:arrow-trending-down'"></mat-icon>
+                <mat-icon class="icon-size-5 text-green-500" *ngIf="variationValue > 0"
+                    [svgIcon]="'heroicons_mini:arrow-trending-up'"></mat-icon>
+
+                <div
+                    class="flex items-center ml-1 lg:ml-0 lg:mt-0.5 text-md leading-none whitespace-nowrap text-secondary">
+                    <span class="font-medium"
+                        [ngClass]="{'text-red-500':variationValue < 0,'text-green-500':variationValue > 0,'text-gray-500':variationValue == 0,}">{{variationValue
+                        > 0 ? '+'+variationValue : variationValue}}%</span>
+                    <span *ngIf="variationLabel != null" class="ml-1">{{variationLabel}}</span>
+                </div>
+            </ng-container>
+        </div>
+    </div>
+    <div class="flex flex-col flex-auto">
+        <apx-chart class="flex-auto w-full h-20" [chart]="chartData.chart" [colors]="chartData.colors"
+            [series]="chartData.series" [stroke]="chartData.stroke" [tooltip]="chartData.tooltip"
+            [xaxis]="chartData.xaxis" [yaxis]="chartData.yaxis"></apx-chart>
+    </div>
+</div>

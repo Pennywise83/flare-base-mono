@@ -1,0 +1,54 @@
+<flare-base-loader [overlay]="true" [loading]="loading" skeletonType="text"></flare-base-loader>
+<div class="flex flex-col relative pt-0 pb-4 md:pb-6 px-4 md:px-6 h-full overflow-hidden justify-center text-center"
+    *ngIf="!isWalletConnected()&& !loading">
+    <ng-icon name="heroWallet" size="2.5rem" class="mx-auto text-gray-400" strokeWidth="1"></ng-icon>
+    <p class="text-2xl text-gray-400">No wallet connected</p>
+</div>
+<div class="relative flex flex-row flex-auto pt-0 pb-4  md:pb-6 px-4 md:px-6 h-full justify-between space-x-3 overflow-hidden"
+    *ngIf="isWalletConnected() && !loading">
+    <div class="flex flex-col grow w-full">
+        <div class="flex h-full bg-secondary">
+            <div
+                class="p-2 space-x-3 mx-auto bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-600 border rounded-xl  flex w-full">
+                <img class="block ring-icon h-10 w-10 md:h-14 md:w-14 rounded-full mx-0 shrink-0"
+                    [src]="selectedChain.nativeCurrency.icon" />
+                <div class="space-y-0 overflow-hidden">
+                    <p class="text-md md:text-lg leading-none font-semibold">
+                        {{selectedChain.nativeCurrency.name|titlecase}}</p>
+                    <p class="text-2xl md:text-4xl font-semibold truncate">
+                        {{((walletBalance.nativeTokenBalance+walletBalance.wrappedTokenBalance) |
+                        number).split('.')[0]}}<span
+                            class="text-xl">.{{(walletBalance.nativeTokenBalance+walletBalance.wrappedTokenBalance).toFixed(9).split('.')[1]
+                            }}</span>
+                    </p>
+                    <p class="hidden sm:block text-sm">
+                        {{(walletBalance.nativeTokenBalance | number).split('.')[0]}}<span
+                            class="text-xs">.{{(walletBalance.nativeTokenBalance).toFixed(9).split('.')[1]}}</span><span
+                            class="text-secondary"> {{selectedChain.nativeCurrency.symbol}}</span> /
+                        {{(walletBalance.wrappedTokenBalance | number).split('.')[0]}}<span
+                            class="text-xs">.{{(walletBalance.wrappedTokenBalance).toFixed(9).split('.')[1]}}</span><span
+                            class="text-secondary"> {{selectedChain.wrappedCurrency.symbol}}</span>
+                    </p>
+                    <p class="block sm:hidden text-sm">
+                        {{(walletBalance.nativeTokenBalance | number).split('.')[0]}}<span
+                            class="text-xs">.{{(walletBalance.nativeTokenBalance).toFixed(9).split('.')[1]}}</span><span
+                            class="text-secondary"> {{selectedChain.nativeCurrency.symbol}}</span>
+                    </p>
+                    <p class="block sm:hidden text-sm">
+                        {{(walletBalance.wrappedTokenBalance | number).split('.')[0]}}<span
+                            class="text-xs">.{{(walletBalance.wrappedTokenBalance).toFixed(9).split('.')[1]}}</span><span
+                            class="text-secondary"> {{selectedChain.wrappedCurrency.symbol}}</span>
+                    </p>
+
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="flex flex-col flex-shrink-0 block">
+        <qr-code class="z-10 p-1 rounded-xl border border-gray-300 dark:border-gray-600" *ngIf="!isWalletConnected()"
+            size="100" [value]="'https://flare-base.io'" [lightColor]="qrColors.light"
+            [darkColor]="qrColors.dark"></qr-code>
+        <qr-code class="z-10 p-1 rounded-xl border border-gray-300 dark:border-gray-600" *ngIf="isWalletConnected()"
+            size="100" [value]="selectedAddress" [lightColor]="qrColors.light" [darkColor]="qrColors.dark"></qr-code>
+    </div>
+</div>

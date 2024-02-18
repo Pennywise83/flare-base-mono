@@ -1,0 +1,213 @@
+<flare-base-loader [overlay]="true" [loading]="loading" skeletonType="text"></flare-base-loader>
+<div class="flex flex-col relative pt-0 pb-4 md:pb-6 px-4 md:px-6 h-full overflow-hidden justify-center text-center"
+    *ngIf="!isWalletConnected() && !loading">
+    <ng-icon name="heroWallet" size="2.5rem" class="mx-auto text-gray-400" strokeWidth="1"></ng-icon>
+    <p class="text-2xl text-gray-400">No wallet connected</p>
+</div>
+<div class="relative pt-0 pb-4 md:pb-6 px-4 md:px-6 h-full overflow-hidden" *ngIf="isWalletConnected() && !loading">
+    <div class="flex flex-auto items-center space-x-4 mb-2">
+        <div
+            class="flex grow p-2 w-1/2 space-x-3 mx-auto bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-600 border rounded-xl">
+            <img *ngIf="isWrap" class="block ring-icon h-8 w-8 md:h-10 md:w-10 rounded-full mx-0 shrink-0"
+                [src]="selectedChain.nativeCurrency.icon" />
+            <img *ngIf="!isWrap" class="block ring-icon h-8 w-8 md:h-10 md:w-10 rounded-full mx-0 shrink-0"
+                [src]="selectedChain.wrappedCurrency.icon" />
+            <div class="space-y-1 overflow-hidden w-full">
+                <p *ngIf="isWrap" class="text md:text-md leading-none font-semibold">
+                    {{selectedChain.nativeCurrency.symbol}}</p>
+                <p *ngIf="!isWrap" class="text md:text-md leading-none font-semibold">
+                    {{selectedChain.wrappedCurrency.symbol}}</p>
+                <p *ngIf="isWrap" class="text-md md:text-lg truncate mb-1">
+                    {{((wrapDetails.nativeIntermediateAmount) | number).split('.')[0]}}<span
+                        class="text-sm">.{{(wrapDetails.nativeIntermediateAmount).toFixed(4).split('.')[1]
+                        }}</span>
+                </p>
+                <p *ngIf="!isWrap" class="text-md md:text-lg truncate mb-1">
+                    {{((wrapDetails.wrappedIntermediateAmount) | number).split('.')[0]}}<span
+                        class="text-sm">.{{(wrapDetails.wrappedIntermediateAmount).toFixed(4).split('.')[1]
+                        }}</span>
+                </p>
+                <div class="w-full bg-gray-300 rounded-full h-1 dark:bg-gray-800">
+                    <div *ngIf="isWrap" class="bg-primary h-1 rounded-full dark:bg-primary transition-all duration-300  
+                    ease-in-out" [ngStyle]="{'width': wrapDetails.nativeIntermediatePercentage+'%'}"></div>
+                    <div *ngIf="!isWrap" class="bg-primary h-1 rounded-full dark:bg-primary transition-all duration-300  
+                    ease-in-out" [ngStyle]="{'width': wrapDetails.wrappedIntermediatePercentage+'%'}">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <button class="ring-1 bg-gray-200 ring-gray-300 dark:ring-gray-600 dark:bg-gray-700" [disabled]="loading"
+            (click)="swap()" mat-icon-button [color]="'primary'">
+            <ng-icon class="text-xl text-gray-600 dark:text-gray-400" name="matSwapHorizOutline"></ng-icon>
+        </button>
+        <div
+            class="flex grow p-2 w-1/2 space-x-3 mx-auto bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-600 border rounded-xl">
+            <img *ngIf="isWrap" class="block ring-icon h-8 w-8 md:h-10 md:w-10 rounded-full mx-0 shrink-0"
+                [src]="selectedChain.wrappedCurrency.icon" />
+            <img *ngIf="!isWrap" class="block ring-icon h-8 w-8 md:h-10 md:w-10 rounded-full mx-0 shrink-0"
+                [src]="selectedChain.nativeCurrency.icon" />
+            <div class="space-y-1 overflow-hidden w-full">
+                <p *ngIf="isWrap" class="text md:text-md leading-none font-semibold">
+                    {{selectedChain.wrappedCurrency.symbol}}</p>
+                <p *ngIf="!isWrap" class="text md:text-md leading-none font-semibold">
+                    {{selectedChain.nativeCurrency.symbol}}</p>
+                <p *ngIf="isWrap" class="text-md md:text-lg truncate mb-1">
+
+                    {{((wrapDetails.wrappedIntermediateAmount) | number).split('.')[0]}}<span
+                        class="text-sm">.{{(wrapDetails.wrappedIntermediateAmount).toFixed(4).split('.')[1]
+                        }}</span>
+                </p>
+                <p *ngIf="!isWrap" class="text-md md:text-lg truncate mb-1">
+                    {{((wrapDetails.nativeIntermediateAmount) | number).split('.')[0]}}<span
+                        class="text-sm">.{{(wrapDetails.nativeIntermediateAmount).toFixed(4).split('.')[1]
+                        }}</span>
+                </p>
+                <div class="w-full bg-gray-300 rounded-full h-1 dark:bg-gray-800">
+                    <div *ngIf="isWrap" class="bg-primary h-1 rounded-full dark:bg-primary transition-all duration-300  
+                    ease-in-out" [ngStyle]="{'width': wrapDetails.wrappedIntermediatePercentage+'%'}"></div>
+                    <div *ngIf="!isWrap" class="bg-primary h-1 rounded-full dark:bg-primary transition-all duration-300  
+                        ease-in-out" [ngStyle]="{'width': wrapDetails.nativeIntermediatePercentage+'%'}">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex flex-auto items-center space-x-4 mb-1 ">
+        <mat-slider name="wrapSlider" class="flex w-full" [showTickMarks]="false" [step]="0.01" [min]="0"
+            [max]="isWrap ? walletBalance.nativeTokenBalance : walletBalance.wrappedTokenBalance">
+            <input matSliderThumb [(ngModel)]="intermediateAmount" #slider (valueChange)="handleSliderChanges($event)">
+        </mat-slider>
+    </div>
+    <div class="flex flex-auto items-center space-x-4">
+        <mat-form-field class="flex grow ui-mat-dense" subscriptSizing="dynamic">
+            <input [disabled]="loading" name="wrapAmount" matInput autocomplete="off" spellcheck="false" min="0"
+                #wrapAmountInput="ngModel"
+                [max]="isWrap ? walletBalance.nativeTokenBalance : walletBalance.wrappedTokenBalance"
+                (change)="intermediateAmountChange$.next($event.target)" [ngModel]="intermediateAmount"
+                class="numeric-field" type="number" placeholder="Amount">
+            <span matTextSuffix *ngIf="isWrap" class="text md:text-md leading-none font-semibold">
+                {{selectedChain.nativeCurrency.symbol}}</span>
+            <span matTextSuffix *ngIf="!isWrap" class="text md:text-md leading-none font-semibold">
+                {{selectedChain.wrappedCurrency.symbol}}</span>
+        </mat-form-field>
+        <button mat-flat-button class="button w-1/4 rounded-md" [color]="'primary'"
+            (click)="openWrapDialog(isWrap ? operations.wrap : operations.unwrap)"
+            [disabled]="loading || wrapAmountInput.invalid || intermediateAmount == 0">{{isWrap ? 'Wrap' :
+            'Unwrap'}}</button>
+    </div>
+</div>
+<ng-template #dialogTemplate let-dialogRef="dialogRef">
+    <h3 class="modal-title" id="modal-basic-title" *ngIf="operation == operations.unwrap">Unwrap
+        {{selectedChain.wrappedCurrency.symbol}}</h3>
+    <h3 class="modal-title" id="modal-basic-title" *ngIf="operation == operations.wrap">Wrap
+        {{selectedChain.nativeCurrency.symbol}}</h3>
+    <h3 class="modal-title" id="modal-basic-title" *ngIf="operation == operations.cancelled">
+        Transaction cancelled
+    </h3>
+    <mat-dialog-content class="relative sm:min-w-96 min-h-32">
+        <ng-container *ngIf="operation == operations.wrap || operation == operations.unwrap">
+            <div>
+                <p class="mb-2">You are going to unwrap {{operation == operations.wrap ?
+                    selectedChain.nativeCurrency.symbol
+                    :
+                    selectedChain.wrappedCurrency.symbol}} into
+                    {{operation == operations.wrap ? selectedChain.wrappedCurrency.symbol :
+                    selectedChain.nativeCurrency.symbol}} at a
+                    rate of 1:1. This process is reversible.</p>
+            </div>
+            <div class="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4 mb-2">
+                <div
+                    class="flex grow p-2 w-full sm:w-1/2 space-x-3 mx-auto bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-600 border rounded-xl">
+                    <img *ngIf="operation == operations.wrap"
+                        class="block ring-icon h-8 w-8 md:h-10 md:w-10 rounded-full mx-0 shrink-0"
+                        [src]="selectedChain.nativeCurrency.icon" />
+                    <img *ngIf="operation == operations.unwrap"
+                        class="block ring-icon h-8 w-8 md:h-10 md:w-10 rounded-full mx-0 shrink-0"
+                        [src]="selectedChain.wrappedCurrency.icon" />
+                    <div class="space-y-1 overflow-hidden w-full">
+                        <p *ngIf="operation == operations.wrap" class="text md:text-md leading-none font-semibold">
+                            {{selectedChain.nativeCurrency.symbol}}</p>
+                        <p *ngIf="operation == operations.unwrap" class="text md:text-md leading-none font-semibold">
+                            {{selectedChain.wrappedCurrency.symbol}}</p>
+                        <p *ngIf="operation == operations.wrap" class="text-md md:text-lg truncate mb-1">
+                            {{((intermediateAmount) | number).split('.')[0]}}<span
+                                class="text-sm">.{{(intermediateAmount).toFixed(4).split('.')[1]
+                                }}</span>
+                        </p>
+                        <p *ngIf="operation == operations.unwrap" class="text-md md:text-lg truncate mb-1">
+                            {{((intermediateAmount) | number).split('.')[0]}}<span
+                                class="text-sm">.{{(intermediateAmount).toFixed(4).split('.')[1]
+                                }}</span>
+                        </p>
+                    </div>
+                </div>
+                <button class="  ring-1 bg-gray-200 ring-gray-300 dark:ring-gray-600 dark:bg-gray-700" mat-icon-button
+                    [color]="'primary'">
+                    <ng-icon class="text-xl text-gray-600 dark:text-gray-400" name="heroArrowRight"></ng-icon>
+                </button>
+                <div
+                    class="  flex grow p-2 w-full sm:w-1/2 space-x-3 mx-auto bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-600 border rounded-xl">
+                    <img *ngIf="operation == operations.unwrap"
+                        class="block ring-icon h-8 w-8 md:h-10 md:w-10 rounded-full mx-0 shrink-0"
+                        [src]="selectedChain.nativeCurrency.icon" />
+                    <img *ngIf="operation == operations.wrap"
+                        class="block ring-icon h-8 w-8 md:h-10 md:w-10 rounded-full mx-0 shrink-0"
+                        [src]="selectedChain.wrappedCurrency.icon" />
+                    <div class="space-y-1 overflow-hidden w-full">
+                        <p *ngIf="operation == operations.unwrap" class="text md:text-md leading-none font-semibold">
+                            {{selectedChain.nativeCurrency.symbol}}</p>
+                        <p *ngIf="operation == operations.wrap" class="text md:text-md leading-none font-semibold">
+                            {{selectedChain.wrappedCurrency.symbol}}</p>
+                        <p *ngIf="operation == operations.wrap" class="text-md md:text-lg truncate mb-1">
+                            {{((intermediateAmount) | number).split('.')[0]}}<span
+                                class="text-sm">.{{(intermediateAmount).toFixed(4).split('.')[1]
+                                }}</span>
+                        </p>
+                        <p *ngIf="operation == operations.unwrap" class="text-md md:text-lg truncate mb-1">
+                            {{((intermediateAmount) | number).split('.')[0]}}<span
+                                class="text-sm">.{{(intermediateAmount).toFixed(4).split('.')[1]
+                                }}</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </ng-container>
+
+        <div *ngIf="operation == operations.submitting" class="text-center">
+            <div class="circle-loader justify-center items-center mx-auto">
+            </div>
+            <p class="font-semibold">Waiting for user confirmation</p>
+            <p class="text-secondary">Follow prompts from your wallet</p>
+        </div>
+
+        <div *ngIf="operation == operations.transacting" class="text-center">
+            <div class="line-loader justify-center items-center mx-auto">
+            </div>
+            <p class="font-semibold">Waiting for network confirmation</p>
+        </div>
+
+        <ui-alert [appearance]="'outline'" [type]="'basic'" *ngIf="clientMessage.hasMessage()" [showIcon]="true">
+            <h4 class="font-semibold" *ngIf="clientMessage.title != null">{{clientMessage.title}}</h4>
+            <span *ngIf="clientMessage.message != null">{{clientMessage.message}}</span>
+            <a class="button-sm button-sm-light w-full px-6 mr-2 mt-1 w-52" target="_blank"
+                href="{{clientMessage.txUrl}}" mat-stroked-button>
+                <mat-icon svgIcon="heroicons_outline:link"></mat-icon>View on block explorer</a>
+        </ui-alert>
+
+    </mat-dialog-content>
+    <mat-dialog-actions class="flex justify-between">
+        <button [disabled]="operation == operations.transacting ||operation == operations.submitting" mat-flat-button
+            class="button rounded-md" (click)="dialogRef.close()">Close</button>
+        <button *ngIf="operation==operations.wrap" mat-flat-button class="button rounded-md" [color]="'primary'"
+            (click)="wrap()">Wrap</button>
+        <button *ngIf="operation==operations.unwrap" mat-flat-button class="button rounded-md" [color]="'primary'"
+            (click)="unwrap()">Unwrap</button>
+        <button *ngIf="operation==operations.submitting" disabled mat-flat-button class="button rounded-md"
+            [color]="'primary'">Waiting for authorization...</button>
+        <button *ngIf="operation==operations.submitted" disabled mat-flat-button class="button rounded-md"
+            [color]="'primary'">Transaction submitted...</button>
+        <button *ngIf="operation==operations.transacting" disabled mat-flat-button class="button rounded-md"
+            [color]="'primary'">Transaction in progress...</button>
+    </mat-dialog-actions>
+</ng-template>

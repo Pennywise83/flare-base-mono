@@ -1,0 +1,203 @@
+<flare-base-loader [overlay]="true" [loading]="loading || dataProvidersLoading" [skeletonType]="'table'"
+    skeletonType="text"></flare-base-loader>
+<div class="flex flex-col relative pt-0 pb-4 md:pb-6 px-4 md:px-6 h-full overflow-hidden justify-center text-center"
+    *ngIf="!isWalletConnected() && !(loading || dataProvidersLoading)">
+    <ng-icon name="heroWallet" size="2.5rem" class="mx-auto text-gray-400" strokeWidth="1"></ng-icon>
+    <p class="text-2xl text-gray-400">No wallet connected</p>
+</div>
+<div class=" relative pt-0 pb-4 md:pb-6 px-4 md:px-6 h-full overflow-hidden"
+    *ngIf="isWalletConnected() && !(loading || dataProvidersLoading)">
+    <ul
+        class="w-full text-on-white bg-white border border-gray-200 rounded-md dark:bg-gray-700 dark:border-gray-600 mb-2">
+        <li
+            class="relative inline-flex items-center justify-between w-full px-4 py-2 text-sm font-medium border-b border-gray-200 rounded-t-lg focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:border-gray-600 dark:hover:bg-gray-600 dark:hover:text-white dark:focus:ring-gray-500 dark:focus:text-white">
+            <span class="flex items-center">
+                <mat-icon class="mr-2" svgIcon="heroicons_outline:banknotes"></mat-icon>
+                Claimable rewards
+            </span>
+            <span matTooltip="{{getClaimableRewardsAmount(true)| number: '1.0-18'}}" [matTooltipPosition]="'above'">
+                {{((getClaimableRewardsAmount(true)) | number).split('.')[0]}}<span
+                    class="text-xs text-secondary">.{{(getClaimableRewardsAmount(true)).toFixed(4).split('.')[1]
+                    }}</span><span class="text-secondary"> {{selectedChain.wrappedCurrency.symbol}}</span></span>
+        </li>
+
+        <li
+            class="relative inline-flex items-center justify-between w-full px-4 py-2 text-sm font-medium border-b border-gray-200 rounded-t-lg focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:border-gray-600 dark:hover:bg-gray-600 dark:hover:text-white dark:focus:ring-gray-500 dark:focus:text-white">
+            <span class="flex items-center">
+                <mat-icon class="mr-2" svgIcon="heroicons_outline:clock"></mat-icon>
+                Next claim in
+            </span>
+            <flare-base-countdown [inputTimestamp]="time" [displayUnits]="3"></flare-base-countdown>
+
+        </li>
+    </ul>
+    <h3 class="my-3 text-lg font-medium tracking-tight leading-6 truncate truncate">
+        Current earnings
+    </h3>
+    <ul
+        class="w-full text-on-white bg-white border border-gray-200 rounded-md dark:bg-gray-700 dark:border-gray-600 mb-2">
+        <ng-container *ngFor="let unclaimedReward of unclaimedRewards">
+            <li class="relative inline-flex items-center justify-between w-full px-4 py-2 text-sm font-medium border-b border-gray-200 rounded-t-lg focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:border-gray-600 dark:hover:bg-gray-600 dark:hover:text-white dark:focus:ring-gray-500 dark:focus:text-white"
+                *ngIf="!unclaimedReward.claimable">
+                <span class="flex items-center">
+                    <span class="whitespace-nowrap truncate">
+                        <div class="flex items-center pt-1">
+                            <img class="w-8 h-8 mr-2 p-1 rounded-full ring-icon"
+                                [src]="getDataProviderInfoByAddress(unclaimedReward.dataProvider).icon"
+                                [alt]="getDataProviderInfoByAddress(unclaimedReward.dataProvider).name+' icon'">
+                            <div class="leading-4 truncate">
+                                <div class="truncate">
+                                    <a>{{getDataProviderInfoByAddress(unclaimedReward.dataProvider).name}}</a>
+                                </div>
+                                <div class="text-xs truncate">
+                                    {{getDataProviderInfoByAddress(unclaimedReward.dataProvider).address}}
+                                </div>
+
+                            </div>
+                        </div>
+                    </span>
+                </span>
+                <span matTooltip="{{unclaimedReward.amount| number: '1.0-18'}}"
+                    [matTooltipPosition]="'above'">{{((unclaimedReward.amount) | number).split('.')[0]}}<span
+                        class="text-xs text-secondary">.{{(unclaimedReward.amount).toFixed(4).split('.')[1]
+                        }}</span><span class="text-secondary"> {{selectedChain.wrappedCurrency.symbol}}</span></span>
+            </li>
+        </ng-container>
+        <li
+            class="relative inline-flex items-center justify-between w-full px-4 py-2 text-sm font-medium border-b border-gray-200 rounded-t-lg focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:border-gray-600 dark:hover:bg-gray-600 dark:hover:text-white dark:focus:ring-gray-500 dark:focus:text-white">
+            <span class="flex items-center">
+                <mat-icon class="mr-4" svgIcon="feather:trending-up"></mat-icon>
+                Total
+            </span>
+            <span matTooltip="{{getClaimableRewardsAmount(false)| number: '1.0-18'}}" [matTooltipPosition]="'above'">
+                {{((getClaimableRewardsAmount(false)) | number).split('.')[0]}}<span
+                    class="text-xs text-secondary">.{{(getClaimableRewardsAmount(false)).toFixed(4).split('.')[1]
+                    }}</span><span class="text-secondary"> {{selectedChain.wrappedCurrency.symbol}}</span></span>
+        </li>
+    </ul>
+    <div class="flex flex-auto justify-end items-end space-x-4 mt-3">
+        <button   [disabled]="getClaimableRewardsAmount(true) == 0" mat-flat-button class="button rounded-md" (click)="openClaimRewardsDialog()" [color]="'primary'">
+            <span *ngIf="getClaimableRewardsAmount(true) > 0">Claim rewards</span>
+            <span *ngIf="getClaimableRewardsAmount(true) == 0">No rewards to claim</span>
+
+        </button>
+    </div>
+</div>
+
+<ng-template #dialogTemplate let-dialogRef="dialogRef">
+    <h3 class="modal-title" id="modal-basic-title" *ngIf="operation == operations.rewardsClaim">Claim rewards</h3>
+    <mat-dialog-content class="relative min-h-32">
+
+        <div *ngIf="operation == operations.rewardsClaim">
+            <p class="mb-2">You are going to claim <span class="font-semibold">{{((getClaimableRewardsAmount(true)) |
+                    number).split('.')[0]}}<span
+                        class="text-xs">.{{(getClaimableRewardsAmount(true)).toFixed(4).split('.')[1]
+                        }}</span> {{!claimRequest.wrap ? selectedChain.nativeCurrency.symbol :
+                    selectedChain.wrappedCurrency.symbol}}</span>. </p>
+            <p class="mb-2"
+                *ngIf="claimRequest.receiver && claimRequest.receiver != null && claimRequest.receiver != ''">
+                The rewards will be sent to <span class="font-semibold">{{claimRequest.receiver}}</span> address.
+            </p>
+            <mat-radio-group [(ngModel)]="receiveMode">
+
+                <div class="flex flex-auto items-center space-x-4 mb-2">
+                    <div
+                        class="group flex space-x-3 w-full p-3 bg-gray-100 hover:bg-primary-200 dark:bg-gray-700 dark:hover:bg-gray-900 border-gray-200 dark:border-gray-600 border rounded-xl min-h-10 hover:cursor-pointer">
+                        <mat-radio-button name="receiveOwn" ngDefaultControl [color]="'primary'" class="w-full"
+                            (change)="setReceiveMode($event.value)" value="own"><span class="w-full">Receive
+                                rewards on current wallet
+                                address</span></mat-radio-button>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4 mb-2">
+                    <div
+                        class="group flex space-x-3 w-full p-3 bg-gray-100 hover:bg-primary-200 dark:bg-gray-700 dark:hover:bg-gray-900 border-gray-200 dark:border-gray-600 border rounded-xl min-h-10 hover:cursor-pointer">
+                        <div class="flex flex-col w-full">
+                            <mat-radio-button name="receiveOther" ngDefaultControl [color]="'primary'"
+                                (change)="setReceiveMode($event.value)" value="other">Send rewards to another wallet
+                                address</mat-radio-button>
+                            <mat-form-field class="flex w-full ui-mat-dense mb-2 md:mb-0 " *ngIf="receiveMode=='other'"
+                                subscriptSizing="dynamic">
+                                <input name="receiveOtherAddress" matInput autocomplete="off" spellcheck="false"
+                                    [(ngModel)]="claimRequest.receiver" placeholder="Enter receiver address" />
+                                <ng-icon matPrefix class="text-lg mr-2" strokeWidth="2" name="featherHash"></ng-icon>
+                            </mat-form-field>
+                        </div>
+
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4 mb-2" *ngIf="rewardDistributorNamedInstances.length > 0">
+                    <div
+                        class="group flex space-x-3 w-full p-3 bg-gray-100 hover:bg-primary-200 dark:bg-gray-700 dark:hover:bg-gray-900 border-gray-200 dark:border-gray-600 border rounded-xl min-h-10 hover:cursor-pointer">
+                        <div class="flex flex-col w-full">
+                            <mat-radio-button name="receiveOther" ngDefaultControl [color]="'primary'"
+                                (change)="setReceiveMode($event.value)" value="distributor">Send rewards to a Reward
+                                Distributor list <span class="text-sm"><a
+                                        class="underline color-accent hover:color-primary"
+                                        href="https://rewarddistributor.acdtftso.it" title="Flare Reward Distributor"
+                                        target="_new">(Learn more)</a></span>
+                            </mat-radio-button>
+                            <mat-radio-group [(ngModel)]="claimRequest.receiver" *ngIf="receiveMode=='distributor'">
+                                <mat-radio-button class="ml-4"
+                                    *ngFor="let rewardDistributorNamedInstance of rewardDistributorNamedInstances"
+                                    [name]="rewardDistributorNamedInstance.instance" ngDefaultControl
+                                    [color]="'primary'"
+                                    [value]="rewardDistributorNamedInstance.instance">{{rewardDistributorNamedInstance.description
+                                    ? rewardDistributorNamedInstance.description :
+                                    rewardDistributorNamedInstance.instance}}</mat-radio-button>
+                            </mat-radio-group>
+                        </div>
+
+                    </div>
+                </div>
+            </mat-radio-group>
+            <mat-slide-toggle class="mr-4" [color]="'primary'" [checked]="claimRequest.wrap"
+                (change)="toggleWrapRewards($event)">
+                Wrap tokens on claim
+            </mat-slide-toggle>
+
+        </div>
+
+        <div *ngIf="operation == operations.submitting" class="text-center">
+            <div class="circle-loader justify-center items-center mx-auto">
+            </div>
+            <p class="font-semibold">Waiting for user confirmation</p>
+            <p class="text-secondary">Follow prompts from your wallet</p>
+        </div>
+
+        <div *ngIf="operation == operations.transacting" class="text-center">
+            <div class="line-loader justify-center items-center mx-auto">
+            </div>
+            <p class="font-semibold">Waiting for network confirmation</p>
+        </div>
+
+        <ui-alert [appearance]="'outline'" [type]="clientMessage.type ? clientMessage.type : 'basic'"
+            *ngIf="clientMessage.hasMessage()" [showIcon]="true" class="flex max-w-full">
+            <h4 class="font-semibold" *ngIf="clientMessage.title != null">{{clientMessage.title}}</h4>
+            <p *ngIf="clientMessage.message != null">{{clientMessage.message}}</p>
+            <a *ngIf="clientMessage.txUrl" class="button-sm button-sm-light w-full px-3 mt-3" target="_blank"
+                href="{{clientMessage.txUrl}}" mat-stroked-button>
+                <ng-icon name="heroLink" size="1.2rem" class="mr-2 text-gray-400" strokeWidth="1"></ng-icon>View on
+                block explorer</a>
+        </ui-alert>
+
+    </mat-dialog-content>
+    <mat-dialog-actions class="flex justify-between">
+        <div>
+            <button [disabled]="operation == operations.transacting ||operation == operations.submitting"
+                mat-flat-button class="button rounded-md" (click)="dialogRef.close();">Close</button>
+        </div>
+
+        <div>
+            <button *ngIf="operation==operations.rewardsClaim" disabled mat-flat-button class="button rounded-md"
+                [disabled]="!claimRequest.receiver || (claimRequest.receiver != null && claimRequest.receiver == '')"
+                (click)="claimRewards(claimRequest)" [color]="'primary'">Claim rewards</button>
+            <button *ngIf="operation==operations.submitting" disabled mat-flat-button class="button rounded-md"
+                [color]="'primary'">Waiting for authorization...</button>
+            <button *ngIf="operation==operations.submitted" disabled mat-flat-button class="button rounded-md"
+                [color]="'primary'">Transaction submitted...</button>
+            <button *ngIf="operation==operations.transacting" disabled mat-flat-button class="button rounded-md"
+                [color]="'primary'">Transaction in progress...</button>
+        </div>
+    </mat-dialog-actions>
+</ng-template>

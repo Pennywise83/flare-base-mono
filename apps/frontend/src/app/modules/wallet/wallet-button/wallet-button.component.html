@@ -1,0 +1,43 @@
+<button mat-stroked-button [matMenuTriggerFor]="disconnectWalletMenu" *ngIf="isWalletConnected()"
+    class="min-w-36 sm:max-w-36 md:max-w-52 pl-0 rounded-full text-sm md:text-base font-normal	 justify-start overflow-hidden truncate"
+    [disabled]="!isWeb3ClientInstalled || loading">
+    <div class="flex items-center ml-1 w-full" matPrefix>
+        <ng-container *ngIf="loading">
+            <span class="flex w-8 h-8 rounded-full ring-icon mr-2 justify-center items-center">
+                <ng-icon name="heroWallet" class="text-xl" strokeWidth="1"></ng-icon>
+            </span>
+            Connecting to wallet...
+        </ng-container>
+        <ng-container *ngIf="!loading">
+            <span class="flex w-8 h-8 p-0.5 pt-1 rounded-full ring-icon mr-2 justify-center items-center">
+                <ngx-jazzicon [diameter]="26" [colors]="['#514586','#f27863','#41d9b7','#3db6e6']"
+                    [seed]="getSeed(selectedAddress)"></ngx-jazzicon>
+            </span>
+            <span class="text-sm" *ngIf="!isScreenSmall">{{selectedAddress | addressTrim:10}}</span>
+            <span class="text-sm" *ngIf="isScreenSmall">{{selectedAddress | addressTrim:8}}</span>
+        </ng-container>
+    </div>
+    <mat-menu #disconnectWalletMenu="matMenu">
+        <button mat-menu-item (click)="disconnectWeb3Client()">
+            <ng-icon name="heroWallet" class="text-xl mr-2" strokeWidth="1"></ng-icon>Disconnect wallet
+        </button>
+    </mat-menu>
+</button>
+<button mat-stroked-button *ngIf="!isWalletConnected()"
+    class="sm:max-w-36 md:max-w-52 pl-0 rounded-full text-sm md:text-base font-normal	 justify-start overflow-hidden truncate"
+    [disabled]="!isWeb3ClientInstalled || loading" (click)="connectWeb3Client()">
+    <div class="flex items-center ml-1 w-full" matPrefix>
+        <ng-container *ngIf="!isWeb3ClientInstalled">
+            <span class="flex w-8 h-8 rounded-full ring-icon mr-2 justify-center items-center">
+                <mat-icon class="icon-size-4" [svgIcon]="'heroicons_outline:wallet'"></mat-icon>
+            </span>
+            No wallet installed
+        </ng-container>
+        <ng-container *ngIf="isWeb3ClientInstalled">
+            <span class="flex w-8 h-8 rounded-full ring-icon mr-2 justify-center items-center">
+                <ng-icon name="heroWallet" class="text-xl" strokeWidth="1"></ng-icon>
+            </span>
+            Connect wallet
+        </ng-container>
+    </div>
+</button>

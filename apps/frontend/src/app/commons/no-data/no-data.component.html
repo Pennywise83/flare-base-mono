@@ -1,0 +1,181 @@
+<div @slideInBottom class="w-full p-2" *ngIf="showNoData">
+    <ui-alert [appearance]="'soft'" [type]="'basic'" class="mb-2" *ngIf="label != null && label.trim() != ''">
+        <mat-icon class="icon-size-5" fuseAlertIcon [svgIcon]="'heroicons_solid:x-mark'">
+        </mat-icon>
+        {{label}}
+    </ui-alert>
+    <div role="status" *ngIf="skeletonType == 'chart'" class="flex-auto w-full h-full opacity-40">
+        <div class="flex items-baseline mt-4 space-x-6 ">
+            <div class="w-full bg-gray-200 rounded-t-lg h-72 dark:bg-gray-700"></div>
+            <div class="w-full h-56 bg-gray-200 rounded-t-lg dark:bg-gray-700"></div>
+            <div class="w-full bg-gray-200 rounded-t-lg h-30 dark:bg-gray-700"></div>
+            <div class="w-full h-64 bg-gray-200 rounded-t-lg dark:bg-gray-700"></div>
+            <div class="w-full bg-gray-200 rounded-t-lg h-80 dark:bg-gray-700"></div>
+            <div class="w-full bg-gray-200 rounded-t-lg h-50 dark:bg-gray-700"></div>
+            <div class="w-full h-64 bg-gray-200 rounded-t-lg dark:bg-gray-700"></div>
+            <div class="w-full bg-gray-200 rounded-t-lg h-40 dark:bg-gray-700"></div>
+            <div class="w-full bg-gray-200 rounded-t-lg h-72 dark:bg-gray-700"></div>
+            <div class="w-full bg-gray-200 rounded-t-lg h-80 dark:bg-gray-700"></div>
+        </div>
+        <span class="sr-only">Loading...</span>
+    </div>
+    <div role="status" *ngIf="skeletonType == 'table'"
+        class="p-4 space-y-4 divide-y divide-gray-200 rounded  dark:divide-gray-700 md:p-6  opacity-40">
+        <div class="flex items-center justify-between">
+            <div>
+                <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-24 mb-2.5"></div>
+                <div class="w-32 h-2 bg-gray-200 rounded-full dark:bg-gray-700"></div>
+            </div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-700 w-12"></div>
+        </div>
+
+        <div class="flex items-center justify-between pt-4">
+            <div>
+                <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-24 mb-2.5"></div>
+                <div class="w-32 h-2 bg-gray-200 rounded-full dark:bg-gray-700"></div>
+            </div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-700 w-12"></div>
+        </div>
+        <div class="flex items-center justify-between pt-4">
+            <div>
+                <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-24 mb-2.5"></div>
+                <div class="w-32 h-2 bg-gray-200 rounded-full dark:bg-gray-700"></div>
+            </div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-700 w-12"></div>
+        </div>
+        <div class="flex items-center justify-between pt-4">
+            <div>
+                <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-24 mb-2.5"></div>
+                <div class="w-32 h-2 bg-gray-200 rounded-full dark:bg-gray-700"></div>
+            </div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-700 w-12"></div>
+        </div>
+        <div class="flex items-center justify-between pt-4">
+            <div>
+                <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-24 mb-2.5"></div>
+                <div class="w-32 h-2 bg-gray-200 rounded-full dark:bg-gray-700"></div>
+            </div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-700 w-12"></div>
+        </div>
+        <div class="flex items-center justify-between pt-4">
+            <div>
+                <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-24 mb-2.5"></div>
+                <div class="w-32 h-2 bg-gray-200 rounded-full dark:bg-gray-700"></div>
+            </div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-700 w-12"></div>
+        </div>
+        <div class="flex items-center justify-between pt-4">
+            <div>
+                <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-24 mb-2.5"></div>
+                <div class="w-32 h-2 bg-gray-200 rounded-full dark:bg-gray-700"></div>
+            </div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-700 w-12"></div>
+        </div>
+        <div class="flex items-center justify-between pt-4">
+            <div>
+                <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-24 mb-2.5"></div>
+                <div class="w-32 h-2 bg-gray-200 rounded-full dark:bg-gray-700"></div>
+            </div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-700 w-12"></div>
+        </div>
+
+    </div>
+
+
+    <div role="status" class="space-y-2.5  opacity-40 " *ngIf="skeletonType == 'text'">
+        <div class="flex items-center w-full space-x-2">
+            <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-32"></div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-24"></div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-full"></div>
+        </div>
+        <div class="flex items-center w-full space-x-2 max-w-[480px]">
+            <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-full"></div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-full"></div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-24"></div>
+        </div>
+        <div class="flex items-center w-full space-x-2 max-w-[440px]">
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-32"></div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-24"></div>
+            <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-full"></div>
+        </div>
+        <div class="flex items-center w-full space-x-2 max-w-[360px]">
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-full"></div>
+            <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-80"></div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-full"></div>
+        </div>
+        <div class="flex items-center w-full space-x-2 max-w-[400px]">
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-full"></div>
+            <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-80"></div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-full"></div>
+        </div>
+        <div class="flex items-center w-full space-x-2 max-w-[400px]">
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-full"></div>
+            <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-80"></div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-full"></div>
+        </div>
+        <div class="flex items-center w-full space-x-2 max-w-[440px]">
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-32"></div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-24"></div>
+            <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-full"></div>
+        </div>
+        <div class="flex items-center w-full space-x-2 max-w-[360px]">
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-full"></div>
+            <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-80"></div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-full"></div>
+        </div>
+        <div class="flex items-center w-full space-x-2 max-w-[480px]">
+            <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-full"></div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-full"></div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-24"></div>
+        </div>
+        <div class="flex items-center w-full space-x-2 max-w-[440px]">
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-32"></div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-24"></div>
+            <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-full"></div>
+        </div>
+        <div class="flex items-center w-full space-x-2 max-w-[360px]">
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-full"></div>
+            <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-80"></div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-full"></div>
+        </div>
+        <div class="flex items-center w-full space-x-2 max-w-[440px]">
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-32"></div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-24"></div>
+            <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-full"></div>
+        </div>
+        <div class="flex items-center w-full space-x-2 max-w-[360px]">
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-full"></div>
+            <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-80"></div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-full"></div>
+        </div>
+
+        <div class="flex items-center w-full space-x-2 max-w-[480px]">
+            <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-full"></div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-full"></div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-24"></div>
+        </div>
+        <div class="flex items-center w-full space-x-2 max-w-[440px]">
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-32"></div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-24"></div>
+            <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-full"></div>
+        </div>
+        <div class="flex items-center w-full space-x-2 max-w-[360px]">
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-full"></div>
+            <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-80"></div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-full"></div>
+        </div>
+        <div class="flex items-center w-full space-x-2 max-w-[440px]">
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-32"></div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-24"></div>
+            <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-full"></div>
+        </div>
+        <div class="flex items-center w-full space-x-2 max-w-[360px]">
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-full"></div>
+            <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-80"></div>
+            <div class="h-2.5 bg-gray-300 rounded-full dark:bg-gray-600 w-full"></div>
+        </div>
+
+        <span class="sr-only">Loading...</span>
+    </div>
+
+</div>

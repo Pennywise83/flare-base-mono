@@ -1,0 +1,173 @@
+<flare-base-loader [loading]="loading" [overlay]="true" [progress]="progress" skeletonType="table"> </flare-base-loader>
+<flare-base-no-data
+    *ngIf="!loading && (!delegationsData || delegationsData == null || (delegationsData != null && delegationsData.numResults == 0) )"
+    skeletonType="table"></flare-base-no-data>
+<div class="flex flex-col flex-auto  overflow-x-auto overflow-y-auto w-full">
+    <mat-paginator class="flex items-start" (page)="delegationsPageChange($event)"
+        *ngIf="showTopPaginator && delegationsData && delegationsData != null && delegationsData.results.length > 0"
+        #delegationsPaginator
+        [disabled]="loading||dataSource.data == null || (dataSource.data != null && dataSource.data.length == 0)"
+        [ngClass]="{'justify-start':(paginatorPosition == 'left'|| !paginatorPosition), 'justify-end': paginatorPosition == 'right'}"
+        [pageSize]="dynamicData ? request.pageSize: (pageSize ? pageSize : delegationsData.results.length)"
+        [hidePageSize]="hidePageSize || (dynamicData ? delegationsData.numResults : delegationsData.results.length) <= (dynamicData ? request.pageSize: (pageSize ? pageSize : delegationsData.results.length))"
+        [pageIndex]=" request.page - 1"
+        [length]="dynamicData ? delegationsData.numResults : delegationsData.results.length"
+        [pageSizeOptions]="[10, 25, 50, 100, 250]" showFirstLastButtons></mat-paginator>
+    <table @fadeIn fuse class=" transition-opacity ease-in-out duration-300 z-5 " mat-table matSort
+        *ngIf="delegationsData && delegationsData != null && delegationsData.results.length>0"
+        #delegationsTableSort="matSort" (matSortChange)="delegationsSortChange($event)" matSortDisableClear
+        [matSortActive]="sortOnColumn" [matSortDirection]="sortOrder" [dataSource]="dataSource" #dleegationsTable>
+
+        <ng-container matColumnDef="timestamp">
+            <th mat-header-cell mat-sort-header *matHeaderCellDef>
+                Date
+            </th>
+            <td mat-cell *matCellDef="let delegation">
+                <span class="flex flex-col items-start leading-4 pr-6 whitespace-nowrap">
+                    <span>{{delegation.timestamp | date:'MMM dd, y'}}</span>
+                    <span class="text-xs text-secondary">{{delegation.timestamp |
+                        date:'HH:mm:ss'}}</span>
+                </span>
+            </td>
+        </ng-container>
+        <ng-container matColumnDef="rewardEpoch">
+            <th mat-header-cell mat-sort-header *matHeaderCellDef>
+                Reward epoch
+            </th>
+            <td mat-cell *matCellDef="let delegation">
+                <span class="flex pr-6 whitespace-nowrap ">
+                    {{delegation.rewardEpochId || 'n.d.'}}
+                </span>
+            </td>
+        </ng-container>
+        <ng-container matColumnDef="from">
+            <th mat-header-cell mat-sort-header *matHeaderCellDef>
+                Delegator
+            </th>
+            <td mat-cell *matCellDef="let delegation">
+                <sat-popover #delegatorPopover verticalAlign="above" (backdropClicked)="delegatorPopover.close()"
+                    [autoFocus]="false" hasBackdrop>
+                    <div class="popover">
+                        <div class="flex items-center mb-2">
+                            <span
+                                class="relative flex w-8 h-8 pt-1 rounded-full ring-icon mr-2 justify-center items-center">
+                                <ngx-jazzicon [diameter]="27" [colors]="['#514586','#f27863','#41d9b7','#3db6e6']"
+                                    [seed]="getSeed(delegation.from)"></ngx-jazzicon>
+                            </span>
+                            <span class="text-lg font-normal">{{delegation.from}}</span>
+                        </div>
+                        <div class="flex flex-col items-start ">
+                            <button (click)="selectDelegator(delegation.from, ['delegations','search'])"
+                                class="button-sm  button-sm-primary px-6 hover:bg-primary-700 dark:hover:bg-primary-900 mb-2"
+                                [color]="'primary'" mat-flat-button [disabled]="loading">
+                                <ng-icon class="text-md pt-0.5 mr-2" name="heroMagnifyingGlass"></ng-icon>
+                                <span class="font-medium text-sm">Show in Delegations Search</span>
+                            </button>
+                            <button (click)="selectDelegator(delegation.from, ['rewards','search'])"
+                                class="button-sm  button-sm-primary px-6 hover:bg-primary-700 dark:hover:bg-primary-900 mb-2"
+                                [color]="'primary'" mat-flat-button [disabled]="loading">
+                                <ng-icon class="text-md pt-0.5 mr-2" name="heroMagnifyingGlass"></ng-icon>
+                                <span class="font-medium text-sm">Show in Claimed rewards Search</span>
+                            </button>
+                        </div>
+                    </div>
+                </sat-popover>
+                <span class="flex whitespace-nowrap hover:underline cursor-pointer"
+                    [satPopoverAnchor]="delegatorPopover" (click)="delegatorPopover.toggle()">
+                    <span class="flex w-7 h-7 pt-2 rounded-full ring-icon mr-2 justify-center items-center">
+                        <ngx-jazzicon [diameter]="22" [colors]="['#514586','#f27863','#41d9b7','#3db6e6']"
+                            [seed]="getSeed(delegation.from)"></ngx-jazzicon>
+                    </span>
+                    {{delegation.from}}
+                </span>
+            </td>
+        </ng-container>
+        <ng-container matColumnDef="amount">
+            <th mat-header-cell mat-sort-header *matHeaderCellDef>
+                Amount
+            </th>
+            <td mat-cell *matCellDef="let delegation">
+                <span class="flex pr-6 whitespace-nowrap " matTooltip="{{delegation.amount| number: '1.0-18'}}"
+                    [matTooltipPosition]="'above'">
+                    {{(delegation.amount | number).split('.')[0]}}<span
+                        class="text-xs text-secondary">.{{delegation.amount.toFixed(2).split('.')[1]
+                        }}</span>
+
+                </span>
+            </td>
+        </ng-container>
+        <ng-container matColumnDef="to">
+            <th mat-header-cell mat-sort-header *matHeaderCellDef>
+                Data provider
+            </th>
+            <td mat-cell *matCellDef="let delegation">
+                <sat-popover #addressPopover verticalAlign="above" (backdropClicked)="addressPopover.close()"
+                    [autoFocus]="false" hasBackdrop>
+                    <div class="popover">
+                        <div class="flex items-center mb-2">
+                            <img class="w-9 h-9 p-1 rounded-full ring-1 mr-2 ring-gray-300 dark:ring-gray-500 bg:gray-200 dark:bg-gray-100"
+                                [src]="delegation.icon" [alt]="delegation.name+' icon'">
+                            <div class="text-md font-semibold">
+                                <div>{{delegation.name}}
+                                </div>
+                                <div class="text-sm text-gray-500 dark:text-gray-400" [matTooltip]="delegation.to"
+                                    [matTooltipPosition]="'below'">
+                                    {{delegation.to}}</div>
+
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-start ">
+                            <button (click)="selectDataProvider(delegation.to, ['delegations','search'])"
+                                class="button-sm  button-sm-primary px-6 hover:bg-primary-700 dark:hover:bg-primary-900 mb-2"
+                                [color]="'primary'" mat-flat-button [disabled]="loading">
+                                <ng-icon class="text-md pt-0.5 mr-2" name="heroMagnifyingGlass"></ng-icon>
+                                <span class="font-medium text-sm">Show in Delegations Search</span>
+                            </button>
+                            <button
+                                (click)="selectDataProvider(delegation.to, ['delegations','explorer','current',delegation.to])"
+                                class="button-sm  button-sm-primary px-6 hover:bg-primary-700 dark:hover:bg-primary-900 mb-2"
+                                [color]="'primary'" mat-flat-button [disabled]="loading">
+                                <ng-icon class="text-md pt-0.5 mr-2" name="heroMagnifyingGlass"></ng-icon>
+                                <span class="font-medium text-sm">Show in Delegations Explorer</span>
+                            </button>
+                            <button (click)="selectDataProvider(delegation.to, ['rewards','search'])"
+                                class="button-sm  button-sm-primary px-6 hover:bg-primary-700 dark:hover:bg-primary-900 mb-2"
+                                [color]="'primary'" mat-flat-button [disabled]="loading">
+                                <ng-icon class="text-md pt-0.5 mr-2" name="heroMagnifyingGlass"></ng-icon>
+                                <span class="font-medium text-sm">Show in Claimed rewards Search</span>
+                            </button>
+                        </div>
+                    </div>
+                </sat-popover>
+                <span class="flex pr-6 whitespace-nowrap ">
+                    <div class="flex items-center space-x-4">
+                        <img class="w-8 h-8 p-1 rounded-full ring-icon" [src]="delegation.icon"
+                            [alt]="delegation.name+' icon'">
+                        <div class="dark:text-white leading-4 hover:underline cursor-pointer"
+                            [satPopoverAnchor]="addressPopover" (click)="addressPopover.toggle()">
+                            <div>{{delegation.name}}
+                            </div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400" [matTooltip]="delegation.to"
+                                [matTooltipPosition]="'below'">
+                                {{delegation.to|addressTrim:8}}</div>
+
+                        </div>
+                    </div>
+                </span>
+            </td>
+        </ng-container>
+        <tr class="h-8 text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400" mat-header-row
+            *matHeaderRowDef="tableColumns;"></tr>
+        <tr class="text-sm order-row h-11" mat-row *matRowDef="let row; columns: tableColumns;" @slideInRight>
+        </tr>
+    </table>
+    <mat-paginator class="flex items-start" (page)="delegationsPageChange($event)"
+        *ngIf="delegationsData && delegationsData != null && delegationsData.results.length > 0" #delegationsPaginator
+        [disabled]="loading||dataSource.data == null || (dataSource.data != null && dataSource.data.length == 0)"
+        [pageSize]="dynamicData ? request.pageSize: (pageSize ? pageSize : delegationsData.results.length)"
+        [hidePageSize]="hidePageSize || (dynamicData ? delegationsData.numResults : delegationsData.results.length) <= (dynamicData ? request.pageSize: (pageSize ? pageSize : delegationsData.results.length))"
+        [pageIndex]=" request.page - 1"
+        [ngClass]="{'justify-start':(paginatorPosition == 'left'|| !paginatorPosition), 'justify-end': paginatorPosition == 'right'}"
+        [length]="dynamicData ? delegationsData.numResults : delegationsData.results.length"
+        [pageSizeOptions]="[10, 25, 50, 100, 250]" showFirstLastButtons></mat-paginator>
+</div>

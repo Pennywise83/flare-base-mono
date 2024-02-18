@@ -1,0 +1,196 @@
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 min-w-0 py-4 md:py-6 px-4 md:px-8">
+    <div class="col-span-1 overflow-hidden justify-end">
+        <h2
+            class="shrink-0 text-2xl md:text-3xl lg:text-4xl font-light tracking-tight leading-7 sm:leading-10 truncate">
+            Delegations Explorer
+        </h2>
+    </div>
+    <div class="flex col-span-2 justify-end">
+        <mat-form-field ngDefaultControl name="selectedRewardEpoch" class="ui-mat-dense w-full lg:w-1/3 mr-3"
+            subscriptSizing="dynamic">
+            <mat-select [ngModel]="selectedRewardEpoch" [disabled]="loading"
+                (selectionChange)="handleRewardEpochChange($event)" class="reward-epochs-select">
+                <ng-container *ngFor="let rewardEpoch of availableRewardEpochs">
+                    <mat-option [value]="rewardEpoch">{{rewardEpoch == rewardEpochSettings.getCurrentEpochId() ?
+                        rewardEpoch+' (current)' : (rewardEpoch == rewardEpochSettings.getNextEpochId() ? rewardEpoch+'
+                        (next)' : rewardEpoch)}}</mat-option>
+                </ng-container>
+            </mat-select>
+            <div class="flex items-center mr-4" matPrefix>
+                <mat-icon class="icon-size-5 mr-2" [svgIcon]="'heroicons_outline:clock'"></mat-icon>
+                <label for="selectedRewardEpoch">Reward epoch</label>
+            </div>
+        </mat-form-field>
+        <button class="ring-1 bg-gray-200 ring-gray-300 dark:ring-gray-600 dark:bg-gray-700" (click)="refreshData()"
+            [disabled]="loading" mat-icon-button>
+            <ng-icon [ngClass]="{'animate-spin':loading}" class="text-lg text-gray-600 dark:text-gray-400"
+                name="featherRefreshCw"></ng-icon>
+        </button>
+    </div>
+
+</div>
+<div class="grid grid-cols-2 sm:grid-cols-3 gap-4 md:gap-6 w-full min-w-0 pb-6 px-4 md:px-8">
+    <div class="flex flex-col flex-auto  bg-card shadow rounded-lg h-20 sm:h-24  overflow-hidden hidden sm:block">
+        <flare-base-counter [loading]="loadingMap.isLoading('getRewardEpochSettings')" label="Reward epoch"
+            [countdownValue]="selectedRewardEpoch ? rewardEpochSettings.getEndTimeForEpochId(selectedRewardEpoch) : null"
+            [counterValue]="selectedRewardEpoch ? selectedRewardEpoch : selectedRewardEpoch+1"></flare-base-counter>
+    </div>
+    <div class="flex flex-col flex-auto  bg-card shadow rounded-lg overflow-hidden h-20 sm:h-24 overflow-hidden">
+        <flare-base-counter [loading]="loadingMap.isLoading('getVotePowerHistory')" label="Delegated vote power"
+            [variationValue]="votePowerChange" [variationLabel]="'from last reward epoch'"
+            [counterValue]="(delegatedVotePowerHistory.length > 0 ? delegatedVotePowerHistory[0].amount : null) | number: '1.0-0'"></flare-base-counter>
+    </div>
+    <div class="flex flex-col flex-auto  bg-card shadow rounded-lg h-20 sm:h-24 overflow-hidden">
+        <flare-base-counter [loading]="loadingMap.isLoading('getVotePowerHistory')" label="Number of delegators"
+            [variationValue]="totalDelegatorsChange" [variationLabel]="'from last reward epoch'"
+            [counterValue]="(delegatedVotePowerHistory.length > 0 ? delegatedVotePowerHistory[0].delegators : null)|number: '1.0-0'"></flare-base-counter>
+    </div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 w-full min-w-0 pb-2 md:pb-6 px-4 md:px-8">
+    <div class="col-span-1 lg:col-span-8 p-0  overflow-hidden bg-card shadow rounded-lg">
+        <div class="flex flex-col md:flex-row justify-between ">
+            <h3 class="p-6 py-4 text-lg font-medium tracking-tight leading-6 truncate truncate">
+                Data providers
+            </h3>
+            <div class="flex grow md:grow-0 w-full md:w-2/3 py-1 px-6 md:py-4  items-top">
+                <button class="button-sm button-sm-light px-6 mr-2" mat-stroked-button
+                    (click)="exportDataProviderData()" [disabled]="loading">
+                    <ng-icon class="text-md text-gray-700 dark:text-gray-300 pt-0.5 mr-2"
+                        name="featherDownload"></ng-icon>
+                    <span class="font-medium text-sm">Export</span>
+                </button>
+                <button class="pl-3  justify-start button-sm button-sm-white mr-2  min-w-36" mat-stroked-button
+                    [matMenuTriggerFor]="dataProvidersFilterMenu" color="white" [disabled]="loading">
+                    <span class="font-medium text-sm">
+                        <span *ngIf="!searchFilter.whitelisted && !searchFilter.listed">
+                            <span
+                                class="items-center justify-center w-6 h-6 font-semibold text-gray-800 bg-gray-100 rounded-full dark:bg-gray-400 dark:text-white mb-0.5 mr-2">
+                                <ng-icon class="text-lg pt-1" name="heroCheckBadge"></ng-icon>
+                            </span>
+                            All</span>
+                        <span *ngIf="searchFilter.whitelisted && !searchFilter.listed">
+                            <span
+                                class="items-center justify-center w-6 h-6 font-semibold text-green-800 bg-green-100 rounded-full dark:bg-green-400 dark:text-white mb-0.5 mr-2">
+                                <ng-icon class="text-lg pt-1" name="heroCheckBadge"></ng-icon>
+                            </span>
+                            Whitelisted only
+                        </span>
+                        <span *ngIf="searchFilter.whitelisted && searchFilter.listed">
+                            <span class="items-center justify-center w-6 h-6  font-semibold text-blue-800 bg-blue-100 
+                            rounded-full dark:bg-blue-400 dark:text-white mr-2">
+                                <ng-icon class="text-lg pt-1" name="heroCheckBadge"></ng-icon>
+                            </span>
+                            Listed only
+                        </span>
+                    </span>
+                </button>
+                <mat-menu #dataProvidersFilterMenu="matMenu">
+                    <button mat-menu-item
+                        (click)="searchFilter.whitelisted = false; searchFilter.listed = false; searchFilter$.next({nameOrAddress: searchFilter.nameOrAddress, whitelisted: null, listed: null})">
+                        <span
+                            class="inline-flex items-center justify-center w-5 h-5 font-semibold text-gray-800 bg-gray-100 rounded-full dark:bg-gray-400 dark:text-white mb-0.5 mr-2">
+                            <ng-icon class="text-lg" name="heroCheckBadge"></ng-icon>
+                        </span>
+                        All</button>
+                    <button mat-menu-item
+                        (click)="searchFilter.whitelisted = true; searchFilter.listed = false; searchFilter$.next({nameOrAddress: searchFilter.nameOrAddress, whitelisted: true, listed: null})">
+                        <span
+                            class="inline-flex items-center justify-center w-5 h-5 font-semibold text-green-800 bg-green-100 rounded-full dark:bg-green-400 dark:text-white mb-0.5 mr-2">
+                            <ng-icon class="text-lg" name="heroCheckBadge"></ng-icon>
+                        </span>
+                        Whitelisted only</button>
+                    <button mat-menu-item
+                        (click)="searchFilter.whitelisted = true; searchFilter.listed = true; ; searchFilter$.next({nameOrAddress: searchFilter.nameOrAddress, whitelisted: true, listed: true})">
+                        <span
+                            class="inline-flex items-center justify-center w-5 h-5  font-semibold text-blue-800 bg-blue-100 rounded-full dark:bg-blue-400 dark:text-white mr-2">
+                            <ng-icon class="text-lg" name="heroCheckBadge"></ng-icon>
+                        </span>Listed
+                        only</button>
+                </mat-menu>
+
+                <mat-form-field class="flex w-full max-w-96 ui-mat-dense mb-2 md:mb-0 button-sm text-sm"
+                    subscriptSizing="dynamic"
+                    (input)="searchFilter$.next({nameOrAddress:searchFilter.nameOrAddress, whitelisted: searchFilter.whitelisted, listed: searchFilter.listed })">
+                    <input [disabled]="loading" name="filter" matInput autocomplete="off" spellcheck="false"
+                        [(ngModel)]="searchFilter.nameOrAddress" placeholder="# Filter results...">
+                    <button [disabled]="loading" mat-icon-button matSuffix>
+                        <ng-icon class="text-lg" strokeWidth="2" name="heroMagnifyingGlass"></ng-icon>
+                    </button>
+                </mat-form-field>
+            </div>
+
+        </div>
+        <div class="flex flex-col h-full p-0 relative min-h-96">
+            <flare-base-data-providers [searchFilter]="searchFilter"
+                [loading]="loadingMap.isLoading('getDataProvidersData')" [dataProvidersData]="dataProvidersData"
+                (selectedAddress)="handleSelectedDataProvider($event)"></flare-base-data-providers>
+        </div>
+    </div>
+
+    <div class="col-span-1 lg:col-span-4 overflow-hidden">
+        <div class="bg-card shadow rounded-lg overflow-hidden mb-6">
+            <h3 class="shrink-0 p-6 py-4  text-lg font-medium tracking-tight leading-6 truncate truncate">
+                Vote power over delegations
+            </h3>
+            <div class="flex flex-col flex-auto h-48 overflow-hidden relative">
+                <flare-base-vote-power-over-delegations-chart [loading]="loadingMap.isLoading('getVotePowerHistory')"
+                    [votePowerHistory]="delegatedVotePowerHistory" [rewardEpochSettings]="rewardEpochSettings">
+                </flare-base-vote-power-over-delegations-chart>
+            </div>
+        </div>
+        <div class="bg-card shadow rounded-lg overflow-hidden mb-6">
+            <h3 class="shrink-0 p-6 py-4  text-lg font-medium tracking-tight leading-6 truncate truncate">
+                Vote power change
+            </h3>
+            <div class="flex flex-col flex-auto min-h-60  overflow-y-auto overflow-x-auto  relative">
+                <flare-base-vote-power-delegations-table [loading]="loadingMap.isLoading('getVotePowerHistory')"
+                    [hidePageSize]="true" [votePowerHistoryChange]="votePowerHistoryChange"
+                    [tableColumns]="['rewardEpoch','rewardEpochStartTime','votePower','votePowerChange']"
+                    [sortOnColumn]="'rewardEpoch'" [pageSize]="5">
+                </flare-base-vote-power-delegations-table>
+            </div>
+            <div class="p-4">
+                <button class="button-sm button-sm-light w-full px-6 mr-2" [disabled]="loading"
+                    (click)="showVotePowerHistory()" mat-stroked-button>Show Vote Power
+                    history</button>
+            </div>
+        </div>
+        <div class="bg-card shadow rounded-lg overflow-hidden mb-6">
+            <h3 class="shrink-0 p-6 py-4  text-lg font-medium tracking-tight leading-6 truncate truncate">
+                Delegators change
+            </h3>
+            <div class="flex flex-col flex-auto min-h-60  overflow-y-auto overflow-x-auto relative">
+                <flare-base-vote-power-delegations-table [loading]="loadingMap.isLoading('getVotePowerHistory')"
+                    [hidePageSize]="true" [votePowerHistoryChange]="votePowerHistoryChange"
+                    [tableColumns]="['rewardEpoch','rewardEpochStartTime','delegatorsCount','delegatorsCountChange']"
+                    [sortOnColumn]="'rewardEpoch'" [pageSize]="5">
+                </flare-base-vote-power-delegations-table>
+            </div>
+            <div class="p-4">
+                <button class="button-sm button-sm-light w-full px-6 mr-2" [disabled]="loading"
+                    (click)="showVotePowerHistory()" mat-stroked-button>Show Vote Power
+                    history</button>
+            </div>
+        </div>
+        <div class="p-0 overflow-x-auto overflow-y-auto bg-card shadow rounded-lg test">
+            <h3 class="shrink-0 p-6 py-4  text-lg font-medium tracking-tight leading-6 truncate truncate">
+                Latest delegations
+            </h3>
+            <div class="flex flex-col h-full p-0 relative min-h-40">
+                <flare-base-delegations-table [delegationsData]="latestDelegations"
+                    (delegatorSelected)="selectDelegator($event)" [refreshTable]="refreshLatestDelegationsTable"
+                    (dataProviderSelected)="selectDataProvider($event)" [dataProvidersInfo]="dataProvidersInfo"
+                    [tableColumns]="latestDelegationsTableColumns"
+                    [loading]="loadingMap.isLoading('getLatestDelegations')" [hidePageSize]="true"
+                    [sortOnColumn]="'timestamp'" [pageSize]="10">
+                </flare-base-delegations-table>
+            </div>
+            <div class="p-4">
+                <button class="button-sm w-full px-6 mr-2 button-sm-light" [disabled]="loading"
+                    (click)="showLatestDelegations()" mat-stroked-button>Show latest
+                    delegations</button>
+            </div>
+        </div>
+    </div>
+
+</div>

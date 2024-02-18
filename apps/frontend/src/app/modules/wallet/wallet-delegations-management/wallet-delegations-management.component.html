@@ -1,0 +1,68 @@
+<div class="min-w-0 py-4 md:py-6 px-4 md:px-8">
+    <h2 class="shrink-0 text-2xl md:text-3xl lg:text-4xl font-light tracking-tight leading-7 sm:leading-10 truncate">
+        Delegations management
+    </h2>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-5  gap-4 md:gap-6 w-full min-w-0 pb-2 md:pb-6 px-4 md:px-8">
+    <div class="col-span-1 md:col-span-2 space-y-4 md:space-y-6">
+        <div class="bg-card  shadow rounded-lg overflow-hidden">
+            <h3 class="p-6 py-4 text-lg font-medium tracking-tight leading-6 truncate truncate">
+                Delegations
+            </h3>
+            <div class="flex flex-col flex-auto overflow-y-auto overflow-x-auto relative min-h-28">
+                <flare-base-wallet-delegations [network]="network"></flare-base-wallet-delegations>
+            </div>
+        </div>
+    </div>
+    <div class="col-span-1 md:col-span-3 space-y-4 md:space-y-6">
+        <div class="bg-card shadow rounded-lg overflow-hidden mb-6">
+            <h3 class="shrink-0 p-6 py-4  text-lg font-medium tracking-tight leading-6 truncate truncate">
+                Latest delegations
+            </h3>
+            <form class="flex-none md:flex p-6 py-4 md:flex-row md:col-span-2 justify-between items-center" (ngSubmit)="refreshData()"
+                name="searchForm">
+                <mat-form-field class="flex w-full md:w-96 md:mr-2 ui-mat-dense mb-2 md:mb-0 button-sm button-sm-light"
+                    subscriptSizing="dynamic">
+                    <input [disabled]="delegationsLoading" name="addressTo" matInput autocomplete="off"
+                        spellcheck="false" [(ngModel)]="request.to" placeholder="Data provider address" />
+                    <ng-icon matPrefix class="text-lg mr-2" strokeWidth="2" name="featherHash"></ng-icon>
+                </mat-form-field>
+                <div class="flex flex-row justify-end items-end md:items-center">
+                    <button type="button" class="justify-center button-sm button-sm-white mr-2 min-w-32"
+                        mat-stroked-button (click)="false" name="timeRangeMenu" [disabled]="delegationsLoading"
+                        [matMenuTriggerFor]="timeRangeMenu">
+                        <ng-icon class="text-md text-gray-700 dark:text-gray-300 pt-0.5 mr-2"
+                            name="featherClock"></ng-icon>
+                        <span class="font-medium text-sm">{{selectedTimeRangeDefinition.label}}</span>
+                    </button>
+                    <mat-menu #timeRangeMenu="matMenu">
+                        <button (click)="setTimeRange(timeRange)" *ngFor="let timeRange of timeRanges"
+                            mat-menu-item>{{timeRange.label}}</button>
+                        <button mat-menu-item>Custom range</button>
+                    </mat-menu>
+                    <button type="button" class="button-sm  button-sm-light px-6 mr-2 rounded-md shadow "
+                        mat-stroked-button name="exportButton" (click)="exportCsv()" [disabled]="delegationsLoading">
+                        <ng-icon class="text-md pt-0.5 mr-2" name="featherDownload"></ng-icon>
+                        <span class="font-medium text-sm">Export</span>
+                    </button>
+                    <button type="submit" class="button-sm button-sm-primary  px-5 py-1 mr-0" mat-flat-button
+                        [color]="'primary'" [disabled]="delegationsLoading">
+                        <ng-icon class="text-md pt-0.5" name="heroMagnifyingGlass"></ng-icon>
+                        <span class="ml-1">Search</span>
+                    </button>
+                </div>
+            </form>
+            <div
+                class="flex flex-col flex-auto overflow-y-auto overflow-x-auto relative h-full relative min-h-60 bg-card">
+                <flare-base-delegations-table [delegationsData]="delegations" [dynamicData]="true"
+                    [dataProvidersInfo]="dataProvidersInfo" [loading]="delegationsLoading" [tableColumns]="tableColumns"
+                    [paginatorPosition]="'right'" [sortOnColumn]="request.sortField" [pageSize]="request.pageSize"
+                    (requestEvent)="handleRequestEvent($event)" [request]="request" [showTopPaginator]="false"
+                    [hidePageSize]="false" 
+                    (dataProviderSelected)="selectDataProvider($event)">
+                </flare-base-delegations-table>
+            </div>
+        </div>
+    </div>
+</div>

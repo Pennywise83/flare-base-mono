@@ -1,0 +1,109 @@
+<flare-base-loader [loading]="loading" skeletonType="table" [overlay]="true" ></flare-base-loader>
+<flare-base-no-data skeletonType="table"
+    *ngIf="!loading && (!votePowerHistoryChange || votePowerHistoryChange.length == 0)"></flare-base-no-data>
+<table @fadeIn fuse class=" transition-opacity ease-in-out duration-300 " mat-table matSort #tableSort="matSort"
+    [matSortActive]="sortOnColumn" [matSortDirection]="sortOrder"
+    *ngIf="votePowerHistoryChange && votePowerHistoryChange != null && votePowerHistoryChange.length>0"
+    [dataSource]="dataSource">
+    <ng-container matColumnDef="rewardEpoch">
+        <th mat-header-cell mat-sort-header *matHeaderCellDef>
+            Epoch
+        </th>
+        <td class="ps-3 pe-0" mat-cell *matCellDef="let votePowerHistoryChange">
+            <span class="flex pr-6 whitespace-nowrap ps-3">
+                {{votePowerHistoryChange.rewardEpoch}}
+            </span>
+        </td>
+    </ng-container>
+    <ng-container matColumnDef="rewardEpochStartTime">
+        <th mat-header-cell mat-sort-header *matHeaderCellDef>
+            Start time
+        </th>
+        <td class="ps-3 pe-0" mat-cell *matCellDef="let votePowerHistoryChange">
+            <span class="flex flex-col items-start leading-4 pr-6 whitespace-nowrap">
+                <span>{{votePowerHistoryChange.rewardEpochStartTime | date:'MMM dd, y'}}</span>
+                <span class="text-xs text-secondary">{{votePowerHistoryChange.rewardEpochStartTime |
+                    date:'HH:mm:ss'}}</span>
+            </span>
+        </td>
+    </ng-container>
+    <ng-container matColumnDef="votePower">
+        <th mat-header-cell mat-sort-header *matHeaderCellDef>
+            Vote power
+        </th>
+        <td class="ps-3 pe-0" mat-cell *matCellDef="let votePowerHistoryChange">
+            <span class="flex pr-6 whitespace-nowrap ">
+                {{(votePowerHistoryChange.votePower | number).split('.')[0]}}<span
+                    class="text-xs text-secondary">.{{votePowerHistoryChange.votePower.toFixed(2).split('.')[1]
+                    }}</span>
+            </span>
+        </td>
+    </ng-container>
+    <ng-container matColumnDef="votePowerChange">
+        <th mat-header-cell mat-sort-header *matHeaderCellDef>
+            Change
+        </th>
+        <td class="ps-3 pe-0" mat-cell *matCellDef="let votePowerHistoryChange">
+            <ng-container *ngIf="votePowerHistoryChange.votePowerChange != 0">
+                <div class="flex items-center text-md leading-none whitespace-nowrap text-secondary overflow-hidden">
+                    <mat-icon class="icon-size-4 text-red-500" *ngIf="votePowerHistoryChange.votePowerChange < 0"
+                        [svgIcon]="'heroicons_mini:arrow-trending-down'"></mat-icon>
+                    <mat-icon class="icon-size-4 text-green-500" *ngIf="votePowerHistoryChange.votePowerChange > 0"
+                        [svgIcon]="'heroicons_mini:arrow-trending-up'"></mat-icon>
+                    <span class="text-sm" matTooltip="{{votePowerHistoryChange.votePowerChange| number: '1.0-18'}}%"
+                        [matTooltipPosition]="'above'"
+                        [ngClass]="{'text-red-500':votePowerHistoryChange.votePowerChange < 0,'text-green-500':votePowerHistoryChange.votePowerChange > 0}">{{votePowerHistoryChange.votePowerChange
+                        > 0 ? '+'+(votePowerHistoryChange.votePowerChange|number: '1.0-2') :
+                        (votePowerHistoryChange.votePowerChange|number: '1.0-2')}}%</span>
+                </div>
+            </ng-container>
+            <ng-container *ngIf="votePowerHistoryChange.votePowerChange == 0">
+                <span class="text-sm text-gray-500">-</span>
+            </ng-container>
+        </td>
+    </ng-container>
+    <ng-container matColumnDef="delegatorsCount">
+        <th mat-header-cell mat-sort-header *matHeaderCellDef>
+            Delegators
+        </th>
+        <td class="ps-3 pe-0" mat-cell *matCellDef="let votePowerHistoryChange">
+            <span class="flex pr-6 whitespace-nowrap ">
+                {{votePowerHistoryChange.delegatorsCount}}
+            </span>
+        </td>
+    </ng-container>
+    <ng-container matColumnDef="delegatorsCountChange">
+        <th mat-header-cell mat-sort-header *matHeaderCellDef>
+            Change
+        </th>
+        <td class="ps-3 pe-0" mat-cell *matCellDef="let votePowerHistoryChange">
+            <ng-container *ngIf="votePowerHistoryChange.delegatorsCountChange!= 0">
+                <div class="flex items-center text-md leading-none whitespace-nowrap text-secondary overflow-hidden">
+                    <mat-icon class="icon-size-4 text-red-500" *ngIf="votePowerHistoryChange.delegatorsCountChange < 0"
+                        [svgIcon]="'heroicons_mini:arrow-trending-down'"></mat-icon>
+                    <mat-icon class="icon-size-4 text-green-500"
+                        *ngIf="votePowerHistoryChange.delegatorsCountChange > 0"
+                        [svgIcon]="'heroicons_mini:arrow-trending-up'"></mat-icon>
+                    <span class="text-sm"
+                        matTooltip="{{votePowerHistoryChange.delegatorsCountChange| number: '1.0-18'}}%"
+                        [matTooltipPosition]="'above'"
+                        [ngClass]="{'text-red-500':votePowerHistoryChange.delegatorsCountChange < 0,'text-green-500':votePowerHistoryChange.delegatorsCountChange > 0}">{{votePowerHistoryChange.delegatorsCountChange
+                        > 0 ? '+'+(votePowerHistoryChange.delegatorsCountChange|number: '1.0-2') :
+                        (votePowerHistoryChange.delegatorsCountChange|number: '1.0-2')}}%</span>
+                </div>
+            </ng-container>
+            <ng-container *ngIf="votePowerHistoryChange.delegatorsCountChange == 0">
+                <span class="text-sm text-gray-500">-</span>
+            </ng-container>
+        </td>
+    </ng-container>
+    <tr class="h-8 text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400" mat-header-row
+        *matHeaderRowDef="tableColumns;sticky: false;"></tr>
+    <tr class="text-sm order-row h-10" mat-row @slideInRight *matRowDef="let row; columns: tableColumns;">
+    </tr>
+</table>
+<mat-paginator *ngIf="votePowerHistoryChange && votePowerHistoryChange != null && votePowerHistoryChange.length > 0"
+    #tablePaginatior
+    [disabled]="loading||dataSource.data == null || (dataSource.data != null && dataSource.data.length == 0)"
+    class="flex items-start justify-start" [pageSize]="pageSize" [hidePageSize]="hidePageSize"
+    [pageSizeOptions]="[10, 25, 50, 100, 250]" [length]="dataSource.data.length" showFirstLastButtons></mat-paginator>

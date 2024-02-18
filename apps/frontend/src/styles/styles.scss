@@ -1,0 +1,220 @@
+#main-container {
+    background-size: 100% 200%;
+    animation: gradient 15s ease infinite;
+    height: 100vh;
+}
+
+.light #main-container {
+    background: linear-gradient(-45deg, #ecbec498, #05679fb0, #ffffff, #22b8b8a2);
+}
+
+.dark #main-container {
+    background: linear-gradient(-45deg, #0f172a, #1e293b, #475569, #475569);
+}
+@keyframes gradient {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+.breadcrumb-icon {
+    transform: scale(0.65);
+}
+.xng-breadcrumb-separator {
+    margin: 0 4px;
+}
+a.active {
+    background-color: red !important;
+}
+.xng-breadcrumb-root {
+    padding: 0;
+    display: inline-block;
+}
+// Mat menu tailwind style
+.mat-mdc-select-panel {
+    border-radius: 0.375rem !important;
+    margin-top: 2px !important;
+}
+
+flare-base-loader {
+    display: contents;
+}
+
+.ui-mat-dense {
+    background-color: var(--ui-bg-default-rgb) !important;
+}
+
+.reward-epochs-select .mat-mdc-select-value {
+    justify-content: end;
+}
+
+.button-sm {
+    line-height: 1rem !important;
+    height: 2.1rem !important;
+    @apply min-w-0 min-h-0 text-sm  rounded-md shadow  #{!important};
+}
+.button-sm-white {
+    @apply bg-white dark:bg-default text-gray-600 dark:text-gray-400 #{!important};
+}
+.button-sm-light {
+    @apply bg-gray-100 dark:bg-default text-gray-600 dark:text-gray-400 #{!important};
+}
+.button-sm-primary {
+    @apply bg-primary  #{!important};
+}
+.button-sm .mat-mdc-form-field-infix {
+    min-height: 2.2rem !important;
+}
+.popover {
+    @apply z-10  min-w-64 text-sm  transition-opacity duration-300 border border-gray-300  dark:bg-gray-700 dark:border-gray-900 bg-gray-100  rounded-lg shadow-xl p-2;
+}
+
+.ring-icon {
+    @apply ring-1 ring-gray-300 dark:ring-gray-500 bg-gray-100 dark:bg-gray-300 #{!important};
+}
+
+input.numeric-field::-webkit-outer-spin-button,
+input.numeric-field::-webkit-inner-spin-button {
+    display: none;
+}
+
+input.numeric-field:focus {
+    outline: 0;
+    outline-offset: 0;
+    --tw-ring-inset: unset;
+    --tw-ring-offset-width: 0px;
+    --tw-ring-offset-color: #fff;
+    --tw-ring-color: unset;
+    --tw-ring-offset-shadow: unset;
+    --tw-ring-shadow: unset;
+    box-shadow: unset;
+    border-color: unset;
+}
+
+input.numeric-field {
+    -moz-appearance: textfield;
+}
+
+.mat-mdc-dialog-surface {
+    @apply p-1 rounded-md shadow-lg rounded-md  border border-gray-400 dark:border-gray-600 #{!important};
+}
+.mat-mdc-dialog-container {
+}
+
+.modal-title {
+    @apply p-6 py-4 text-lg font-medium tracking-tight leading-6 truncate truncate #{!important};
+}
+
+// CSS3 Animated Spinner
+.line-loader {
+    width: 0;
+    height: 4.8px;
+    display: inline-block;
+    position: relative;
+    background: #0569a2;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+    box-sizing: border-box;
+    animation: animFw 8s linear infinite;
+}
+.line-loader::after,
+.line-loader::before {
+    content: "";
+    width: 10px;
+    height: 1px;
+    background: #b9443f;
+    position: absolute;
+    top: 9px;
+    right: -2px;
+    opacity: 0;
+    transform: rotate(-45deg) translateX(0px);
+    box-sizing: border-box;
+    animation: coli1 0.3s linear infinite;
+}
+.line-loader::before {
+    top: -4px;
+    transform: rotate(45deg);
+    animation: coli2 0.3s linear infinite;
+}
+
+@keyframes animFw {
+    0% {
+        width: 0;
+    }
+    100% {
+        width: 100%;
+    }
+}
+
+@keyframes coli1 {
+    0% {
+        transform: rotate(-45deg) translateX(0px);
+        opacity: 0.7;
+    }
+    100% {
+        transform: rotate(-45deg) translateX(-45px);
+        opacity: 0;
+    }
+}
+
+@keyframes coli2 {
+    0% {
+        transform: rotate(45deg) translateX(0px);
+        opacity: 1;
+    }
+    100% {
+        transform: rotate(45deg) translateX(-45px);
+        opacity: 0.7;
+    }
+}
+
+.circle-loader {
+    width: 56px;
+    height: 56px;
+    border: 3px dotted #83e0e5;
+    border-style: solid solid dotted dotted;
+    border-radius: 50%;
+    display: inline-block;
+    position: relative;
+    box-sizing: border-box;
+    animation: rotation 2s linear infinite;
+}
+.circle-loader::after {
+    content: "";
+    box-sizing: border-box;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    margin: auto;
+    border: 3px dotted #0569a2;
+    border-style: solid solid dotted;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    animation: rotationBack 1s linear infinite;
+    transform-origin: center center;
+}
+
+@keyframes rotation {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+@keyframes rotationBack {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(-360deg);
+    }
+}

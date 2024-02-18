@@ -1,0 +1,146 @@
+{
+  "name": "frontend",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "flare-base",
+  "sourceRoot": "apps/frontend/src",
+  "schematics": {
+    "@schematics/angular:component": {
+      "style": "scss"
+    }
+  },
+  "tags": [
+    "type:app",
+    "scope:client"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@nx/angular:webpack-browser",
+      "outputs": [
+        "{options.outputPath}"
+      ],
+      "options": {
+        "outputPath": "dist/apps/frontend",
+        "customWebpackConfig": {
+          "path": "apps/frontend/webpack.config.ts"
+        },
+        "index": "apps/frontend/src/index.html",
+        "main": "apps/frontend/src/main.ts",
+        "polyfills": [
+          "zone.js",
+          "stream",
+          "process"
+        ],
+        "tsConfig": "apps/frontend/tsconfig.app.json",
+        "inlineStyleLanguage": "scss",
+        "allowedCommonJsDependencies": [
+          "apexcharts",
+          "highlight.js",
+          "crypto-js/enc-utf8",
+          "crypto-js/hmac-sha256",
+          "crypto-js/enc-base64",
+          "flat",
+          "class-validator",
+          "validator",
+          "@nestjs/common",
+          "@nestjs/swagger",
+          "crypto-js",
+          "crypto"
+        ],
+        "assets": [
+          "apps/frontend/src/favicon-16x16.png",
+          "apps/frontend/src/favicon-32x32.png",
+          "apps/frontend/src/assets"
+        ],
+        "stylePreprocessorOptions": {
+          "includePaths": [
+            "src/\/styles"
+          ]
+        },
+        "styles": [
+          "apps/frontend/src/styles/theme/tailwind.scss",
+          "apps/frontend/src/styles/theme/themes.scss",
+          "apps/frontend/src/styles/theme/main.scss",
+          "apps/frontend/src/styles/styles.scss",
+          "apps/frontend/src/styles/tailwind.scss"
+        ]
+        
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "3mb",
+              "maximumError": "5mb"
+            },
+            {
+              "type": "anyComponentStyle",
+              "maximumWarning": "16kb",
+              "maximumError": "64kb"
+            }
+          ],
+          "outputHashing": "all"
+        },
+        "development": {
+          "buildOptimizer": false,
+          "optimization": false,
+          "vendorChunk": true,
+          "extractLicenses": false,
+          "sourceMap": true,
+          "namedChunks": true
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "serve": {
+      "executor": "@nx/angular:webpack-dev-server",
+      "configurations": {
+        "production": {
+          "browserTarget": "frontend:build:production"
+        },
+        "development": {
+          "browserTarget": "frontend:build:development"
+        }
+      },
+      "defaultConfiguration": "development",
+      "options": {
+        "proxyConfig": "apps/frontend/proxy.conf.json"
+      }
+    },
+    "extract-i18n": {
+      "executor": "@angular-devkit/build-angular:extract-i18n",
+      "options": {
+        "browserTarget": "frontend:build"
+      }
+    },
+    "lint": {
+      "executor": "@nx/linter:eslint",
+      "outputs": [
+        "{options.outputFile}"
+      ],
+      "options": {
+        "lintFilePatterns": [
+          "apps/frontend/**/*.ts",
+          "apps/frontend/**/*.html"
+        ]
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": [
+        "{workspaceRoot}/coverage/{projectRoot}"
+      ],
+      "options": {
+        "jestConfig": "apps/frontend/jest.config.ts",
+        "passWithNoTests": true
+      },
+      "configurations": {
+        "ci": {
+          "ci": true,
+          "codeCoverage": true
+        }
+      }
+    }
+  }
+}

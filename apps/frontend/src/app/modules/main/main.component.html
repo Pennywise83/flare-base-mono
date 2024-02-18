@@ -1,0 +1,175 @@
+<div class="flex flex-auto justify-center w-full sm:p-4 md:p-8 bg-gray-200 dark:bg-card  " id="main-container"
+    *ngIf="initialized">
+    <div class=" absolute inset-0"
+        [ngClass]="{'bg-[url(/assets/images/grid-light.png)]':config.scheme == 'light','bg-[url(/assets/images/grid-dark.png)]':config.scheme == 'dark','bg-[url(/assets/images/grid-dark.png)] ':config.scheme == 'auto'}">
+    </div>
+    <!-- Navigation -->
+    <ng-container *ngIf="isScreenSmall">
+        <vertical-navigation class="dark bg-gray-900 print:hidden" [mode]="'over'" [name]="'mainNavigation'"
+            [navigation]="navigation.default" [opened]="false">
+            <!-- Navigation header hook -->
+            <ng-container verticalNavigationContentHeader>
+                <!-- Logo -->
+                <div class="flex items-center h-20  pt-6 px-8 cursor-pointer">
+                    <img class="w-60" src="assets/images/logo/logo-text.png" [routerLink]="['/',network]">
+                </div>
+            </ng-container>
+        </vertical-navigation>
+    </ng-container>
+
+    <!-- Wrapper -->
+    <div
+        class="z-10 flex flex-col items-center flex-auto min-w-0 max-w-360 sm:rounded-xl shadow-2xl  overflow-hidden dark:border dark:border-gray-800">
+        <div
+            class="relative flex flex-0 items-center w-full h-16 sm:h-20 pr-4 md:pr-4 pl-2 md:pl-2 z-49 bg-card border-b border-gray-200 dark:border-gray-700 dark:bg-default print:hidden">
+            <ng-container *ngIf="!isScreenSmall">
+                <!-- Logo -->
+                <div class="flex items-center mx-2 lg:mr-8">
+                    <div class="hidden lg:flex cursor-pointer">
+                        <!-- Light version -->
+                        <img class="w-60" src="assets/images/logo/logo-text.png" alt="Flare Base Logo"
+                            [routerLink]="['/',network]">
+                    </div>
+                    <!-- Small version -->
+                    <img class="flex lg:hidden w-24 pt-8 cursor-pointer" src="assets/images/logo/logo.png"
+                        alt="Flare Base Logo" [routerLink]="['/',network]">
+                </div>
+                <horizontal-navigation class="mr-2" [name]="'mainNavigation'"
+                    [navigation]="navigation.default"></horizontal-navigation>
+            </ng-container>
+            <!-- Navigation toggle button -->
+            <ng-container *ngIf="isScreenSmall">
+                <button class="mr-2" mat-icon-button (click)="toggleNavigation('mainNavigation')">
+                    <mat-icon [svgIcon]="'heroicons_outline:bars-3'"></mat-icon>
+                </button>
+            </ng-container>
+            <!-- Components -->
+            <div class="flex items-center ml-auto space-x-2">
+                <flare-base-wallet-button [network]="network"
+                    [isScreenSmall]="isScreenSmall"></flare-base-wallet-button>
+                <mat-form-field ngDefaultControl name="selectedNetwork"
+                    class="ui-mat-dense ui-mat-rounded text-sm md:text-base font-normal hidden sm:block"
+                    subscriptSizing="dynamic">
+                    <mat-select (selectionChange)="selectNetwork($event.value)" [ngModel]="network" class="text-right">
+                        <mat-option [value]="'flare'">
+                            <div class="flex justify-between">
+                                <img class="h-8 w-8 p-0.5 rounded-full ring-icon mr-2" src="assets/icons/FLR.png" />
+                                Flare
+                            </div>
+
+                        </mat-option>
+                        <mat-option [value]="'songbird'">
+                            <div class="flex justify-between">
+                                <img class="h-8 w-8 p-0.5 rounded-full ring-icon mr-2" src="assets/icons/SGB.png" />
+                                Songbird
+                            </div>
+                        </mat-option>
+
+                    </mat-select>
+                    <div class="flex items-center  pl-0 -ml-3 mr-4 text-sm md:text-base" matPrefix>
+                        <img class="h-8 w-8 p-0.5 rounded-full ring-icon  mr-2" src="assets/icons/FLR.png"
+                            *ngIf="network == 'flare'" />
+                        <img class="h-8 p-0.5 rounded-full ring-icon mr-2" src="assets/icons/SGB.png"
+                            *ngIf="network == 'songbird'" />
+                    </div>
+                </mat-form-field>
+                <div class="relative block sm:hidden">
+                    <button class="ring-1 bg-gray-100 ring-gray-200 dark:ring-gray-700 dark:bg-gray-800" mat-icon-button
+                        [matMenuTriggerFor]="networkMenu">
+                        <img class="h-10 w-10 p-0.5 rounded-full ring-icon" src="assets/icons/FLR.png"
+                            *ngIf="network == 'flare'" />
+                        <img class="h-10 w-10 p-0.5 rounded-full ring-icon" src="assets/icons/SGB.png"
+                            *ngIf="network == 'songbird'" />
+                    </button>
+
+                    <mat-menu #networkMenu="matMenu">
+                        <button mat-menu-item (click)="selectNetwork('flare')">
+                            <img class="h-10 w-10 p-0.5 rounded-full ring-icon mr-2" src="assets/icons/FLR.png" />Flare
+                        </button>
+                        <button mat-menu-item (click)="selectNetwork('songbird')">
+                            <img class="h-10 w-10 p-0.5 rounded-full ring-icon mr-2"
+                                src="assets/icons/SGB.png" />Songbird
+                        </button>
+                    </mat-menu>
+                </div>
+
+                <div class="relative -mt-1 md:mt-0">
+                    <button class="ring-1 bg-gray-100 ring-gray-200 dark:ring-gray-700 dark:bg-gray-800" mat-icon-button
+                        [matMenuTriggerFor]="selectSchemeMenu">
+                        <mat-icon *ngIf="config.scheme == 'dark'" class="icon-size-5"
+                            [svgIcon]="'heroicons_mini:moon'"></mat-icon>
+                        <mat-icon *ngIf="config.scheme == 'light'" class="icon-size-5"
+                            [svgIcon]="'heroicons_mini:sun'"></mat-icon>
+                        <mat-icon *ngIf="config.scheme == 'auto'" class="icon-size-5"
+                            [svgIcon]="'heroicons_mini:computer-desktop'"></mat-icon>
+                    </button>
+
+                    <mat-menu #selectSchemeMenu="matMenu">
+                        <button mat-menu-item (click)="setScheme('light')">
+                            <mat-icon class="icon-size-5 mr-2" [svgIcon]="'heroicons_mini:sun'"></mat-icon>Light
+                        </button>
+                        <button mat-menu-item (click)="setScheme('dark')">
+                            <mat-icon class="icon-size-5 mr-2" [svgIcon]="'heroicons_mini:moon'"></mat-icon>Dark
+                        </button>
+                        <button mat-menu-item (click)="setScheme('auto')">
+                            <mat-icon class="icon-size-5 mr-2"
+                                [svgIcon]="'heroicons_mini:computer-desktop'"></mat-icon>System
+                        </button>
+                    </mat-menu>
+                </div>
+            </div>
+        </div>
+
+        <!-- Content -->
+        <div class="flex flex-col flex-auto w-full bg-default relative ">
+            <div class="absolute inset-0 flex flex-col min-w-0 overflow-y-auto" cdkScrollable>
+                <nav class="flex px-5 py-3 text-gray-700 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hidden sm:block"
+                    aria-label="Breadcrumb">
+                    <xng-breadcrumb class="inline-flex items-center space-x-2 rtl:space-x-reverse"
+                        [separator]="iconTemplate">
+                        <ng-template #iconTemplate>
+                            <mat-icon class="breadcrumb-icon" [svgIcon]="'heroicons_solid:chevron-right'"></mat-icon>
+                        </ng-template>
+                        <ng-container
+                            *xngBreadcrumbItem="let breadcrumb; let info = info; let first = first; let last = last; let idx = index;">
+                            <ng-container *ngIf="first">
+                                <mat-icon class="breadcrumb-icon mr-1" [svgIcon]="'heroicons_solid:home'"></mat-icon>
+                            </ng-container>
+                            <ng-container>
+                                <span class="text-sm font-medium"
+                                    [ngClass]="{ 'text-gray-700  dark:text-gray-400 hover:text-primary-600 dark:hover:text-white' :!last,  'text-primary-500 dark:text-white':last }">{{breadcrumb|titlecase}}</span>
+                            </ng-container>
+
+                        </ng-container>
+                    </xng-breadcrumb>
+                </nav>
+                <router-outlet *ngIf="true"></router-outlet>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div
+            class="relative flex flex-0 items-center justify-between w-full h-12  px-6 sm:px-8 z-49 bg-card border-t dark:bg-default print:hidden">
+            <span class="font-medium text-secondary">Flare Base {{currentYear}}</span>
+
+            <div class="flex flex-row items-center">
+                <a class="flex items-center text-secondary hover:text-primary mr-3" target="_blank"
+                    href="https://github.com/Pennywise83/flare-base-mono/" title="Flare Base - Github Repository">
+                    <mat-icon class="mr-2 text-secondary icon-size-4" svgIcon="feather:github"></mat-icon>
+                    <span>Github</span></a>
+                <a class="flex items-center text-secondary hover:text-primary" target="_blank"
+                    href="https://twitter.com/ACDTftso" title="ACDTftso - X">
+                    <img class="w-4 h-4 mr-2" src="assets/icons/x-social-media-round-icon.webp">
+                    <span>X</span></a>
+            </div>
+            <div class="flex flex-row items-center">
+                <small class="text-secondary mr-1">Brought to you by</small>
+                <a href="https://www.acdtftso.it" name="ACDTftso - Flare and Songbird Price Provider"
+                    alt="ACDTftso logo" target="_blank"><img class="h-11 w-fit"
+                        src="assets/images/logo/acdtftso-logo.png"></a>
+            </div>
+        </div>
+    </div>
+
+</div>
+<toast-container></toast-container>

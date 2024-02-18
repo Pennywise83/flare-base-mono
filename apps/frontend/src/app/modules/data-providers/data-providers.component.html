@@ -1,0 +1,157 @@
+<flare-base-loader [loading]="loading" skeletonType="table" [progress]="progress"></flare-base-loader>
+<div class="flex flex-col flex-auto  overflow-x-auto overflow-y-auto w-full" *ngIf="dataProvidersData != null">
+    <table @fadeIn fuse class=" transition-opacity ease-in-out duration-300 " mat-table matSort
+        [matSortActive]="dataProvidersSort.active" [matSortDirection]="dataProvidersSort.direction"
+        #dataProvidersSort="matSort" *ngIf="dataProvidersData && dataProvidersData.length > 0"
+        [dataSource]="dataProvidersDataSource" [trackBy]="trackByFn" #dataProvidersTable>
+
+        <ng-container matColumnDef="#" sticky>
+            <th mat-header-cell *matHeaderCellDef class="max-w-20">
+                #
+            </th>
+            <td class="max-w-14 sm:max-w-20 pr-0 bg-white dark:bg-gray-800" mat-cell *matCellDef="let ftsoInfo; let i = index;">
+                <div class="flex flex-row justify-between">
+                    <span class="flex whitespace-nowrap items-center">{{i+1}}</span>
+                    <div class="flex flex-col ">
+                        <span
+                            class="inline-flex items-center justify-center w-5 h-5 font-semibold text-green-800 bg-green-100 rounded-full dark:bg-green-400 dark:text-white mb-0.5"
+                            matTooltip="Whitelisted" [matTooltipPosition]="'above'" *ngIf="ftsoInfo.whitelisted">
+                            <ng-icon class="text-lg" name="heroCheckBadge"></ng-icon>
+                        </span>
+                        <span
+                            class="inline-flex items-center justify-center w-5 h-5 font-semibold text-red-600 bg-red-100 rounded-full dark:bg-red-300 dark:text-white mb-0.5"
+                            matTooltip="Not whitelisted" [matTooltipPosition]="'above'" *ngIf="!ftsoInfo.whitelisted">
+                            <ng-icon class="text-lg" name="heroCheckBadge"></ng-icon>
+                        </span>
+                        <span class="inline-flex items-center justify-center w-5 h-5  font-semibold text-blue-800 bg-blue-100 
+            rounded-full dark:bg-blue-400 dark:text-white" matTooltip="Listed provider" [matTooltipPosition]="'above'"
+                            *ngIf="ftsoInfo.listed">
+                            <ng-icon class="text-lg" name="heroCheckBadge"></ng-icon>
+                        </span>
+                    </div>
+                </div>
+            </td>
+        </ng-container>
+        <ng-container matColumnDef="name" sticky>
+            <th mat-header-cell mat-sort-header *matHeaderCellDef>
+                Name
+            </th>
+            <td class="bg-white dark:bg-gray-800" mat-cell *matCellDef="let ftsoInfo">
+                <span class="whitespace-nowrap cursor-pointer hover:underline"
+                    (click)="selectAddress(ftsoInfo.address)">
+                    <div class="flex items-center space-x-2">
+                        <img class="w-9 h-9 p-1 rounded-full ring-icon"
+                            [src]="ftsoInfo.icon" [alt]="ftsoInfo.name+' icon'">
+                        <div class="leading-4">
+                            <div>
+                                <a>{{ftsoInfo.name}}</a>
+                            </div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">
+                                {{ftsoInfo.address|addressTrim:7}}</div>
+
+                        </div>
+                    </div>
+                </span>
+            </td>
+        </ng-container>
+        <ng-container matColumnDef="votePower">
+            <th mat-header-cell mat-sort-header *matHeaderCellDef>
+                Vote power
+            </th>
+            <td mat-cell *matCellDef="let ftsoInfo">
+                <span class="flex whitespace-nowrap ">
+                    {{(ftsoInfo.votePower | number).split('.')[0]}}<span
+                        class="text-xs text-secondary">.{{ftsoInfo.votePower.toFixed(2).split('.')[1]
+                        }}</span>
+
+                </span>
+            </td>
+        </ng-container>
+        <ng-container matColumnDef="votePowerPercentage">
+            <th mat-header-cell mat-sort-header *matHeaderCellDef class="max-w-40">
+                V.P. Percentage
+            </th>
+            <td mat-cell *matCellDef="let ftsoInfo">
+                <div class="flex text-md text-secondary">
+                    <span class="text-sm">
+                        {{ftsoInfo.votePowerPercentage| number:'1.2-2'}}%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-0.5 dark:bg-gray-700">
+                    <div class="bg-red-500 h-0.5 rounded-full dark:bg-red-400"
+                        *ngIf="ftsoInfo.votePowerPercentage > 2.5"
+                        [ngStyle]="{'width': (((ftsoInfo.votePowerPercentage*100)/2.5) <= 100 ? ((ftsoInfo.votePowerPercentage*100)/2.5) : 100) +'%'}">
+                    </div>
+                    <div class="bg-green-400 h-0.5 rounded-full dark:bg-green-300"
+                        *ngIf="ftsoInfo.votePowerPercentage > 0 && ftsoInfo.votePowerPercentage < 2"
+                        [ngStyle]="{'width': (((ftsoInfo.votePowerPercentage*100)/2.5) <= 100 ? ((ftsoInfo.votePowerPercentage*100)/2.5) : 100) +'%'}">
+                    </div>
+                    <div class="bg-orange-300 h-0.5 rounded-full dark:bg-orange-300"
+                        *ngIf="ftsoInfo.votePowerPercentage > 2 && ftsoInfo.votePowerPercentage < 2.5"
+                        [ngStyle]="{'width': (((ftsoInfo.votePowerPercentage*100)/2.5) <= 100 ? ((ftsoInfo.votePowerPercentage*100)/2.5) : 100) +'%'}">
+                    </div>
+                </div>
+            </td>
+        </ng-container>
+        <ng-container matColumnDef="votePowerChange">
+            <th mat-header-cell mat-sort-header *matHeaderCellDef>
+                V.p. change
+            </th>
+            <td mat-cell *matCellDef="let ftsoInfo">
+                <span class="flex whitespace-nowrap ">
+                    <ng-container *ngIf="ftsoInfo.votePowerChange!= 0">
+                        <div
+                            class="flex items-center text-md leading-none whitespace-nowrap text-secondary overflow-hidden">
+                            <span class="text-sm" matTooltip="{{ftsoInfo.votePowerChange| number: '1.0-18'}}%"
+                                [matTooltipPosition]="'above'"
+                                [ngClass]="{'text-red-500':ftsoInfo.votePowerChange < 0,'text-green-500':ftsoInfo.votePowerChange > 0}">{{ftsoInfo.votePowerChange
+                                > 0 ? '+'+(ftsoInfo.votePowerChange| number:'1.2-2') : ftsoInfo.votePowerChange|
+                                number:'1.2-2'}}%</span>
+                        </div>
+                    </ng-container>
+                    <ng-container *ngIf="ftsoInfo.votePowerChange == 0">
+                        <span class="text-sm text-gray-500">-</span>
+                    </ng-container>
+                </span>
+            </td>
+        </ng-container>
+        <ng-container matColumnDef="numberOfDelegators">
+            <th mat-header-cell mat-sort-header *matHeaderCellDef>
+                Delegators
+            </th>
+            <td mat-cell *matCellDef="let ftsoInfo">
+                <span class="flex whitespace-nowrap ">
+                    {{ftsoInfo.numberOfDelegators|number}}
+                </span>
+            </td>
+        </ng-container>
+        <ng-container matColumnDef="numberOfDelegatorsChange">
+            <th mat-header-cell mat-sort-header *matHeaderCellDef>
+                D. change
+            </th>
+            <td mat-cell *matCellDef="let ftsoInfo">
+                <span class="flex whitespace-nowrap ">
+                    <ng-container *ngIf="ftsoInfo.numberOfDelegatorsChange != 0">
+                        <div
+                            class="flex items-center text-md leading-none whitespace-nowrap text-secondary overflow-hidden">
+                            <span class="text-sm"
+                                matTooltip="{{ftsoInfo.numberOfDelegatorsChange| number: '1.0-18'}}%"
+                                [matTooltipPosition]="'above'"
+                                [ngClass]="{'text-red-500':ftsoInfo.numberOfDelegatorsChange < 0,'text-green-500':ftsoInfo.numberOfDelegatorsChange > 0}">{{ftsoInfo.numberOfDelegatorsChange
+                                > 0 ? '+'+(ftsoInfo.numberOfDelegatorsChange| number:'1.2-2') :
+                                ftsoInfo.numberOfDelegatorsChange| number:'1.2-2'}}%</span>
+                        </div>
+                    </ng-container>
+                    <ng-container *ngIf="ftsoInfo.numberOfDelegatorsChange == 0">
+                        <span class="text-sm text-gray-500">-</span>
+                    </ng-container>
+                </span>
+            </td>
+        </ng-container>
+
+        <tr class="h-8 text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400" mat-header-row
+            *matHeaderRowDef="dataProvidersTableColumns;"></tr>
+        <tr class="text-sm order-row h-14" mat-row *matRowDef="let row; columns: dataProvidersTableColumns;"></tr>
+    </table>
+</div>
+
+

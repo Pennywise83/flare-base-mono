@@ -1,0 +1,46 @@
+serverSettings:
+  port: 3000
+  redisMembers: [localhost:6379]
+  frontendStaticPath: "/tmp/flare-base-frontend/"
+logger:
+  path: "/var/log/flare-base/"
+  loggerFileName: "flare-base"
+  level: info
+
+network:
+  - name: flare
+    scanActive: false
+    collectBlockchainDataIntervalSeconds: 120
+    towoLabsFtsoFetchEveryMinutes: 1440
+    blockchainDao:
+      chainId: 14
+      priceSubmitterContractAddress: "0x1000000000000000000000000000000000000003"
+      rpcUrl: wss://flare-api.flare.network/ext/C/ws
+      ftsoManagerWrapperPath: "./flare-ftsos-manager-wrapper.json"
+      missingPriceEpochTreshold: 2
+    persistenceDao:
+      members: [http://localhost:6379]
+      prefix: persistence
+      replica: 0
+      shards: 5
+      persistenceMetadataCleanTimeMinutes: 60
+    cacheDao:
+      members: [localhost:7000]
+  - name: songbird
+    scanActive: false
+    collectBlockchainDataIntervalSeconds: 300
+    towoLabsFtsoFetchEveryMinutes: 1440
+    blockchainDao:
+      chainId: 19
+      priceSubmitterContractAddress: "0x1000000000000000000000000000000000000003"
+      rpcUrl: wss://songbird-api.flare.network/ext/bc/C/ws
+      ftsoManagerWrapperPath: "./songbird-ftso-manager-wrapper.json"
+      missingPriceEpochTreshold: 6
+    persistenceDao:
+      members: [http://localhost:9200]
+      prefix: persistence
+      replica: 0
+      shards: 5
+      persistenceMetadataCleanTimeMinutes: 60
+    cacheDao:
+      members: [localhost:6379]

@@ -1,0 +1,35 @@
+<div class="toaster sm:w-100  w-full " [ngClass]="position">
+    <div class="toast-message" *ngFor="let message of messages" [ngClass]="message.type" role="alert" @slideInBottom>
+        <div (click)="_removeMessage(message)"
+            class="flex flex-column cursor-pointer p-4 mb-4 rounded-md shadow-md text-gray-500 dark:text-gray-400 dark:bg-gray-600 border bg-opacity-50 dark:bg-opacity-50 dark:backdrop-blur backdrop-blur"
+            [ngClass]="{
+          'bg-primary-100 dark:bg-primary-800': message.type == toastTypes.INFO,
+          'bg-red-100 dark:bg-red-800': message.type == toastTypes.DANGER,
+          'bg-orange-100 dark:bg-orange-800': message.type == toastTypes.WARNING,
+          'bg-green-100 dark:bg-green-800': message.type == toastTypes.SUCCESS
+        }">
+            <!-- Icona fissa -->
+            <div class="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-lg" [ngClass]="{
+            'text-primary-500 bg-primary-100 dark:bg-primary-800 dark:text-primary-200': message.type == toastTypes.INFO,
+            'text-red-500 bg-red-100 dark:bg-red-800 dark:text-red-200': message.type == toastTypes.DANGER,
+            'text-orange-500 bg-orange-100 dark:bg-orange-800 dark:text-orange-200': message.type == toastTypes.WARNING,
+            'text-green-500 bg-green-100 dark:bg-green-800 dark:text-green-200': message.type == toastTypes.SUCCESS
+          }">
+                <ng-icon *ngIf="message.type == toastTypes.INFO" name="heroInformationCircleSolid"
+                    class="icon-size-6"></ng-icon>
+                <ng-icon *ngIf="message.type == toastTypes.SUCCESS" name="heroCheckCircleSolid"
+                    class="icon-size-6"></ng-icon>
+                <ng-icon *ngIf="message.type == toastTypes.WARNING" name="heroExclamationTriangleSolid"
+                    class="icon-size-6"></ng-icon>
+                <ng-icon *ngIf="message.type == toastTypes.DANGER" name="heroXCircleSolid"
+                    class="icon-size-6"></ng-icon>
+            </div>
+
+            <!-- Contenitore di titolo e messaggio -->
+            <div class="ml-3 flex flex-col font-normal ">
+                <div class="font-medium">{{message.title}}</div>
+                <div class="text-sm">{{message.message}}</div>
+            </div>
+        </div>
+    </div>
+</div>

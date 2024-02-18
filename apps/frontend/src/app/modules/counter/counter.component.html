@@ -1,0 +1,42 @@
+<div class="relative h-full w-full  py-2 px-4 overflow-hidden">
+    <flare-base-loader [loading]="loading" skeletonType="text" [overlay]="false"> </flare-base-loader>
+    <flare-base-no-data skeletonType="text"
+        *ngIf="!loading && (counterValue == null || counterValue =='0')"></flare-base-no-data>
+    <div @slideInBottom *ngIf="counterValue != null && counterValue !='0'  && !loading">
+        <div class="flex flex-col  overflow-hidden">
+            <h3 *ngIf="label != null" class="shrink-0 p-0 text-lg  font-normal tracking-tight leading-6 truncate">
+                {{label}}
+            </h3>
+            <div
+                class="text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tighter leading-tight text-gray-700 dark:text-gray-300 truncate">
+                {{counterValue}} </div>
+
+            <ng-container *ngIf="variationValue != null">
+                <div class="flex ">
+                    <mat-icon class="icon-size-5 text-red-500" *ngIf="variationValue < 0"
+                        [svgIcon]="'heroicons_mini:arrow-trending-down'"></mat-icon>
+                    <mat-icon class="icon-size-5 text-green-500" *ngIf="variationValue > 0"
+                        [svgIcon]="'heroicons_mini:arrow-trending-up'"></mat-icon>
+
+                    <div
+                        class="flex items-center text-md leading-none whitespace-nowrap text-secondary overflow-hidden">
+                        <span class="font-medium" matTooltip="{{variationValue| number: '1.0-18'}}%"
+                            [matTooltipPosition]="'above'"
+                            [ngClass]="{'text-red-500':variationValue < 0,'text-green-500':variationValue > 0,'text-gray-500':variationValue == 0}">{{variationValue
+                            > 0 ? '+'+(variationValue|number: '1.0-3') : (variationValue|number: '1.0-3')}}%</span>
+                        <span *ngIf="variationLabel != null" class="ml-1 truncate">{{variationLabel}}</span>
+                    </div>
+                </div>
+            </ng-container>
+            <ng-container *ngIf="variationValue == null && countdownValue != null">
+                <div class="flex ">
+                    <div
+                        class="flex items-center  lg:ml-0 lg:mt-0.5 text-md leading-none whitespace-nowrap overflow-hidden">
+                        <flare-base-countdown [inputTimestamp]="countdownValue"
+                            [displayUnits]="3"></flare-base-countdown>
+                    </div>
+                </div>
+            </ng-container>
+        </div>
+    </div>
+</div>
