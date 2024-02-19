@@ -1,5 +1,7 @@
+import { ClipboardModule } from '@angular/cdk/clipboard';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnChanges, OnInit, SimpleChanges, ViewEncapsulation } from "@angular/core";
 import { MatButtonModule } from '@angular/material/button';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from "@angular/material/menu";
 import { Router } from "@angular/router";
@@ -17,7 +19,7 @@ import { NetworkEnum } from "../../../../../../../libs/commons/src";
 
 @Component({
     selector: 'flare-base-wallet-button',
-    imports: [AppModule, MatButtonModule, MatIconModule, UiNotificationsModule, JazziconModule, AddressTrimPipe, MatMenuModule],
+    imports: [AppModule, MatButtonModule, MatIconModule, UiNotificationsModule, JazziconModule, AddressTrimPipe, MatMenuModule, ClipboardModule, MatDividerModule],
     providers: [AddressTrimPipe],
     templateUrl: './wallet-button.component.html',
     standalone: true,

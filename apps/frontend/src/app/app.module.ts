@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { NgModule } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { NgIconsModule } from '@ng-icons/core';
-import { heroBanknotes, heroChevronRight, heroFaceFrown, heroGlobeAlt, heroHashtag, heroMagnifyingGlass, heroQuestionMarkCircle, heroWallet, heroArrowPath, heroCheckBadge, heroArrowRight, heroPlusCircle, heroLink } from '@ng-icons/heroicons/outline';
+import { heroBanknotes, heroChevronRight, heroFaceFrown, heroGlobeAlt, heroHashtag, heroMagnifyingGlass, heroQuestionMarkCircle, heroWallet, heroArrowPath, heroCheckBadge, heroArrowRight, heroPlusCircle, heroLink, heroClipboardDocumentList } from '@ng-icons/heroicons/outline';
 import { featherLoader, featherGithub, featherClock, featherDownload, featherRefreshCw, featherHash, featherAward } from '@ng-icons/feather-icons';
 import { matSwapHorizOutline } from '@ng-icons/material-icons/outline';
 
@@ -28,7 +28,7 @@ const progressWsConfig: SocketIoConfig = {
     RouterLink,
     CommonModule,
     SocketIoModule.forRoot(progressWsConfig),
-    NgIconsModule.withIcons({ heroMagnifyingGlass, heroWallet, heroBanknotes, heroHashtag, heroGlobeAlt, heroFaceFrown, heroQuestionMarkCircle, heroChevronRight, featherDownload, heroArrowPath, featherRefreshCw, featherHash, featherClock, featherAward, heroCheckBadge, featherGithub, matSwapHorizOutline, heroArrowRight, featherLoader, heroPlusCircle, heroLink }),
+    NgIconsModule.withIcons({ heroMagnifyingGlass, heroWallet, heroBanknotes, heroHashtag, heroGlobeAlt, heroFaceFrown, heroQuestionMarkCircle, heroChevronRight, featherDownload, heroArrowPath, featherRefreshCw, featherHash, featherClock, featherAward, heroCheckBadge, featherGithub, matSwapHorizOutline, heroArrowRight, featherLoader, heroPlusCircle, heroLink, heroClipboardDocumentList }),
     JazziconModule.forRoot({}),
     BreadcrumbModule
   ],
