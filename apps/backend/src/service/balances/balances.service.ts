@@ -314,7 +314,6 @@ export class BalancesService {
                 }
                 const rewardEpochSettings: RewardEpochSettings = await this._epochsService.getRewardEpochSettings(network);
                 const nextEpochId: number = rewardEpochSettings.getNextEpochId();
-                await this.getBalances(network, dataProviderAddress, rewardEpochId, 0);
                 if (rewardEpochId == nextEpochId) {
                     let wrappedBalance: WrappedBalance = null;
                     const priceEpochSettings: PriceEpochSettings = await this._epochsService.getPriceEpochSettings(network);
