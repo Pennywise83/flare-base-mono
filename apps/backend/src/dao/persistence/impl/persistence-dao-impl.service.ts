@@ -72,7 +72,14 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
     private async persistenceMetadataCleaner(): Promise<void> {
         try {
             let index: string = this.getIndex(PersistenceConstants.METADATA_INDEX);
-            this.logger.log(`Cleaning persistence metadata on ${index}...`);
+            this.logger.log(`Optimizing persistence metadata...`);
+            for (let i in PersistenceMetadataType) {
+                if (PersistenceMetadataType[i] != PersistenceMetadataType.DelegationSnapshot) {
+                    const persistenceMetadata: PersistenceMetadata[] = await this.getPersistenceMetadata(PersistenceMetadataType[i], 'all', 0, null);
+                    await this.optimizePersistenceMetadata(PersistenceMetadataType[i],persistenceMetadata);
+                }
+            }
+            this.logger.log(`Cleaning persistence metadata...`);
             for (let i in PersistenceMetadataType) {
                 if (isNotEmpty(index)) {
                     const deleted: number = await this._deleteByQuery(index, `type: ${i} AND delete:true`);
@@ -82,7 +89,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
                 }
             }
         } catch (err) {
-            this.logger.error(`Error cleaning persistence metadata index:`,err);
+            this.logger.error(`Error cleaning persistence metadata index:`, err);
         }
     }
     async truncate(): Promise<boolean> {
