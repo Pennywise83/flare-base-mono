@@ -89,7 +89,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
                 }
             }
         } catch (err) {
-            this.logger.error(`Error cleaning persistence metadata index:`, err);
+            this.logger.error(`Error cleaning persistence metadata index:`, err.message);
         }
     }
     async truncate(): Promise<boolean> {
