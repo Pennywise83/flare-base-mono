@@ -1,4 +1,4 @@
-import { ClaimedRewardStats, ClaimedRewardsSortEnum, NetworkEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, Reward, RewardDTO, RewardEpoch, RewardEpochDTO, RewardEpochSettings, SortOrderEnum } from "@flare-base/commons";
+import { ClaimedRewardsSortEnum, NetworkEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, Reward, RewardDTO, RewardEpoch, RewardEpochDTO, RewardEpochSettings, SortOrderEnum } from "@flare-base/commons";
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { isEmpty, isNotEmpty } from "class-validator";
@@ -13,6 +13,7 @@ import { EpochsService } from "../epochs/epochs.service";
 import { NetworkDaoDispatcherService } from "../network-dao-dispatcher/network-dao-dispatcher.service";
 import { ProgressGateway } from "../progress.gateway";
 import { ServiceUtils } from "../service-utils";
+import { ClaimedRewardDateHistogramElement } from "libs/commons/src/model/rewards/reward";
 
 @Injectable()
 export class RewardsService {
@@ -262,22 +263,22 @@ export class RewardsService {
         await persistenceDao.storePersistenceMetadata(PersistenceMetadataType.Reward, address, blockFrom, blockTo);
     }
 
-    getClaimedRewardStats(network: NetworkEnum, address: string, startTime: number, endTime: number): Promise<ClaimedRewardStats> {
-        return new Promise<ClaimedRewardStats>(async (resolve, reject) => {
+    getClaimedRewardsDateHistogram(network: NetworkEnum, whoClaimed: string, dataProvider: string, startTime: number, endTime: number, dateHistogramPoints: number): Promise<ClaimedRewardDateHistogramElement[]> {
+        return new Promise<ClaimedRewardDateHistogramElement[]>(async (resolve, reject) => {
             let blockchainDao: IBlockchainDao = await this._networkDaoDispatcher.getBlockchainDao(network);
             let persistenceDao: IPersistenceDao = await this._networkDaoDispatcher.getPersistenceDao(network);
             try {
                 if (ServiceUtils.isServiceUnavailable(blockchainDao) || ServiceUtils.isServiceUnavailable(persistenceDao)) {
                     throw new Error(`Service unavailable`);
                 }
-                await this.getRewards(network, address, null, null, startTime, endTime, 1, 0);
+                await this.getRewards(network, whoClaimed, dataProvider, null, startTime, endTime, 1, 0);
                 const rewardEpochStats: EpochStats = await this._epochsService.getBlockNumberRangesByRewardEpochs(network, startTime, endTime, blockchainDao);
-                const daoData: ClaimedRewardStats = await persistenceDao.getClaimedRewardsStats(address, rewardEpochStats.minEpochId, rewardEpochStats.maxEpochId)
+                const daoData: ClaimedRewardDateHistogramElement[] = await persistenceDao.getClaimedRewardsDateHistogram(whoClaimed, dataProvider, startTime, endTime, dateHistogramPoints);
                 resolve(daoData);
                 return;
             } catch (e) {
-                this.logger.error(`${network} - Unable to get claimed rewards stats for address ${address}: ${e.message}`);
-                reject(new Error(`${network} - Unable to get claimed rewards stats for address ${address}.`));
+                this.logger.error(`${network} - Unable to get claimed rewards date histogram: ${e.message}`);
+                reject(new Error(`${network} - Unable to get claimed rewards date histogram.`));
             }
         });
     }

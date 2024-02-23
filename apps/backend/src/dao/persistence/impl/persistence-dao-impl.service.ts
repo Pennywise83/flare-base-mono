@@ -1,5 +1,5 @@
 import { Client } from "@elastic/elasticsearch";
-import { Balance, BalanceSortEnum, ClaimedRewardStats, ClaimedRewardsSortEnum, Commons, DataProviderInfo, Delegation, DelegationSnapshot, DelegationsSortEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, Reward, RewardEpoch, RewardEpochSettings, VotePower, VoterWhitelist, WrappedBalance } from "@flare-base/commons";
+import { Balance, BalanceSortEnum, ClaimedRewardDateHistogramElement, ClaimedRewardsSortEnum, Commons, DataProviderInfo, Delegation, DelegationSnapshot, DelegationsSortEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, Reward, RewardEpoch, RewardEpochSettings, VotePower, VoterWhitelist, WrappedBalance } from "@flare-base/commons";
 import { Process } from '@nestjs/bull';
 import { Logger } from "@nestjs/common";
 import { PersistenceDaoConfig } from "apps/backend/src/model/app-config/persistence-dao-config";
@@ -9,12 +9,12 @@ import { plainToClass } from "class-transformer";
 import { isEmpty, isNotEmpty } from "class-validator";
 import { EpochSortEnum } from "libs/commons/src/model/epochs/price-epoch";
 import { SortOrderEnum } from "libs/commons/src/model/paginated-result";
-import { interval, timer } from "rxjs";
+import { interval } from "rxjs";
+import { ICacheDao } from "../../cache/i-cache-dao.service";
 import { IPersistenceDao } from "../i-persistence-dao.service";
 import { EpochStats } from "./model/epoch-stats";
 import { PersistenceConstants } from "./model/persistence-constants";
 import { PersistenceMetadata, PersistenceMetadataType } from "./model/persistence-metadata";
-import { ICacheDao } from "../../cache/i-cache-dao.service";
 
 export abstract class PersistenceDaoImpl implements IPersistenceDao {
 
@@ -76,7 +76,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
             for (let i in PersistenceMetadataType) {
                 if (PersistenceMetadataType[i] != PersistenceMetadataType.DelegationSnapshot) {
                     const persistenceMetadata: PersistenceMetadata[] = await this.getPersistenceMetadata(PersistenceMetadataType[i], 'all', 0, null);
-                    await this.optimizePersistenceMetadata(PersistenceMetadataType[i],persistenceMetadata);
+                    await this.optimizePersistenceMetadata(PersistenceMetadataType[i], persistenceMetadata);
                 }
             }
             this.logger.log(`Cleaning persistence metadata...`);
@@ -796,43 +796,102 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
         })
     }
 
-    getClaimedRewardsStats(address: string, epochFrom: number, epochTo: number): Promise<ClaimedRewardStats> {
-        return new Promise<ClaimedRewardStats>((resolve, reject) => {
-            const body: any = {
+    getClaimedRewardsDateHistogram(whoClaimed: string, dataProvider: string, startTime: number, endTime: number, dateHistogramPoints: number): Promise<ClaimedRewardDateHistogramElement[]> {
+        return new Promise<ClaimedRewardDateHistogramElement[]>((resolve, reject) => {
+            let results: ClaimedRewardDateHistogramElement[] = [];
+            let body: any = {
                 "size": 0,
                 "query": {
                     "query_string": {
-                        "query": "whoClaimed: " + address + " AND rewardEpochId: [ " + epochFrom + " TO " + epochTo + "]"
+                        "query": `timestamp: [${startTime} TO ${endTime}]`
                     }
                 },
                 "aggs": {
-                    "dataProvider_count": {
-                        "cardinality": {
-                            "field": "dataProvider"
-                        }
-                    },
-                    "amount_stats": {
-                        "stats": {
-                            "field": "amount"
+                    "histogram": {
+                        "auto_date_histogram": {
+                            "field": "timestamp",
+                            "buckets": `${dateHistogramPoints}`
+                        },
+                        "aggs": {
+                            "rewardEpochId": {
+                                "terms": {
+                                    "field": "rewardEpochId",
+                                    "size": 10000
+                                },
+                                "aggs": {
+                                    "sum": {
+                                        "sum": {
+                                            "field": "amount"
+                                        }
+                                    },
+                                    "topSum": {
+                                        "terms": {
+                                            "field": 'dataProvider',
+                                            "size": 5,
+                                            "order": {
+                                                "sum": "desc"
+                                            }
+                                        },
+                                        "aggs": {
+                                            "sum": {
+                                                "sum": {
+                                                    "field": "amount"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
-            this.elasticsearchClient.search({ index: this.getIndex(PersistenceConstants.CLAIMED_REWARDS_INDEX), body: body }).then(response => {
-                let tmpObj: ClaimedRewardStats = new ClaimedRewardStats();
-                if (response.body?.aggregations?.amount_stats) {
-                    tmpObj.count = response.body?.aggregations?.amount_stats?.count!;
-                    tmpObj.min = response.body?.aggregations?.amount_stats?.min != null ? response.body?.aggregations?.amount_stats?.min : 0;
-                    tmpObj.max = response.body?.aggregations?.amount_stats?.max != null ? response.body?.aggregations?.amount_stats?.max : 0;
-                    tmpObj.count = response.body?.aggregations?.amount_stats?.count != null ? response.body?.aggregations?.amount_stats?.count : 0;
-                    tmpObj.sum = response.body?.aggregations?.amount_stats?.sum != null ? response.body?.aggregations?.amount_stats?.sum : 0;
-                    tmpObj.average = response.body?.aggregations?.amount_stats?.avg != null ? response.body?.aggregations?.amount_stats?.avg : 0;
-                }
 
-                if (response.body?.aggregations?.dataProvider_count) {
-                    tmpObj.dataProviderCount = response.body?.aggregations?.dataProvider_count.value;
-                }
-                resolve(tmpObj);
+            if (isNotEmpty(whoClaimed)) {
+                body.query.query_string.query += ` AND whoClaimed: ${whoClaimed}`;
+                body.aggs.histogram.aggs.rewardEpochId.aggs.topSum.terms.field = 'dataProvider';
+            }
+            if (isNotEmpty(dataProvider)) {
+                body.query.query_string.query += ` AND dataProvider: ${dataProvider}`;
+                body.aggs.histogram.aggs.rewardEpochId.aggs.topSum.terms.field = 'whoClaimed';
+            }
+            if (isEmpty(whoClaimed) && isEmpty(dataProvider)) {
+                delete body.aggs.histogram.aggs.rewardEpochId.aggs.topSum;
+            }
+            this.elasticsearchClient.search({ index: this.getIndex(PersistenceConstants.CLAIMED_REWARDS_INDEX), body: body }).then(response => {
+                this._getBuckets(response.body?.aggregations?.histogram)
+                    .flatMap(histogramAggBucket => {
+                        let claimedTimestamp: number = histogramAggBucket.key;
+                        this._getBuckets(histogramAggBucket.rewardEpochId).flatMap(rewardEpochIdBucket => {
+                            let rewardEpochId: number = rewardEpochIdBucket.key;
+                            let rewardEpochSum: number = 0;
+
+                            if (rewardEpochIdBucket.topSum) {
+                                this._getBuckets(rewardEpochIdBucket.topSum).flatMap(topSumBucket => {
+                                    let tmpObj: ClaimedRewardDateHistogramElement = new ClaimedRewardDateHistogramElement();
+                                    tmpObj.claimTimestamp = claimedTimestamp;
+                                    tmpObj.rewardEpochId = rewardEpochId;
+                                    let address: string = topSumBucket.key;
+
+                                    tmpObj.whoClaimed = isNotEmpty(whoClaimed) ? whoClaimed : address;
+                                    tmpObj.dataProvider = isNotEmpty(dataProvider) ? dataProvider : address;
+                                    tmpObj.amount = topSumBucket.sum.value;
+                                    rewardEpochSum += topSumBucket.sum.value;
+                                    results.push(tmpObj);
+                                });
+                            }
+                            if (rewardEpochIdBucket.sum) {
+                                let tmpObj: ClaimedRewardDateHistogramElement = new ClaimedRewardDateHistogramElement();
+                                tmpObj.claimTimestamp = claimedTimestamp;
+                                tmpObj.rewardEpochId = rewardEpochId;
+                                tmpObj.whoClaimed = isNotEmpty(whoClaimed) ? whoClaimed : null;
+                                tmpObj.dataProvider = isNotEmpty(dataProvider) ? dataProvider : null;
+                                tmpObj.amount = rewardEpochIdBucket.sum.value - rewardEpochSum;
+                                results.push(tmpObj);
+                            }
+                        })
+                    });
+                resolve(results);
             }).catch(err => {
                 reject(new Error(`getEpochStats error: ` + err.message))
             });

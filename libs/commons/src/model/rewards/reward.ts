@@ -25,19 +25,17 @@ export class UnclaimedReward extends Reward {
     claimed: boolean;
 }
 
-export class ClaimedRewardStats {
-    @ApiProperty({ description: 'The total count of rewards claimed by the user during the selected time period.' })
-    count: number;
-    @ApiProperty({ description: 'The minimum value of the claimed rewards during the selected time period.' })
-    min: number;
-    @ApiProperty({ description: 'The maximum value of the claimed rewards during the selected time period.' })
-    max: number;
-    @ApiProperty({ description: 'The average value of the claimed rewards during the selected time period.' })
-    average: number;
-    @ApiProperty({ description: 'The sum of all claimed rewards during the selected time period.' })
-    sum: number;
-    @ApiProperty({ description: 'The number of unique data providers from which the user claimed rewards during the selected time period.' })
-    dataProviderCount: number;
+export class ClaimedRewardDateHistogramElement {
+    @ApiProperty({ description: 'The timestamp indicating when the reward claim was made.', example: '1689972400000' })
+    claimTimestamp: number;
+    @ApiProperty({ description: 'ID of the reward epoch where the reward was accrued.', example: '100' })
+    rewardEpochId: number;
+    @ApiProperty({ description: 'The address that actually performed the claim.', example: '0x0000000000000000000000000000000000000000' })
+    whoClaimed: string = null;
+    @ApiProperty({ description: 'The data provider address from wich comes the reward. If the value is null, the record indicates the sum of all other data providers in the specified time frame.', example: '0x0000000000000000000000000000000000000000' })
+    dataProvider: string = null;
+    @ApiProperty({ description: 'Amount of rewarded native tokens.', example: 12.46 })
+    amount: number;
 }
 export class RewardDTO extends Reward {
     @ApiProperty({ description: 'The start time of the reward epoch, represented as a Unix timestamp in milliseconds', example: 1688670001000 })

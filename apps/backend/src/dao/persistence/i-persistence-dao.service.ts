@@ -1,5 +1,5 @@
 import { Client } from "@elastic/elasticsearch";
-import { Balance, ClaimedRewardStats, ClaimedRewardsSortEnum, DataProviderInfo, Delegation, DelegationSnapshot, DelegationsSortEnum, NetworkEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, Reward, RewardEpoch, RewardEpochSettings, VotePower, VoterWhitelist, WrappedBalance } from "@flare-base/commons";
+import { Balance, ClaimedRewardDateHistogramElement, ClaimedRewardsSortEnum, DataProviderInfo, Delegation, DelegationSnapshot, DelegationsSortEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, Reward, RewardEpoch, RewardEpochSettings, VotePower, VoterWhitelist, WrappedBalance } from "@flare-base/commons";
 import { Logger } from "@nestjs/common";
 import { EpochSortEnum } from "libs/commons/src/model/epochs/price-epoch";
 import { SortOrderEnum } from "libs/commons/src/model/paginated-result";
@@ -7,8 +7,6 @@ import { PersistenceDaoConfig } from "../../model/app-config/persistence-dao-con
 import { ServiceStatusEnum } from "../../service/network-dao-dispatcher/model/service-status.enum";
 import { EpochStats } from "./impl/model/epoch-stats";
 import { PersistenceMetadata, PersistenceMetadataType } from "./impl/model/persistence-metadata";
-import { Queue } from "bull";
-import { Network } from "ethers";
 
 export interface IPersistenceDao {
     logger: Logger;
@@ -51,7 +49,7 @@ export interface IPersistenceDao {
 
     // Rewards
     getClaimedRewards(whoClaimed: string, dataProvider: string, sentTo: string, blockNumberFrom: number, blockNumberTo: number, page: number, pageSize: number, sortField?: ClaimedRewardsSortEnum, sortOrder?: SortOrderEnum): Promise<PaginatedResult<Reward[]>>;
-    getClaimedRewardsStats(address: string, epochFrom: number, epochTo: number): Promise<ClaimedRewardStats>;
+    getClaimedRewardsDateHistogram(whoClaimed: string, dataProvider: string, startTime: number, endTime: number, dateHistogramPoints: number): Promise<ClaimedRewardDateHistogramElement[]>;
     storeClaimedRewards(blockchainData: Reward[]): Promise<number>;
 
     // Delegations
@@ -60,7 +58,7 @@ export interface IPersistenceDao {
     storeDelegationsSnapshot(blockchainData: DelegationSnapshot[]): Promise<number>;
 
     getDelegators(to: string, blockNumber: number): Promise<Delegation[]>;
-    getDelegationsSnapshot(to: string, rewardEpoch: number, page:number, pageSize: number, sortField: DelegationsSortEnum, sortOrder: SortOrderEnum): Promise<PaginatedResult<DelegationSnapshot[]>>;
+    getDelegationsSnapshot(to: string, rewardEpoch: number, page: number, pageSize: number, sortField: DelegationsSortEnum, sortOrder: SortOrderEnum): Promise<PaginatedResult<DelegationSnapshot[]>>;
     deleteDelegationsSnapshot(to: string, rewardEpoch: number): Promise<number>;
 
     // Vote power
