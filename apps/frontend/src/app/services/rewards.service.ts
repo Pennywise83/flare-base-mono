@@ -1,11 +1,10 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, catchError, concatMap, map, throwError } from 'rxjs';
-import { ActionResult, ClaimedRewardStats, NetworkEnum, PaginatedResult, RewardDTO, RewardEpochSettings, RewardResponse } from '../../../../../libs/commons/src';
-import { ClaimedRewardsRequest } from '../model/claimed-rewards-request';
-import { ProgressResult } from '../model/progress-result';
-import { isNotEmpty } from 'class-validator';
 import { Utils } from 'app/commons/utils';
+import { isNotEmpty } from 'class-validator';
+import { Observable, catchError, map } from 'rxjs';
+import { ActionResult, ClaimedRewardDateHistogramElement, PaginatedResult, RewardDTO } from '../../../../../libs/commons/src';
+import { ClaimedRewardsDateHistogramRequest, ClaimedRewardsRequest } from '../model/claimed-rewards-request';
 
 
 @Injectable({
@@ -46,6 +45,29 @@ export class RewardsService {
         map((res: Blob) => {
           observer.next(res);
           observer.complete();
+        }),
+        catchError(error => {
+          return Utils.handleError(observer, error);
+        })
+      ).subscribe();
+    });
+  }
+
+  public getClaimedRewardsgetClaimedRewardsDateHistogram(network: string, request: ClaimedRewardsDateHistogramRequest): Observable<ClaimedRewardDateHistogramElement[]> {
+    const dataUrl = `/api/rewards/getClaimedRewardsDateHistogram/${network}?whoClaimed=${isNotEmpty(request.whoClaimed) ? request.whoClaimed : ''}&dataProvider=${isNotEmpty(request.dataProvider) ? request.dataProvider : ''}&startTime=${request.startTime}&endTime=${request.endTime}&dateHistogramPoints=${request.dateHistogramPoints}`;
+    const headers = new HttpHeaders().set('Accept', 'application/json');
+    const requestOptions = {
+      headers: headers,
+    };
+    return new Observable<ClaimedRewardDateHistogramElement[]>(observer => {
+      this._http.get<ActionResult<ClaimedRewardDateHistogramElement[]>>(dataUrl, requestOptions).pipe(
+        map((res: ActionResult<ClaimedRewardDateHistogramElement[]>) => {
+          if (res.status == 'OK') {
+            observer.next(res.result);
+            observer.complete();
+          } else {
+            throw res.message;
+          }
         }),
         catchError(error => {
           return Utils.handleError(observer, error);

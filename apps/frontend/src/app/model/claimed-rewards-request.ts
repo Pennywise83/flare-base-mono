@@ -19,3 +19,18 @@ export class ClaimedRewardsRequest extends PaginatedRequest {
         this.sortOrder = SortOrderEnum.desc;
     }
 }
+
+export class ClaimedRewardsDateHistogramRequest {
+    whoClaimed: string;
+    dataProvider: string;
+    startTime: number;
+    endTime: number;
+    dateHistogramPoints: 10 | 20 | 30 | 60;
+    constructor(whoClaimed: string, dataProvider: string, startTime: number, endTime: number, dateHistogramPoints: 10 | 20 | 30 | 60) {
+        this.whoClaimed = whoClaimed;
+        this.dataProvider = dataProvider;
+        this.startTime = startTime;
+        this.endTime = endTime;
+        this.dateHistogramPoints = dateHistogramPoints;
+    }
+}
