@@ -496,11 +496,16 @@ export class DelegationsService {
                         results.push(new VotePowerDTO(votePower, lastFinalizedPriceEpoch.timestamp, rewardEpochId))
                     });
                     results.map(votePower => {
+                        dataProviderWrappedBalances = dataProviderWrappedBalances.filter(dpWb => dpWb.address != votePower.address);
                         let wrappeBalance: WrappedBalance = dataProviderWrappedBalances.find(balance => balance.address == votePower.address && balance.rewardEpochId == rewardEpochId);
                         if (isNotEmpty(wrappeBalance)) {
                             votePower.amount += wrappeBalance.amount;
                         }
                     });
+                    dataProviderWrappedBalances.filter(dpWb => dpWb.amount > 0).map(dpWb => {
+                        results.push({ address: dpWb.address, amount: dpWb.amount, rewardEpochId: dpWb.rewardEpochId, delegations: 0, delegators: 0, timestamp: dpWb.timestamp });
+                    });
+
                     await cacheDao.setDataProviderVotePowerByAddress(rewardEpochId, results, priceEpochSettings.getRevealEndTimeForEpochId(priceEpochSettings.getCurrentEpochId()));
                     resolve(results);
                 } else {
@@ -510,10 +515,14 @@ export class DelegationsService {
                         results.push(new VotePowerDTO(votePower, rewardEpoch.timestamp, rewardEpochId));
                     });
                     results.map(votePower => {
+                        dataProviderWrappedBalances = dataProviderWrappedBalances.filter(dpWb => dpWb.address != votePower.address);
                         let wrappeBalance: WrappedBalance = dataProviderWrappedBalances.find(balance => balance.address == votePower.address && balance.rewardEpochId == rewardEpochId);
                         if (isNotEmpty(wrappeBalance)) {
                             votePower.amount += wrappeBalance.amount;
                         }
+                    });
+                    dataProviderWrappedBalances.filter(dpWb => dpWb.amount > 0).map(dpWb => {
+                        results.push({ address: dpWb.address, amount: dpWb.amount, rewardEpochId: dpWb.rewardEpochId, delegations: 0, delegators: 0, timestamp: dpWb.timestamp });
                     });
                     await cacheDao.setDataProviderVotePowerByAddress(rewardEpochId, results);
                     resolve(results);

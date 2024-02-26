@@ -193,18 +193,20 @@ export class BalancesService {
                 const rewardEpochSettings: RewardEpochSettings = await this._epochsService.getRewardEpochSettings(network);
                 const nextEpochId: number = rewardEpochSettings.getNextEpochId();
                 await this.getWrappedBalance(network, null, rewardEpochId);
-                const uniqueDataProviderAddressList: string[] = await this.getUniqueDataProviderAddressList(network, rewardEpochId);
+                let uniqueAddressesWithDelegationsList: string[] = await this.getUniqueDataProviderAddressList(network, rewardEpochId);
                 if (rewardEpochId == nextEpochId) {
                     let wrappedBalances: WrappedBalance[] = [];
                     const priceEpochSettings: PriceEpochSettings = await this._epochsService.getPriceEpochSettings(network);
                     const lastFinalizedPriceEpoch: PriceEpoch = await this._epochsService.getPriceEpoch(network, priceEpochSettings.getLastFinalizedEpochId());
-                    wrappedBalances.push(...await persistenceDao.getDataProvidersWrappedBalancesByAddress(uniqueDataProviderAddressList, rewardEpochId, lastFinalizedPriceEpoch.blockNumber, lastFinalizedPriceEpoch.timestamp));
+                    uniqueAddressesWithDelegationsList = [... new Set((await persistenceDao.getVoterWhitelist(null, lastFinalizedPriceEpoch.blockNumber)).map(voterWhitelist => voterWhitelist.address))];
+                    wrappedBalances.push(...await persistenceDao.getDataProvidersWrappedBalancesByAddress(uniqueAddressesWithDelegationsList, rewardEpochId, lastFinalizedPriceEpoch.blockNumber, lastFinalizedPriceEpoch.timestamp));
                     await cacheDao.setDataProviderWrappedBalancesByAddress(rewardEpochId, wrappedBalances, priceEpochSettings.getRevealEndTimeForEpochId(priceEpochSettings.getCurrentEpochId()));
                     resolve(wrappedBalances);
                 } else {
                     let wrappedBalances: WrappedBalance[] = [];
                     const rewardEpoch: RewardEpoch = await this._epochsService.getRewardEpoch(network, rewardEpochId);
-                    wrappedBalances.push(...await persistenceDao.getDataProvidersWrappedBalancesByAddress(uniqueDataProviderAddressList, rewardEpochId, rewardEpoch.votePowerBlockNumber, rewardEpoch.votePowerTimestamp));
+                    uniqueAddressesWithDelegationsList = [... new Set((await persistenceDao.getVoterWhitelist(null, rewardEpoch.votePowerBlockNumber)).map(voterWhitelist => voterWhitelist.address))];
+                    wrappedBalances.push(...await persistenceDao.getDataProvidersWrappedBalancesByAddress(uniqueAddressesWithDelegationsList, rewardEpochId, rewardEpoch.votePowerBlockNumber, rewardEpoch.votePowerTimestamp));
                     await cacheDao.setDataProviderWrappedBalancesByAddress(rewardEpochId, wrappedBalances);
                     resolve(wrappedBalances);
                 }
