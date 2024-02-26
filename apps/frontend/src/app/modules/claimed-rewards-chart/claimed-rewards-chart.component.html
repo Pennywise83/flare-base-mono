@@ -1,0 +1,13 @@
+<div class="flex flex-col flex-auto h-56 relative">
+    <flare-base-loader *ngIf="loading" skeletonType="chart" [progress]="progress"> </flare-base-loader>
+    <flare-base-no-data *ngIf="claimedRewardsDateHistogramData == null || (claimedRewardsDateHistogramData != null && claimedRewardsDateHistogramData.length == 0)"
+        [label]="claimedRewardsDateHistogramData != null ? 'No data found' : null" skeletonType="chart"></flare-base-no-data>
+    <apx-chart @fadeIn *ngIf="claimedRewardsDateHistogramData != null && claimedRewardsDateHistogramData.length > 0 && !loading" class="flex-auto w-full h-full"
+        [chart]="claimedRewardsChartData.chart" [colors]="claimedRewardsChartData.colors"
+        [dataLabels]="claimedRewardsChartData.dataLabels" [grid]="claimedRewardsChartData.grid"
+        [fill]="claimedRewardsChartData.fill" [plotOptions]="claimedRewardsChartData.plotOptions"
+        [legend]="claimedRewardsChartData.legend" [responsive]="claimedRewardsChartData.responsive"
+        [series]="claimedRewardsChartData.series" [stroke]="claimedRewardsChartData.stroke"
+        [tooltip]="claimedRewardsChartData.tooltip" [xaxis]="claimedRewardsChartData.xaxis"
+        [yaxis]="claimedRewardsChartData.yaxis"></apx-chart>
+</div>

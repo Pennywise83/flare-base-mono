@@ -41,3 +41,6 @@ Thumbs.db
 .angular
 .nx/cache/*
 package_DEV.json
+config-dev.yml
+logs/
+.vscode/launch.json
