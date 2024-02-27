@@ -37,7 +37,10 @@ testem.log
 # System Files
 .DS_Store
 Thumbs.db
-
 .angular
 .nx/cache/*
+logs/
+config-dev.yml
 package_DEV.json
+.vscode/launch.json
+.gitignore
