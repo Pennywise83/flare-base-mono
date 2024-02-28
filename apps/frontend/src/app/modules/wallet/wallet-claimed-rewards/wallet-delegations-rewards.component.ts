@@ -197,7 +197,7 @@ export class WalletDelegationsRewardsComponent implements OnInit {
     openClaimRewardsDialog(): void {
         this.operation = TransactionOperationEnum.rewardsClaim;
         this.claimRequest.receiver = this.selectedAddress;
-        this.unclaimedRewards.map(ur => this.claimRequest.rewardEpochIds.push(ur.rewardEpochId));
+        this.unclaimedRewards.filter(ur => ur.claimable).map(ur => this.claimRequest.rewardEpochIds.push(ur.rewardEpochId));
         this.receiveMode = 'own';
         this.clientMessage.reset();
         this.dialog.open(this.dialogTemplate, {
@@ -226,7 +226,6 @@ export class WalletDelegationsRewardsComponent implements OnInit {
     claimRewards(claimRewardsRequest: ClaimRewardsRequest): void {
         this.operation = TransactionOperationEnum.submitting;
         this.unclaimedRewards.map(ur => this.claimRequest.rewardEpochIds.push(ur.rewardEpochId));
-        this.claimRequest.rewardEpochIds = [164];
         this._web3Service.claimRewards(this.selectedAddress, claimRewardsRequest).subscribe(res => {
             if (res.operation == TransactionOperationEnum.transacting) {
                 this.operation = TransactionOperationEnum.transacting;
