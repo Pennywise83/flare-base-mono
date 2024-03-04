@@ -25,7 +25,9 @@ export class UnclaimedReward extends Reward {
     claimed: boolean;
 }
 
-export class ClaimedRewardDateHistogramElement {
+export class ClaimedRewardHistogramElement {
+    @ApiProperty({ description: 'Representing the key of the histogram.', example: '1689972400000' })
+    key: number;
     @ApiProperty({ description: 'The timestamp indicating when the reward claim was made.', example: '1689972400000' })
     claimTimestamp: number;
     @ApiProperty({ description: 'ID of the reward epoch where the reward was accrued.', example: '100' })
@@ -34,8 +36,11 @@ export class ClaimedRewardDateHistogramElement {
     whoClaimed: string = null;
     @ApiProperty({ description: 'The data provider address from wich comes the reward. If the value is null, the record indicates the sum of all other data providers in the specified time frame.', example: '0x0000000000000000000000000000000000000000' })
     dataProvider: string = null;
-    @ApiProperty({ description: 'Amount of rewarded native tokens.', example: 12.46 })
+    @ApiProperty({ description: 'Amount of claimed rewards.', example: 12.46 })
     amount: number;
+    @ApiProperty({ description: 'Number of claims.', example: 213 })
+    count: number;
+    
 }
 export class RewardDTO extends Reward {
     @ApiProperty({ description: 'The start time of the reward epoch, represented as a Unix timestamp in milliseconds', example: 1688670001000 })

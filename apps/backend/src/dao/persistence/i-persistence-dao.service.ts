@@ -1,5 +1,5 @@
 import { Client } from "@elastic/elasticsearch";
-import { Balance, ClaimedRewardDateHistogramElement, ClaimedRewardsSortEnum, DataProviderInfo, Delegation, DelegationSnapshot, DelegationsSortEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, Reward, RewardEpoch, RewardEpochSettings, VotePower, VoterWhitelist, WrappedBalance } from "@flare-base/commons";
+import { Balance,  ClaimedRewardsSortEnum, DataProviderInfo, Delegation, DelegationSnapshot, DelegationsSortEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, Reward, RewardEpoch, RewardEpochSettings, VotePower, VoterWhitelist, WrappedBalance } from "@flare-base/commons";
 import { Logger } from "@nestjs/common";
 import { EpochSortEnum } from "libs/commons/src/model/epochs/price-epoch";
 import { SortOrderEnum } from "libs/commons/src/model/paginated-result";
@@ -7,6 +7,7 @@ import { PersistenceDaoConfig } from "../../model/app-config/persistence-dao-con
 import { ServiceStatusEnum } from "../../service/network-dao-dispatcher/model/service-status.enum";
 import { EpochStats } from "./impl/model/epoch-stats";
 import { PersistenceMetadata, PersistenceMetadataType } from "./impl/model/persistence-metadata";
+import { ClaimedRewardHistogramElement } from "libs/commons/src/model/rewards/reward";
 
 export interface IPersistenceDao {
     logger: Logger;
@@ -49,7 +50,7 @@ export interface IPersistenceDao {
 
     // Rewards
     getClaimedRewards(whoClaimed: string, dataProvider: string, sentTo: string, blockNumberFrom: number, blockNumberTo: number, page: number, pageSize: number, sortField?: ClaimedRewardsSortEnum, sortOrder?: SortOrderEnum): Promise<PaginatedResult<Reward[]>>;
-    getClaimedRewardsDateHistogram(whoClaimed: string, dataProvider: string, startTime: number, endTime: number, dateHistogramPoints: number): Promise<ClaimedRewardDateHistogramElement[]>;
+    getClaimedRewardsHistogram(whoClaimed: string, dataProvider: string, startTime: number, endTime: number, groupBy: string): Promise<ClaimedRewardHistogramElement[]>;
     storeClaimedRewards(blockchainData: Reward[]): Promise<number>;
 
     // Delegations

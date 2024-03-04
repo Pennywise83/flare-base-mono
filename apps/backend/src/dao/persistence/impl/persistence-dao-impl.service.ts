@@ -1,5 +1,5 @@
 import { Client } from "@elastic/elasticsearch";
-import { Balance, BalanceSortEnum, ClaimedRewardDateHistogramElement, ClaimedRewardsSortEnum, Commons, DataProviderInfo, Delegation, DelegationSnapshot, DelegationsSortEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, Reward, RewardEpoch, RewardEpochSettings, VotePower, VoterWhitelist, WrappedBalance } from "@flare-base/commons";
+import { Balance, BalanceSortEnum, ClaimedRewardHistogramElement, ClaimedRewardsSortEnum, Commons, DataProviderInfo, Delegation, DelegationSnapshot, DelegationsSortEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, Reward, RewardEpoch, RewardEpochSettings, VotePower, VoterWhitelist, WrappedBalance } from "@flare-base/commons";
 import { Process } from '@nestjs/bull';
 import { Logger } from "@nestjs/common";
 import { PersistenceDaoConfig } from "apps/backend/src/model/app-config/persistence-dao-config";
@@ -15,6 +15,7 @@ import { IPersistenceDao } from "../i-persistence-dao.service";
 import { EpochStats } from "./model/epoch-stats";
 import { PersistenceConstants } from "./model/persistence-constants";
 import { PersistenceMetadata, PersistenceMetadataType } from "./model/persistence-metadata";
+import { ClaimedRewardsGroupByEnum } from "apps/backend/src/controller/model/claimed-rewards-groupBy-validation-pipe";
 
 export abstract class PersistenceDaoImpl implements IPersistenceDao {
 
@@ -796,9 +797,9 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
         })
     }
 
-    getClaimedRewardsDateHistogram(whoClaimed: string, dataProvider: string, startTime: number, endTime: number, dateHistogramPoints: number): Promise<ClaimedRewardDateHistogramElement[]> {
-        return new Promise<ClaimedRewardDateHistogramElement[]>((resolve, reject) => {
-            let results: ClaimedRewardDateHistogramElement[] = [];
+    getClaimedRewardsHistogram(whoClaimed: string, dataProvider: string, startTime: number, endTime: number, groupBy: string): Promise<ClaimedRewardHistogramElement[]> {
+        return new Promise<ClaimedRewardHistogramElement[]>((resolve, reject) => {
+            let results: ClaimedRewardHistogramElement[] = [];
             let body: any = {
                 "size": 0,
                 "query": {
@@ -808,88 +809,99 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
                 },
                 "aggs": {
                     "histogram": {
-                        "auto_date_histogram": {
-                            "field": "timestamp",
-                            "buckets": `${dateHistogramPoints}`
-                        },
-                        "aggs": {
-                            "rewardEpochId": {
-                                "terms": {
-                                    "field": "rewardEpochId",
-                                    "size": 10000
-                                },
-                                "aggs": {
-                                    "sum": {
-                                        "sum": {
-                                            "field": "amount"
-                                        }
-                                    },
-                                    "topSum": {
-                                        "terms": {
-                                            "field": 'dataProvider',
-                                            "size": 5,
-                                            "order": {
-                                                "sum": "desc"
-                                            }
-                                        },
-                                        "aggs": {
-                                            "sum": {
-                                                "sum": {
-                                                    "field": "amount"
-                                                }
-                                            }
-                                        }
+
+                    }
+                }
+            }
+            /*
+             "aggs": {
+                                "histogram": {
+                                    "auto_date_histogram": {
+                                        "field": "timestamp",
+                                        "buckets": 120
                                     }
                                 }
+                            }
+            */
+            if (groupBy == ClaimedRewardsGroupByEnum.claimTimestamp) {
+                body.aggs.histogram = {
+                    "auto_date_histogram": {
+                        "field": "timestamp",
+                        "buckets": 120
+                    },
+                    "aggs": {
+                        "sum": {
+                            "sum": {
+                                "field": "amount"
                             }
                         }
                     }
                 }
             }
-
+            if (groupBy == ClaimedRewardsGroupByEnum.rewardEpochId) {
+                body.aggs.histogram = {
+                    "terms": {
+                        "field": "rewardEpochId",
+                        "size": this.maxResultsLimit
+                    },
+                    "aggs": {
+                        "sum": {
+                            "sum": {
+                                "field": "amount"
+                            }
+                        }
+                    }
+                }
+            }
             if (isNotEmpty(whoClaimed)) {
                 body.query.query_string.query += ` AND whoClaimed: ${whoClaimed}`;
-                body.aggs.histogram.aggs.rewardEpochId.aggs.topSum.terms.field = 'dataProvider';
+                body.aggs.histogram.aggs.topSum = {
+                    "terms": {
+                        "field": "dataProvider",
+                        "size": this.maxResultsLimit,
+                        "order": {
+                            "sum": "desc"
+                        }
+                    },
+                    "aggs": {
+                        "sum": {
+                            "sum": {
+                                "field": "amount"
+                            }
+                        }
+                    }
+                }
             }
             if (isNotEmpty(dataProvider)) {
                 body.query.query_string.query += ` AND dataProvider: ${dataProvider}`;
-                body.aggs.histogram.aggs.rewardEpochId.aggs.topSum.terms.field = 'whoClaimed';
             }
-            if (isEmpty(whoClaimed) && isEmpty(dataProvider)) {
-                delete body.aggs.histogram.aggs.rewardEpochId.aggs.topSum;
-            }
+            
             this.elasticsearchClient.search({ index: this.getIndex(PersistenceConstants.CLAIMED_REWARDS_INDEX), body: body }).then(response => {
                 this._getBuckets(response.body?.aggregations?.histogram)
                     .flatMap(histogramAggBucket => {
-                        let claimedTimestamp: number = histogramAggBucket.key;
-                        this._getBuckets(histogramAggBucket.rewardEpochId).flatMap(rewardEpochIdBucket => {
-                            let rewardEpochId: number = rewardEpochIdBucket.key;
-                            let rewardEpochSum: number = 0;
-
-                            if (rewardEpochIdBucket.topSum) {
-                                this._getBuckets(rewardEpochIdBucket.topSum).flatMap(topSumBucket => {
-                                    let tmpObj: ClaimedRewardDateHistogramElement = new ClaimedRewardDateHistogramElement();
-                                    tmpObj.claimTimestamp = claimedTimestamp;
-                                    tmpObj.rewardEpochId = rewardEpochId;
-                                    let address: string = topSumBucket.key;
-
-                                    tmpObj.whoClaimed = isNotEmpty(whoClaimed) ? whoClaimed : address;
-                                    tmpObj.dataProvider = isNotEmpty(dataProvider) ? dataProvider : address;
-                                    tmpObj.amount = topSumBucket.sum.value;
-                                    rewardEpochSum += topSumBucket.sum.value;
-                                    results.push(tmpObj);
-                                });
-                            }
-                            if (rewardEpochIdBucket.sum) {
-                                let tmpObj: ClaimedRewardDateHistogramElement = new ClaimedRewardDateHistogramElement();
-                                tmpObj.claimTimestamp = claimedTimestamp;
-                                tmpObj.rewardEpochId = rewardEpochId;
-                                tmpObj.whoClaimed = isNotEmpty(whoClaimed) ? whoClaimed : null;
-                                tmpObj.dataProvider = isNotEmpty(dataProvider) ? dataProvider : null;
-                                tmpObj.amount = rewardEpochIdBucket.sum.value - rewardEpochSum;
+                        let key: number = histogramAggBucket.key;
+                        let count: number = histogramAggBucket.doc_count;
+                        if (histogramAggBucket.topSum) {
+                            this._getBuckets(histogramAggBucket.topSum).flatMap(topSumBucket => {
+                                let tmpObj: ClaimedRewardHistogramElement = new ClaimedRewardHistogramElement();
+                                tmpObj.claimTimestamp = groupBy == ClaimedRewardsGroupByEnum.claimTimestamp ? key : null;
+                                tmpObj.rewardEpochId = groupBy == ClaimedRewardsGroupByEnum.rewardEpochId ? key : null;
+                                tmpObj.whoClaimed = whoClaimed;
+                                tmpObj.dataProvider = topSumBucket.key;
+                                tmpObj.amount = topSumBucket.sum.value;
+                                tmpObj.count = topSumBucket.doc_count;
                                 results.push(tmpObj);
-                            }
-                        })
+                            });
+                        } else {
+                            let tmpObj: ClaimedRewardHistogramElement = new ClaimedRewardHistogramElement();
+                            tmpObj.claimTimestamp = groupBy == ClaimedRewardsGroupByEnum.claimTimestamp ? key : null;
+                            tmpObj.rewardEpochId = groupBy == ClaimedRewardsGroupByEnum.rewardEpochId ? key : null;
+                            tmpObj.whoClaimed = whoClaimed;
+                            tmpObj.dataProvider = dataProvider;
+                            tmpObj.amount = histogramAggBucket.sum.value;
+                            tmpObj.count = count;
+                            results.push(tmpObj);
+                        }
                     });
                 resolve(results);
             }).catch(err => {

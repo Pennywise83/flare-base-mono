@@ -44,3 +44,4 @@ package_DEV.json
 config-dev.yml
 logs/
 .vscode/launch.json
+apps/frontend/proxy.conf.json

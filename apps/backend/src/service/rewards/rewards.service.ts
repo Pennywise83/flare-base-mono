@@ -13,7 +13,8 @@ import { EpochsService } from "../epochs/epochs.service";
 import { NetworkDaoDispatcherService } from "../network-dao-dispatcher/network-dao-dispatcher.service";
 import { ProgressGateway } from "../progress.gateway";
 import { ServiceUtils } from "../service-utils";
-import { ClaimedRewardDateHistogramElement } from "libs/commons/src/model/rewards/reward";
+import { ClaimedRewardHistogramElement } from "libs/commons/src/model/rewards/reward";
+import { ClaimedRewardsGroupByEnum } from "../../controller/model/claimed-rewards-groupBy-validation-pipe";
 
 @Injectable()
 export class RewardsService {
@@ -263,8 +264,8 @@ export class RewardsService {
         await persistenceDao.storePersistenceMetadata(PersistenceMetadataType.Reward, address, blockFrom, blockTo);
     }
 
-    getClaimedRewardsDateHistogram(network: NetworkEnum, whoClaimed: string, dataProvider: string, startTime: number, endTime: number, dateHistogramPoints: number): Promise<ClaimedRewardDateHistogramElement[]> {
-        return new Promise<ClaimedRewardDateHistogramElement[]>(async (resolve, reject) => {
+    getClaimedRewardsHistogram(network: NetworkEnum, whoClaimed: string, dataProvider: string, startTime: number, endTime: number, groupBy: ClaimedRewardsGroupByEnum): Promise<ClaimedRewardHistogramElement[]> {
+        return new Promise<ClaimedRewardHistogramElement[]>(async (resolve, reject) => {
             let blockchainDao: IBlockchainDao = await this._networkDaoDispatcher.getBlockchainDao(network);
             let persistenceDao: IPersistenceDao = await this._networkDaoDispatcher.getPersistenceDao(network);
             try {
@@ -273,7 +274,7 @@ export class RewardsService {
                 }
                 await this.getRewards(network, whoClaimed, dataProvider, null, startTime, endTime, 1, 0);
                 const rewardEpochStats: EpochStats = await this._epochsService.getBlockNumberRangesByRewardEpochs(network, startTime, endTime, blockchainDao);
-                const daoData: ClaimedRewardDateHistogramElement[] = await persistenceDao.getClaimedRewardsDateHistogram(whoClaimed, dataProvider, startTime, endTime, dateHistogramPoints);
+                const daoData: ClaimedRewardHistogramElement[] = await persistenceDao.getClaimedRewardsHistogram(whoClaimed, dataProvider, startTime, endTime, groupBy);
                 resolve(daoData);
                 return;
             } catch (e) {

@@ -1,4 +1,4 @@
-import { ActionResult, ClaimedRewardDateHistogramElement, ClaimedRewardsSortEnum, Commons, NetworkEnum, PaginatedResult, RewardDTO, SortOrderEnum } from "@flare-base/commons";
+import { ActionResult, ClaimedRewardHistogramElement, ClaimedRewardsSortEnum, Commons, NetworkEnum, PaginatedResult, RewardDTO, SortOrderEnum } from "@flare-base/commons";
 import { Controller, Get, Headers, HttpStatus, Logger, Param, ParseIntPipe, Query, Req, Res } from "@nestjs/common";
 import { ApiHeader, ApiParam, ApiProduces, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { isEmpty } from "class-validator";
@@ -6,7 +6,7 @@ import { ApiActionResult } from "libs/commons/src/model/action-result";
 import { ApiPaginatedResult } from "libs/commons/src/model/paginated-result";
 import { RewardsService } from "../../service/rewards/rewards.service";
 import { AddressValidationPipe } from "../model/address-validation-pipe";
-import { DateHistogramPointsDTO, DateHistogramPointsValidationPipe } from "../model/date-histogram-points";
+import { ClaimedRewardsGroupByDTO, ClaimedRewardsGroupByEnum, ClaimedRewardsGroupByValidationPipe } from "../model/claimed-rewards-groupBy-validation-pipe";
 import { NetworkValidationPipe } from "../model/network-validation-pipe";
 import { PageDTO } from "../model/page-dto";
 import { PageSizeDTO } from "../model/page-size-dto";
@@ -90,8 +90,8 @@ export class RewardsController {
     @ApiParam({ name: "network", enum: NetworkEnum, enumName: "NetworkEnum", required: true })
     @ApiQuery({ name: 'whoClaimed', type: String, required: false, description: 'Address that actually performed the claim.' })
     @ApiQuery({ name: 'dataProvider', type: String, required: false, description: 'Address of the data provider that accrued the reward.' })
-    @ApiQuery({ name: 'dateHistogramPoints', type: DateHistogramPointsDTO, required: false, description: 'Number of points for the date histogram chart.' })
-    @ApiActionResult(ClaimedRewardDateHistogramElement, 'Returns a date histogram based on claim timestamp, representing the statistical information regarding rewards claimed divided by reward epoch, claimer address and data provider address.')
+    @ApiQuery({ name: 'groupBy', type: ClaimedRewardsGroupByDTO, required: false, description: 'Specifies whether to aggregate by claimTimestamp or rewardEpochId.' })
+    @ApiActionResult(ClaimedRewardHistogramElement, 'The function returns a histogram that presents statistical data regarding claimed rewards, categorized either by reward epoch ID or claim timestamp. Additionally, if a \'whoClaimed\' address is provided, the results will also be grouped by the address of the data provider.')
     @Get("/getClaimedRewardsDateHistogram/:network")
     async getClaimedRewardsDateHistogram(
         @Headers() headers,
@@ -100,11 +100,11 @@ export class RewardsController {
         @Query('dataProvider', AddressValidationPipe) dataProvider: string,
         @Query('startTime', ParseIntPipe) startTime: number,
         @Query('endTime', ParseIntPipe) endTime: number,
-        @Query('dateHistogramPoints', DateHistogramPointsValidationPipe) dateHistogramPoints: number,
+        @Query('groupBy', ClaimedRewardsGroupByValidationPipe) groupBy: ClaimedRewardsGroupByEnum,
         @Res() res
-    ): Promise<ActionResult<ClaimedRewardDateHistogramElement[]>> {
-        return new Promise<ActionResult<ClaimedRewardDateHistogramElement[]>>(async resolve => {
-            let actionResult: ActionResult<ClaimedRewardDateHistogramElement[]> = new ActionResult<ClaimedRewardDateHistogramElement[]>();
+    ): Promise<ActionResult<ClaimedRewardHistogramElement[]>> {
+        return new Promise<ActionResult<ClaimedRewardHistogramElement[]>>(async resolve => {
+            let actionResult: ActionResult<ClaimedRewardHistogramElement[]> = new ActionResult<ClaimedRewardHistogramElement[]>();
             try {
                 if (isEmpty(network)) {
                     throw new Error(`Network could not be empty`);
@@ -112,7 +112,7 @@ export class RewardsController {
                 if (startTime > endTime) {
                     throw new Error(`Wrong time range`);
                 }
-                const claimedRewardDateHistogramElements: ClaimedRewardDateHistogramElement[] = await this._rewardsService.getClaimedRewardsDateHistogram(network, whoClaimed, dataProvider, startTime, endTime, dateHistogramPoints);
+                const claimedRewardDateHistogramElements: ClaimedRewardHistogramElement[] = await this._rewardsService.getClaimedRewardsHistogram(network, whoClaimed, dataProvider, startTime, endTime, groupBy);
                 actionResult.status = 'OK';
                 actionResult.result = claimedRewardDateHistogramElements;
                 actionResult.duration = new Date().getTime() - actionResult.start;
