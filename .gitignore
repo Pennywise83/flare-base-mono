@@ -44,3 +44,7 @@ config-dev.yml
 package_DEV.json
 .vscode/launch.json
 .gitignore
+config-dev.yml
+logs/
+.vscode/launch.json
+apps/frontend/proxy.conf.json

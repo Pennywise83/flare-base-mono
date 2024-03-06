@@ -1,4 +1,4 @@
-import { ActionResult, ClaimedRewardStats, ClaimedRewardsSortEnum, Commons, NetworkEnum, PaginatedResult, RewardDTO, SortOrderEnum } from "@flare-base/commons";
+import { ActionResult, ClaimedRewardHistogramElement, ClaimedRewardsGroupByEnum, ClaimedRewardsSortEnum, Commons, NetworkEnum, PaginatedResult, RewardDTO, SortOrderEnum } from "@flare-base/commons";
 import { Controller, Get, Headers, HttpStatus, Logger, Param, ParseIntPipe, Query, Req, Res } from "@nestjs/common";
 import { ApiHeader, ApiParam, ApiProduces, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { isEmpty } from "class-validator";
@@ -6,10 +6,11 @@ import { ApiActionResult } from "libs/commons/src/model/action-result";
 import { ApiPaginatedResult } from "libs/commons/src/model/paginated-result";
 import { RewardsService } from "../../service/rewards/rewards.service";
 import { AddressValidationPipe } from "../model/address-validation-pipe";
+import { AggregationIntervalDTO, AggregationIntervalValidationPipe } from "../model/aggregation-interval-validation-pipe";
+import { ClaimedRewardsGroupByDTO, ClaimedRewardsGroupByValidationPipe } from "../model/claimed-rewards-groupBy-validation-pipe";
 import { NetworkValidationPipe } from "../model/network-validation-pipe";
 import { PageDTO } from "../model/page-dto";
 import { PageSizeDTO } from "../model/page-size-dto";
-import { RequiredValidationPipe } from "../model/required-validation-pipe";
 import { ClaimedRewardsSortValidationPipe, SortFieldClaimedRewardsDTO } from "../model/sort-field-claimed-rewards-dto";
 import { SortOrderDTO, SortOrderValidationPipe } from "../model/sort-order-dto";
 
@@ -88,19 +89,27 @@ export class RewardsController {
 
 
     @ApiParam({ name: "network", enum: NetworkEnum, enumName: "NetworkEnum", required: true })
-    @ApiQuery({ name: 'address', type: String, required: true, description: 'Address that actually performed the claim.' })
-    @ApiActionResult(ClaimedRewardStats, 'Retrieves statistical information regarding rewards claimed by the specified address.')
-    @Get("/getClaimedRewardsStats/:network")
-    async getClaimedRewardsStats(
+    @ApiQuery({ name: 'whoClaimed', type: String, required: false, description: 'Address that actually performed the claim.' })
+    @ApiQuery({ name: 'dataProvider', type: String, required: false, description: 'Address of the data provider that accrued the reward.' })
+    @ApiQuery({ name: 'groupBy', type: ClaimedRewardsGroupByDTO, required: false, description: 'Specifies whether to aggregate by claimTimestamp or rewardEpochId.' })
+    @ApiQuery({ name: 'aggregationInterval', type: AggregationIntervalDTO, required: false, description: 'Specifies whether to aggregate by claimTimestamp or rewardEpochId.' })
+
+    @ApiActionResult(ClaimedRewardHistogramElement, 'The function returns a histogram that presents statistical data regarding claimed rewards, categorized either by reward epoch ID or claim timestamp. Additionally, if a \'whoClaimed\' address is provided, the results will also be grouped by the address of the data provider.')
+
+    @Get("/getClaimedRewardsHistogram/:network")
+    async getClaimedRewardsDateHistogram(
         @Headers() headers,
         @Param('network', NetworkValidationPipe) network: NetworkEnum,
-        @Query('address', RequiredValidationPipe, AddressValidationPipe) address: string,
+        @Query('whoClaimed', AddressValidationPipe) whoClaimed: string,
+        @Query('dataProvider', AddressValidationPipe) dataProvider: string,
         @Query('startTime', ParseIntPipe) startTime: number,
         @Query('endTime', ParseIntPipe) endTime: number,
+        @Query('groupBy', ClaimedRewardsGroupByValidationPipe) groupBy: ClaimedRewardsGroupByEnum,
+        @Query('aggregationInterval', AggregationIntervalValidationPipe) aggregationInterval: string,
         @Res() res
-    ): Promise<ActionResult<ClaimedRewardStats>> {
-        return new Promise<ActionResult<ClaimedRewardStats>>(async resolve => {
-            let actionResult: ActionResult<ClaimedRewardStats> = new ActionResult<ClaimedRewardStats>();
+    ): Promise<ActionResult<ClaimedRewardHistogramElement[]>> {
+        return new Promise<ActionResult<ClaimedRewardHistogramElement[]>>(async resolve => {
+            let actionResult: ActionResult<ClaimedRewardHistogramElement[]> = new ActionResult<ClaimedRewardHistogramElement[]>();
             try {
                 if (isEmpty(network)) {
                     throw new Error(`Network could not be empty`);
@@ -108,9 +117,9 @@ export class RewardsController {
                 if (startTime > endTime) {
                     throw new Error(`Wrong time range`);
                 }
-                const claimedRewardsStats: ClaimedRewardStats = await this._rewardsService.getClaimedRewardStats(network, address, startTime, endTime);
+                const claimedRewardDateHistogramElements: ClaimedRewardHistogramElement[] = await this._rewardsService.getClaimedRewardsHistogram(network, whoClaimed, dataProvider, startTime, endTime, groupBy, aggregationInterval);
                 actionResult.status = 'OK';
-                actionResult.result = claimedRewardsStats;
+                actionResult.result = claimedRewardDateHistogramElements;
                 actionResult.duration = new Date().getTime() - actionResult.start;
                 resolve((res).status(HttpStatus.OK).json(actionResult));
 

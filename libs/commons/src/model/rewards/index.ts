@@ -1,2 +1,2 @@
 
-export { Reward, RewardDTO, RewardResponse, ClaimedRewardsSortEnum, ClaimedRewardStats } from "./reward";
+export { Reward, RewardDTO, RewardResponse, ClaimedRewardsSortEnum, ClaimedRewardHistogramElement,ClaimedRewardsGroupByEnum } from "./reward";

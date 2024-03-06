@@ -1,9 +1,10 @@
-import { ClaimedRewardStats, ClaimedRewardsSortEnum, NetworkEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, Reward, RewardDTO, RewardEpoch, RewardEpochDTO, RewardEpochSettings, SortOrderEnum } from "@flare-base/commons";
+import { ClaimedRewardsSortEnum, NetworkEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, Reward, RewardDTO, RewardEpoch, RewardEpochDTO, RewardEpochSettings, SortOrderEnum } from "@flare-base/commons";
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { isEmpty, isNotEmpty } from "class-validator";
 import { EpochSortEnum } from "libs/commons/src/model/epochs/price-epoch";
-import { Subscription, interval } from "rxjs";
+import { ClaimedRewardHistogramElement, ClaimedRewardsGroupByEnum } from "libs/commons/src/model/rewards/reward";
+import { interval } from "rxjs";
 import { IBlockchainDao } from "../../dao/blockchain/i-blockchain-dao.service";
 import { IPersistenceDao } from "../../dao/persistence/i-persistence-dao.service";
 import { EpochStats } from "../../dao/persistence/impl/model/epoch-stats";
@@ -262,22 +263,35 @@ export class RewardsService {
         await persistenceDao.storePersistenceMetadata(PersistenceMetadataType.Reward, address, blockFrom, blockTo);
     }
 
-    getClaimedRewardStats(network: NetworkEnum, address: string, startTime: number, endTime: number): Promise<ClaimedRewardStats> {
-        return new Promise<ClaimedRewardStats>(async (resolve, reject) => {
+    getClaimedRewardsHistogram(network: NetworkEnum, whoClaimed: string, dataProvider: string, startTime: number, endTime: number, groupBy: ClaimedRewardsGroupByEnum, aggregationInterval?: string): Promise<ClaimedRewardHistogramElement[]> {
+        return new Promise<ClaimedRewardHistogramElement[]>(async (resolve, reject) => {
             let blockchainDao: IBlockchainDao = await this._networkDaoDispatcher.getBlockchainDao(network);
             let persistenceDao: IPersistenceDao = await this._networkDaoDispatcher.getPersistenceDao(network);
             try {
                 if (ServiceUtils.isServiceUnavailable(blockchainDao) || ServiceUtils.isServiceUnavailable(persistenceDao)) {
                     throw new Error(`Service unavailable`);
                 }
-                await this.getRewards(network, address, null, null, startTime, endTime, 1, 0);
-                const rewardEpochStats: EpochStats = await this._epochsService.getBlockNumberRangesByRewardEpochs(network, startTime, endTime, blockchainDao);
-                const daoData: ClaimedRewardStats = await persistenceDao.getClaimedRewardsStats(address, rewardEpochStats.minEpochId, rewardEpochStats.maxEpochId)
+                await this.getRewards(network, whoClaimed, dataProvider, null, startTime, endTime, 1, 0);
+                const daoData: ClaimedRewardHistogramElement[] = await persistenceDao.getClaimedRewardsHistogram(whoClaimed, dataProvider, startTime, endTime, groupBy, aggregationInterval);
+                if (groupBy == ClaimedRewardsGroupByEnum.rewardEpochId) {
+                    const rewardEpochs: RewardEpochDTO[] = (await this._epochsService.getRewardEpochsDto(network,startTime,endTime,1,10000)).results;
+                    daoData.map(data => {
+                        const tmpRewardEpoch: RewardEpochDTO = rewardEpochs.find(rewardEpoch => rewardEpoch.id == data.rewardEpochId);
+                        if (isNotEmpty(tmpRewardEpoch)) {
+                            data.timestamp = tmpRewardEpoch.startTime;
+                        }
+                    });
+                }
                 resolve(daoData);
                 return;
             } catch (e) {
-                this.logger.error(`${network} - Unable to get claimed rewards stats for address ${address}: ${e.message}`);
-                reject(new Error(`${network} - Unable to get claimed rewards stats for address ${address}.`));
+                this.logger.error(`${network} - Unable to get claimed rewards date histogram: ${e.message}`);
+                if (e.name == 'tooBigException') {
+                    reject(new Error(`${network} - Unable to get claimed rewards date histogram: ${e.message}`));
+                } else {
+                    reject(new Error(`${network} - Unable to get claimed rewards date histogram.`));
+                }
+
             }
         });
     }

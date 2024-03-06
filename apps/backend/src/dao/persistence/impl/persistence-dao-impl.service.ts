@@ -1,5 +1,5 @@
 import { Client } from "@elastic/elasticsearch";
-import { Balance, BalanceSortEnum, ClaimedRewardStats, ClaimedRewardsSortEnum, Commons, DataProviderInfo, Delegation, DelegationSnapshot, DelegationsSortEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, Reward, RewardEpoch, RewardEpochSettings, VotePower, VoterWhitelist, WrappedBalance } from "@flare-base/commons";
+import { Balance, BalanceSortEnum, ClaimedRewardHistogramElement, ClaimedRewardsGroupByEnum, ClaimedRewardsSortEnum, Commons, DataProviderInfo, Delegation, DelegationSnapshot, DelegationsSortEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, Reward, RewardEpoch, RewardEpochSettings, VotePower, VoterWhitelist, WrappedBalance } from "@flare-base/commons";
 import { Process } from '@nestjs/bull';
 import { Logger } from "@nestjs/common";
 import { PersistenceDaoConfig } from "apps/backend/src/model/app-config/persistence-dao-config";
@@ -9,12 +9,12 @@ import { plainToClass } from "class-transformer";
 import { isEmpty, isNotEmpty } from "class-validator";
 import { EpochSortEnum } from "libs/commons/src/model/epochs/price-epoch";
 import { SortOrderEnum } from "libs/commons/src/model/paginated-result";
-import { interval, timer } from "rxjs";
+import { interval } from "rxjs";
+import { ICacheDao } from "../../cache/i-cache-dao.service";
 import { IPersistenceDao } from "../i-persistence-dao.service";
 import { EpochStats } from "./model/epoch-stats";
 import { PersistenceConstants } from "./model/persistence-constants";
 import { PersistenceMetadata, PersistenceMetadataType } from "./model/persistence-metadata";
-import { ICacheDao } from "../../cache/i-cache-dao.service";
 
 export abstract class PersistenceDaoImpl implements IPersistenceDao {
 
@@ -76,7 +76,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
             for (let i in PersistenceMetadataType) {
                 if (PersistenceMetadataType[i] != PersistenceMetadataType.DelegationSnapshot) {
                     const persistenceMetadata: PersistenceMetadata[] = await this.getPersistenceMetadata(PersistenceMetadataType[i], 'all', 0, null);
-                    await this.optimizePersistenceMetadata(PersistenceMetadataType[i],persistenceMetadata);
+                    await this.optimizePersistenceMetadata(PersistenceMetadataType[i], persistenceMetadata);
                 }
             }
             this.logger.log(`Cleaning persistence metadata...`);
@@ -795,44 +795,140 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
             resolve(storedObjectCount);
         })
     }
+    getBestAggregationInterval(chartPoints: number, from: number, to: number): string {
+        // Calcola la durata totale dell'intervallo
+        const totalDuration: number = to - from;
 
-    getClaimedRewardsStats(address: string, epochFrom: number, epochTo: number): Promise<ClaimedRewardStats> {
-        return new Promise<ClaimedRewardStats>((resolve, reject) => {
-            const body: any = {
+        // Calcola la durata dell'intervallo desiderata per ciascun punto nel grafico
+        const desiredInterval: number = totalDuration / chartPoints;
+
+        // Definisci una lista di intervalli comuni in millisecondi (ora, giorno, settimana, mese)
+        const commonIntervalsInMillis: number[] = [3600000, (3600000 * 2), (3600000 * 6), (3600000 * 12), 86400000, (86400000 * 2), (86400000 * 3), 604800000, 2592000000]; // Ora, giorno, settimana, mese
+        const commonIntervals: string[] = ["1h", "2h", "6h", "12h", "1d", "2d", "3d", "1w", "1M"]; // Formato di intervallo di tempo per Elasticsearch
+
+        // Trova l'indice dell'intervallo comune più vicino all'intervallo desiderato
+        let minDifferenceIndex: number = 0;
+        let minDifference: number = Math.abs(desiredInterval - commonIntervalsInMillis[0]);
+        for (let i = 1; i < commonIntervalsInMillis.length; i++) {
+            const difference: number = Math.abs(desiredInterval - commonIntervalsInMillis[i]);
+            if (difference < minDifference) {
+                minDifference = difference;
+                minDifferenceIndex = i;
+            }
+        }
+
+        // Restituisci l'intervallo comune trovato nel formato richiesto da Elasticsearch
+        return commonIntervals[minDifferenceIndex];
+    }
+
+    getClaimedRewardsHistogram(whoClaimed: string, dataProvider: string, startTime: number, endTime: number, groupBy: string, aggregationInterval?:string): Promise<ClaimedRewardHistogramElement[]> {
+        return new Promise<ClaimedRewardHistogramElement[]>((resolve, reject) => {
+            let results: ClaimedRewardHistogramElement[] = [];
+            let interval: string;
+            if (isNotEmpty(aggregationInterval)) {
+                if (Commons.getHistogramPointsFromInterval(aggregationInterval, startTime, endTime) > 120) {
+                    let error: Error = new Error(`Results set is too big. Try to reduce the aggregation interval.`)
+                    error.name = 'tooBigException';
+                    throw error
+                }
+                interval = aggregationInterval;
+            } else {
+                interval = Commons.getBestHistogramPointsInterval(startTime,endTime,30);
+            }
+            let body: any = {
                 "size": 0,
                 "query": {
                     "query_string": {
-                        "query": "whoClaimed: " + address + " AND rewardEpochId: [ " + epochFrom + " TO " + epochTo + "]"
+                        "query": `timestamp: [${startTime} TO ${endTime}]`
                     }
                 },
                 "aggs": {
-                    "dataProvider_count": {
-                        "cardinality": {
-                            "field": "dataProvider"
-                        }
+                    "histogram": {
+
+                    }
+                }
+            }
+            if (groupBy == ClaimedRewardsGroupByEnum.timestamp) {
+                body.aggs.histogram = {
+                    "date_histogram": {
+                        "field": "timestamp",
+                        "interval": interval
                     },
-                    "amount_stats": {
-                        "stats": {
-                            "field": "amount"
+                    "aggs": {
+                        "sum": {
+                            "sum": {
+                                "field": "amount"
+                            }
                         }
                     }
                 }
             }
-            this.elasticsearchClient.search({ index: this.getIndex(PersistenceConstants.CLAIMED_REWARDS_INDEX), body: body }).then(response => {
-                let tmpObj: ClaimedRewardStats = new ClaimedRewardStats();
-                if (response.body?.aggregations?.amount_stats) {
-                    tmpObj.count = response.body?.aggregations?.amount_stats?.count!;
-                    tmpObj.min = response.body?.aggregations?.amount_stats?.min != null ? response.body?.aggregations?.amount_stats?.min : 0;
-                    tmpObj.max = response.body?.aggregations?.amount_stats?.max != null ? response.body?.aggregations?.amount_stats?.max : 0;
-                    tmpObj.count = response.body?.aggregations?.amount_stats?.count != null ? response.body?.aggregations?.amount_stats?.count : 0;
-                    tmpObj.sum = response.body?.aggregations?.amount_stats?.sum != null ? response.body?.aggregations?.amount_stats?.sum : 0;
-                    tmpObj.average = response.body?.aggregations?.amount_stats?.avg != null ? response.body?.aggregations?.amount_stats?.avg : 0;
+            if (groupBy == ClaimedRewardsGroupByEnum.rewardEpochId) {
+                body.aggs.histogram = {
+                    "terms": {
+                        "field": "rewardEpochId",
+                        "size": this.maxResultsLimit
+                    },
+                    "aggs": {
+                        "sum": {
+                            "sum": {
+                                "field": "amount"
+                            }
+                        }
+                    }
                 }
+            }
+            if (isNotEmpty(whoClaimed)) {
+                body.query.query_string.query += ` AND whoClaimed: ${whoClaimed}`;
+                body.aggs.histogram.aggs.topSum = {
+                    "terms": {
+                        "field": "dataProvider",
+                        "size": this.maxResultsLimit,
+                        "order": {
+                            "sum": "desc"
+                        }
+                    },
+                    "aggs": {
+                        "sum": {
+                            "sum": {
+                                "field": "amount"
+                            }
+                        }
+                    }
+                }
+            }
+            if (isNotEmpty(dataProvider)) {
+                body.query.query_string.query += ` AND dataProvider: ${dataProvider}`;
+            }
 
-                if (response.body?.aggregations?.dataProvider_count) {
-                    tmpObj.dataProviderCount = response.body?.aggregations?.dataProvider_count.value;
-                }
-                resolve(tmpObj);
+            this.elasticsearchClient.search({ index: this.getIndex(PersistenceConstants.CLAIMED_REWARDS_INDEX), body: body }).then(response => {
+                this._getBuckets(response.body?.aggregations?.histogram)
+                    .flatMap(histogramAggBucket => {
+                        let key: number = histogramAggBucket.key;
+                        let count: number = histogramAggBucket.doc_count;
+                        if (histogramAggBucket.topSum && histogramAggBucket.topSum.buckets && histogramAggBucket.topSum.buckets.length > 0) {
+                            this._getBuckets(histogramAggBucket.topSum).flatMap(topSumBucket => {
+                                let tmpObj: ClaimedRewardHistogramElement = new ClaimedRewardHistogramElement();
+                                tmpObj.timestamp = groupBy == ClaimedRewardsGroupByEnum.timestamp ? key : null;
+                                tmpObj.rewardEpochId = groupBy == ClaimedRewardsGroupByEnum.rewardEpochId ? key : null;
+                                tmpObj.whoClaimed = whoClaimed;
+                                tmpObj.dataProvider = topSumBucket.key;
+                                tmpObj.amount = topSumBucket.sum.value;
+                                tmpObj.count = topSumBucket.doc_count;
+                                results.push(tmpObj);
+                            });
+                        } else {
+                            let tmpObj: ClaimedRewardHistogramElement = new ClaimedRewardHistogramElement();
+                            tmpObj.timestamp = groupBy == ClaimedRewardsGroupByEnum.timestamp ? key : null;
+                            tmpObj.rewardEpochId = groupBy == ClaimedRewardsGroupByEnum.rewardEpochId ? key : null;
+                            tmpObj.whoClaimed = whoClaimed;
+                            tmpObj.dataProvider = dataProvider;
+                            tmpObj.amount = histogramAggBucket.sum.value;
+                            tmpObj.count = count;
+                            results.push(tmpObj);
+                        }
+                    });
+                resolve(results);
             }).catch(err => {
                 reject(new Error(`getEpochStats error: ` + err.message))
             });

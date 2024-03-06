@@ -11,27 +11,25 @@ import { Title } from "@angular/platform-browser";
 import { ActivatedRoute, Router, RouterModule } from "@angular/router";
 import { UiNotificationsService } from "app/commons/ui-notifications/ui-notifications.service";
 import { Utils } from "app/commons/utils";
-import { DelegationsRequest } from "app/model/delegations-request";
-import { DelegatorsRequest } from "app/model/delegators-request";
+import { LoadingMap } from "app/model/loading-map";
 import { TimeRange, TimeRangeDefinition } from "app/model/time-range";
-import { DelegatotionService } from "app/services/delegations.service";
 import { EpochsService } from "app/services/epochs.service";
 import { FtsoService } from "app/services/ftso.service";
+import { RewardsService } from "app/services/rewards.service";
 import { isDefined, isEmpty, isNotEmpty, isNumber } from "class-validator";
 import { saveAs } from 'file-saver';
 import { Subject, takeUntil } from "rxjs";
-import { DataProviderInfo, DelegationDTO, DelegationsSortEnum, NetworkEnum, PaginatedResult, RewardDTO, SortOrderEnum } from "../../../../../../libs/commons/src";
+import { ClaimedRewardHistogramElement, ClaimedRewardsGroupByEnum, DataProviderInfo, DelegationsSortEnum, NetworkEnum, PaginatedResult, RewardDTO, SortOrderEnum } from "../../../../../../libs/commons/src";
 import { AppModule } from "../../app.module";
 import { animations } from "../../commons/animations";
 import { LoaderComponent } from "../../commons/loader/loader.component";
 import { TimeDiffPipe } from "../../commons/pipes/time-diff.pipe";
+import { ClaimedRewardsHistogramRequest, ClaimedRewardsRequest } from "../../model/claimed-rewards-request";
+import { ClaimedRewardsChartComponent } from "../claimed-rewards-chart/claimed-rewards-chart.component";
+import { ClaimedRewardsTableComponent } from "../claimed-rewards-table/claimed-rewards-table.component";
 import { CounterComponent } from "../counter/counter.component";
 import { DataProvidersComponent } from "../data-providers/data-providers.component";
 import { DelegationsTableComponent } from "../delegations-table/delegations-table.component";
-import { ClaimRewardsRequest } from "../wallet/wallet-claimed-rewards/model/claim-rewards-request";
-import { RewardsService } from "app/services/rewards.service";
-import { ClaimedRewardsRequest } from "../../model/claimed-rewards-request";
-import { ClaimedRewardsTableComponent } from "../claimed-rewards-table/claimed-rewards-table.component";
 
 
 @Component({
@@ -39,7 +37,7 @@ import { ClaimedRewardsTableComponent } from "../claimed-rewards-table/claimed-r
     templateUrl: './claimed-rewards-search.component.html',
     imports: [AppModule, MatIconModule, RouterModule, FormsModule, MatSelectModule, CounterComponent,
         LoaderComponent, DataProvidersComponent, MatFormFieldModule, MatInputModule, DelegationsTableComponent, TimeDiffPipe,
-        MatMenuModule, DatePipe, MatButtonModule, ClaimedRewardsTableComponent],
+        MatMenuModule, DatePipe, MatButtonModule, ClaimedRewardsTableComponent, ClaimedRewardsChartComponent],
     standalone: true,
     encapsulation: ViewEncapsulation.None,
     providers: [TimeDiffPipe, DatePipe],
@@ -51,9 +49,11 @@ export class ClaimedRewardsSearchComponent implements OnInit, OnDestroy {
     private _network: NetworkEnum;
     private _unsubscribeAll: Subject<any> = new Subject<any>();
 
-    request: ClaimedRewardsRequest;
+    tableRequest: ClaimedRewardsRequest;
+    histogramGroupBy: ClaimedRewardsGroupByEnum = ClaimedRewardsGroupByEnum.rewardEpochId;
     claimedRewards: PaginatedResult<RewardDTO[]>;
-    loading: boolean;
+    claimedRewardsDateHistogramData: ClaimedRewardHistogramElement[];
+    loadingMap: LoadingMap;
     tableColumns: string[] = ['timestamp', 'rewardEpoch', 'whoClaimed', 'dataProvider', 'sentTo', 'amount'];
     dataProvidersInfo: DataProviderInfo[] = [];
     selectedTimeRangeDefinition: TimeRangeDefinition;
@@ -76,6 +76,7 @@ export class ClaimedRewardsSearchComponent implements OnInit, OnDestroy {
         private _ftsoService: FtsoService,
         private _titleService: Title
     ) {
+        this.loadingMap = new LoadingMap(this._cdr);
     }
 
     ngOnDestroy(): void {
@@ -87,9 +88,9 @@ export class ClaimedRewardsSearchComponent implements OnInit, OnDestroy {
     setTimeRange(timeRangeDefinition: TimeRangeDefinition): void {
         this.selectedTimeRangeDefinition = timeRangeDefinition;
         const timeRange: TimeRange = timeRangeDefinition.getTimeRange();
-        this.request.startTime = timeRange.start;
-        this.request.endTime = timeRange.end;
-        this._updateQueryParams(this.request).then();
+        this.tableRequest.startTime = timeRange.start;
+        this.tableRequest.endTime = timeRange.end;
+        this._updateQueryParams(this.tableRequest).then();
     }
     ngOnInit(): void {
         Utils.getParentParams(this._route).pipe(
@@ -104,48 +105,48 @@ export class ClaimedRewardsSearchComponent implements OnInit, OnDestroy {
                     this._network = NetworkEnum[this._parentParams['network']];
                     this.selectedTimeRangeDefinition = this.timeRanges[0];
                     this._titleService.setTitle(`Flare Base - ${this._network} - Delegations search`);
-                    this.request = new ClaimedRewardsRequest(null, null, null, null);
+                    this.tableRequest = new ClaimedRewardsRequest(null, null, null, null);
                     this._parseQueryParams();
                     this._route.queryParams.pipe(takeUntil(this._unsubscribeAll)).subscribe(queryParams => {
                         this._parseQueryParams();
-                        this.refreshData(this.request);
+                        this.refreshTableData(this.tableRequest);
+                        this.refreshChartData(this.tableRequest);
                     });
                 }
             });
     }
 
     exportCsv(): void {
-        this.loading = true;
-        let startTime: string = this._datePipe.transform(this.request.startTime, 'YYYY-MM-dd _HH-mm-ss');
-        let endTime: string = this._datePipe.transform(this.request.endTime, 'YYYY-MM-dd_HH-mm-ss');
-        this._rewardsService.getClaimedRewardsCsv(this._network, this.request).subscribe(claimedRewards => {
-            saveAs(claimedRewards, `${this._network}-ClaimedRewards-whoClaimed_${this.request.whoClaimed ? this.request.whoClaimed : 'all'}-dataProvider_${this.request.dataProvider ? this.request.dataProvider : 'all'}-sentTo_${this.request.sentTo ? this.request.sentTo : 'all'}-startTime_${startTime}-endTime_${endTime}.csv`);
+        this.loadingMap.setLoading('tableData', true);
+        let startTime: string = this._datePipe.transform(this.tableRequest.startTime, 'YYYY-MM-dd _HH-mm-ss');
+        let endTime: string = this._datePipe.transform(this.tableRequest.endTime, 'YYYY-MM-dd_HH-mm-ss');
+        this._rewardsService.getClaimedRewardsCsv(this._network, this.tableRequest).subscribe(claimedRewards => {
+            saveAs(claimedRewards, `${this._network}-ClaimedRewards-whoClaimed_${this.tableRequest.whoClaimed ? this.tableRequest.whoClaimed : 'all'}-dataProvider_${this.tableRequest.dataProvider ? this.tableRequest.dataProvider : 'all'}-sentTo_${this.tableRequest.sentTo ? this.tableRequest.sentTo : 'all'}-startTime_${startTime}-endTime_${endTime}.csv`);
         }, statsErr => {
             this._uiNotificationsService.error('Unable to export claimed rewards data', statsErr);
         }).add(() => {
-            this.loading = false;
+            this.loadingMap.setLoading('tableData', false);
             this._cdr.detectChanges();
         });
     }
     handleRequestEvent(requestEvent: ClaimedRewardsRequest): void {
-        this.request.page = requestEvent.page;
-        this.request.pageSize = requestEvent.pageSize;
-        this.request.sortField = requestEvent.sortField;
-        this.request.sortOrder = requestEvent.sortOrder;
+        this.tableRequest.page = requestEvent.page;
+        this.tableRequest.pageSize = requestEvent.pageSize;
+        this.tableRequest.sortField = requestEvent.sortField;
+        this.tableRequest.sortOrder = requestEvent.sortOrder;
         let currentParams = { ...this._route.snapshot.queryParams };
-        currentParams.page = this.request.page;
-        currentParams.pageSize = this.request.pageSize;
-        currentParams.sortField = this.request.sortField;
-        currentParams.sortOrder = this.request.sortOrder;
-        this._updateQueryParams(this.request);
+        currentParams.page = this.tableRequest.page;
+        currentParams.pageSize = this.tableRequest.pageSize;
+        currentParams.sortField = this.tableRequest.sortField;
+        currentParams.sortOrder = this.tableRequest.sortOrder;
+        this._updateQueryParams(this.tableRequest);
     }
 
     submitSearch(): void {
-        this._updateQueryParams(this.request);
+        this._updateQueryParams(this.tableRequest);
     }
-    refreshData(request: ClaimedRewardsRequest): void {
-        this.loading = true;
-        this._cdr.detectChanges();
+    refreshTableData(request: ClaimedRewardsRequest): void {
+        this.loadingMap.setLoading('tableData', true);
         this._ftsoService.getDataProvidersInfo(this._network).subscribe(dataProvidersInfoRes => {
             this.dataProvidersInfo = dataProvidersInfoRes;
             this._rewardsService.getClaimedRewards(this._network, request).subscribe(claimedRewardsRes => {
@@ -153,18 +154,40 @@ export class ClaimedRewardsSearchComponent implements OnInit, OnDestroy {
             }, claimedRewardsErr => {
                 this._uiNotificationsService.error('Unable to get claimed rewards with provided search', claimedRewardsErr);
             }).add(() => {
-                this.loading = false;
-                this._cdr.detectChanges();
+                this.loadingMap.setLoading('tableData', false);
                 if (this.claimedRewards.numResults > 0 && (this.claimedRewards.page - 1) * this.claimedRewards.pageSize >= this.claimedRewards.numResults) {
-                    this.request.page = 1;
-                    this.refreshData(this.request);
+                    this.tableRequest.page = 1;
+                    this.refreshTableData(this.tableRequest);
                 }
             });
         });
     }
 
+    setHistogramGroupBy(groupBy: ClaimedRewardsGroupByEnum): void {
+        this.histogramGroupBy = groupBy;
+        let currentParams = { ...this._route.snapshot.queryParams };
+        currentParams.groupBy = this.histogramGroupBy;
+        this._updateQueryParams(this.tableRequest);
+        this.refreshChartData(this.tableRequest);
+    }
+    refreshChartData(request: ClaimedRewardsRequest): void {
+        this.loadingMap.setLoading('chartData', true);
+        let chartRequest: ClaimedRewardsHistogramRequest = new ClaimedRewardsHistogramRequest(request.whoClaimed, request.dataProvider, request.startTime, request.endTime, this.histogramGroupBy);
+        this._cdr.detectChanges();
+        this._ftsoService.getDataProvidersInfo(this._network).subscribe(dataProvidersInfoRes => {
+            this.dataProvidersInfo = dataProvidersInfoRes;
+            this._rewardsService.getClaimedRewardsgetClaimedRewardsDateHistogram(this._network, chartRequest).subscribe(claimedRewardsRes => {
+                this.claimedRewardsDateHistogramData = claimedRewardsRes;
+            }, claimedRewardsErr => {
+                this._uiNotificationsService.error('Unable to get claimed rewards date histogram with provided search', claimedRewardsErr);
+            }).add(() => {
+                this.loadingMap.setLoading('chartData', false);
+            });
+        });
+    }
+
     private async _updateQueryParams(request: ClaimedRewardsRequest): Promise<void> {
-        const currentParams = { ...this._route.snapshot.queryParams };
+        var currentParams = { ...this._route.snapshot.queryParams };
         if (isNotEmpty(this.selectedTimeRangeDefinition.id)) {
             currentParams['timeRangeId'] = this.selectedTimeRangeDefinition.id;
         }
@@ -177,6 +200,7 @@ export class ClaimedRewardsSearchComponent implements OnInit, OnDestroy {
         currentParams['pageSize'] = request.pageSize;
         currentParams['sortField'] = request.sortField;
         currentParams['sortOrder'] = request.sortOrder;
+        currentParams['groupBy'] = this.histogramGroupBy;
         this._cdr.detectChanges();
         this._router.navigate([], {
             relativeTo: this._route,
@@ -210,17 +234,18 @@ export class ClaimedRewardsSearchComponent implements OnInit, OnDestroy {
                 startTime = parseInt(this._route.snapshot.queryParamMap.get('endTime'));
             }
         }
-        this.request.whoClaimed = isDefined(this._route.snapshot.queryParamMap.get('whoClaimed')) ? this._route.snapshot.queryParamMap.get('whoClaimed') : '';
-        this.request.dataProvider = isDefined(this._route.snapshot.queryParamMap.get('dataProvider')) ? this._route.snapshot.queryParamMap.get('dataProvider') : '';
-        this.request.sentTo = isDefined(this._route.snapshot.queryParamMap.get('sentTo')) ? this._route.snapshot.queryParamMap.get('sentTo') : '';
+        this.tableRequest.whoClaimed = isDefined(this._route.snapshot.queryParamMap.get('whoClaimed')) ? this._route.snapshot.queryParamMap.get('whoClaimed') : '';
+        this.tableRequest.dataProvider = isDefined(this._route.snapshot.queryParamMap.get('dataProvider')) ? this._route.snapshot.queryParamMap.get('dataProvider') : '';
+        this.tableRequest.sentTo = isDefined(this._route.snapshot.queryParamMap.get('sentTo')) ? this._route.snapshot.queryParamMap.get('sentTo') : '';
 
-        this.request.startTime = startTime;
-        this.request.endTime = endTime;
+        this.tableRequest.startTime = startTime;
+        this.tableRequest.endTime = endTime;
 
-        this.request.page = isNaN(parseInt(this._route.snapshot.queryParamMap.get('page'))) ? 1 : parseInt(this._route.snapshot.queryParamMap.get('page'));
-        this.request.pageSize = isNaN(parseInt(this._route.snapshot.queryParamMap.get('pageSize'))) ? 50 : parseInt(this._route.snapshot.queryParamMap.get('pageSize'));
-        this.request.sortField = (isDefined(this._route.snapshot.queryParamMap.get('sortField')) && isDefined(DelegationsSortEnum[this._route.snapshot.queryParamMap.get('sortField')])) ? DelegationsSortEnum[this._route.snapshot.queryParamMap.get('sortField')] : DelegationsSortEnum.timestamp;
-        this.request.sortOrder = (isDefined(this._route.snapshot.queryParamMap.get('sortOrder')) && isDefined(SortOrderEnum[this._route.snapshot.queryParamMap.get('sortOrder')])) ? SortOrderEnum[this._route.snapshot.queryParamMap.get('sortOrder')] : SortOrderEnum.desc;
+        this.tableRequest.page = isNaN(parseInt(this._route.snapshot.queryParamMap.get('page'))) ? 1 : parseInt(this._route.snapshot.queryParamMap.get('page'));
+        this.tableRequest.pageSize = isNaN(parseInt(this._route.snapshot.queryParamMap.get('pageSize'))) ? 50 : parseInt(this._route.snapshot.queryParamMap.get('pageSize'));
+        this.tableRequest.sortField = (isDefined(this._route.snapshot.queryParamMap.get('sortField')) && isDefined(DelegationsSortEnum[this._route.snapshot.queryParamMap.get('sortField')])) ? DelegationsSortEnum[this._route.snapshot.queryParamMap.get('sortField')] : DelegationsSortEnum.timestamp;
+        this.tableRequest.sortOrder = (isDefined(this._route.snapshot.queryParamMap.get('sortOrder')) && isDefined(SortOrderEnum[this._route.snapshot.queryParamMap.get('sortOrder')])) ? SortOrderEnum[this._route.snapshot.queryParamMap.get('sortOrder')] : SortOrderEnum.desc;
+        this.histogramGroupBy = (isDefined(this._route.snapshot.queryParamMap.get('groupBy')) && isDefined(ClaimedRewardsGroupByEnum[this._route.snapshot.queryParamMap.get('groupBy')])) ? ClaimedRewardsGroupByEnum[this._route.snapshot.queryParamMap.get('groupBy')] : ClaimedRewardsGroupByEnum.rewardEpochId;
         this._cdr.detectChanges();
     }
 
@@ -228,11 +253,11 @@ export class ClaimedRewardsSearchComponent implements OnInit, OnDestroy {
         if (whoClaimed.targetRoute.includes('delegations')) {
             this._router.navigate([this._network, ...whoClaimed.targetRoute], { queryParams: { from: whoClaimed.value } });
         } else {
-            this.request.whoClaimed = whoClaimed.value;
-            this.request.dataProvider = null;
-            this.request.sentTo = null;
-            this.request.page = 1;
-            this._updateQueryParams(this.request);
+            this.tableRequest.whoClaimed = whoClaimed.value;
+            this.tableRequest.dataProvider = null;
+            this.tableRequest.sentTo = null;
+            this.tableRequest.page = 1;
+            this._updateQueryParams(this.tableRequest);
         }
     }
 
@@ -240,11 +265,11 @@ export class ClaimedRewardsSearchComponent implements OnInit, OnDestroy {
         if (sentTo.targetRoute.includes('delegations')) {
             this._router.navigate([this._network, ...sentTo.targetRoute], { queryParams: { from: sentTo.value } });
         } else {
-            this.request.whoClaimed = null;
-            this.request.dataProvider = null;
-            this.request.sentTo = sentTo.value;
-            this.request.page = 1;
-            this._updateQueryParams(this.request);
+            this.tableRequest.whoClaimed = null;
+            this.tableRequest.dataProvider = null;
+            this.tableRequest.sentTo = sentTo.value;
+            this.tableRequest.page = 1;
+            this._updateQueryParams(this.tableRequest);
         }
     }
 
@@ -256,11 +281,11 @@ export class ClaimedRewardsSearchComponent implements OnInit, OnDestroy {
                 this._router.navigate([this._network, ...dataProvider.targetRoute], { queryParams: { to: dataProvider.value } });
             }
         } else if (dataProvider.targetRoute.includes('search')) {
-            this.request.whoClaimed = null;
-            this.request.sentTo = null;
-            this.request.dataProvider = dataProvider.value;
-            this.request.page = 1;
-            this._updateQueryParams(this.request);
+            this.tableRequest.whoClaimed = null;
+            this.tableRequest.sentTo = null;
+            this.tableRequest.dataProvider = dataProvider.value;
+            this.tableRequest.page = 1;
+            this._updateQueryParams(this.tableRequest);
         }
     }
 
