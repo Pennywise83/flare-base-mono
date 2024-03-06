@@ -1,5 +1,5 @@
 import { Client } from "@elastic/elasticsearch";
-import { Balance,  ClaimedRewardsSortEnum, DataProviderInfo, Delegation, DelegationSnapshot, DelegationsSortEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, Reward, RewardEpoch, RewardEpochSettings, VotePower, VoterWhitelist, WrappedBalance } from "@flare-base/commons";
+import { Balance, ClaimedRewardsSortEnum, DataProviderInfo, Delegation, DelegationSnapshot, DelegationsSortEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, Reward, RewardEpoch, RewardEpochSettings, VotePower, VoterWhitelist, WrappedBalance } from "@flare-base/commons";
 import { Logger } from "@nestjs/common";
 import { EpochSortEnum } from "libs/commons/src/model/epochs/price-epoch";
 import { SortOrderEnum } from "libs/commons/src/model/paginated-result";
@@ -50,7 +50,7 @@ export interface IPersistenceDao {
 
     // Rewards
     getClaimedRewards(whoClaimed: string, dataProvider: string, sentTo: string, blockNumberFrom: number, blockNumberTo: number, page: number, pageSize: number, sortField?: ClaimedRewardsSortEnum, sortOrder?: SortOrderEnum): Promise<PaginatedResult<Reward[]>>;
-    getClaimedRewardsHistogram(whoClaimed: string, dataProvider: string, startTime: number, endTime: number, groupBy: string): Promise<ClaimedRewardHistogramElement[]>;
+    getClaimedRewardsHistogram(whoClaimed: string, dataProvider: string, startTime: number, endTime: number, groupBy: string, aggregationInterval?: string): Promise<ClaimedRewardHistogramElement[]>;
     storeClaimedRewards(blockchainData: Reward[]): Promise<number>;
 
     // Delegations

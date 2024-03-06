@@ -28,8 +28,8 @@ export class UnclaimedReward extends Reward {
 export class ClaimedRewardHistogramElement {
     @ApiProperty({ description: 'Representing the key of the histogram.', example: '1689972400000' })
     key: number;
-    @ApiProperty({ description: 'The timestamp indicating when the reward claim was made.', example: '1689972400000' })
-    claimTimestamp: number;
+    @ApiProperty({ description: 'The timestamp indicating when the reward claim was made or the start time of the reward epoch.', example: '1689972400000' })
+    timestamp: number;
     @ApiProperty({ description: 'ID of the reward epoch where the reward was accrued.', example: '100' })
     rewardEpochId: number;
     @ApiProperty({ description: 'The address that actually performed the claim.', example: '0x0000000000000000000000000000000000000000' })
@@ -116,4 +116,8 @@ export enum ClaimedRewardsSortEnum {
     sentTo = 'sentTo',
     dataProvider = 'dataProvider',
     amount = 'amount'
+}
+export enum ClaimedRewardsGroupByEnum {
+    timestamp = 'timestamp',
+    rewardEpochId = 'rewardEpochId'
 }

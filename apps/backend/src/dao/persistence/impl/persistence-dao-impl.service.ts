@@ -1,5 +1,5 @@
 import { Client } from "@elastic/elasticsearch";
-import { Balance, BalanceSortEnum, ClaimedRewardHistogramElement, ClaimedRewardsSortEnum, Commons, DataProviderInfo, Delegation, DelegationSnapshot, DelegationsSortEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, Reward, RewardEpoch, RewardEpochSettings, VotePower, VoterWhitelist, WrappedBalance } from "@flare-base/commons";
+import { Balance, BalanceSortEnum, ClaimedRewardHistogramElement, ClaimedRewardsGroupByEnum, ClaimedRewardsSortEnum, Commons, DataProviderInfo, Delegation, DelegationSnapshot, DelegationsSortEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, Reward, RewardEpoch, RewardEpochSettings, VotePower, VoterWhitelist, WrappedBalance } from "@flare-base/commons";
 import { Process } from '@nestjs/bull';
 import { Logger } from "@nestjs/common";
 import { PersistenceDaoConfig } from "apps/backend/src/model/app-config/persistence-dao-config";
@@ -15,7 +15,6 @@ import { IPersistenceDao } from "../i-persistence-dao.service";
 import { EpochStats } from "./model/epoch-stats";
 import { PersistenceConstants } from "./model/persistence-constants";
 import { PersistenceMetadata, PersistenceMetadataType } from "./model/persistence-metadata";
-import { ClaimedRewardsGroupByEnum } from "apps/backend/src/controller/model/claimed-rewards-groupBy-validation-pipe";
 
 export abstract class PersistenceDaoImpl implements IPersistenceDao {
 
@@ -796,10 +795,46 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
             resolve(storedObjectCount);
         })
     }
+    getBestAggregationInterval(chartPoints: number, from: number, to: number): string {
+        // Calcola la durata totale dell'intervallo
+        const totalDuration: number = to - from;
 
-    getClaimedRewardsHistogram(whoClaimed: string, dataProvider: string, startTime: number, endTime: number, groupBy: string): Promise<ClaimedRewardHistogramElement[]> {
+        // Calcola la durata dell'intervallo desiderata per ciascun punto nel grafico
+        const desiredInterval: number = totalDuration / chartPoints;
+
+        // Definisci una lista di intervalli comuni in millisecondi (ora, giorno, settimana, mese)
+        const commonIntervalsInMillis: number[] = [3600000, (3600000 * 2), (3600000 * 6), (3600000 * 12), 86400000, (86400000 * 2), (86400000 * 3), 604800000, 2592000000]; // Ora, giorno, settimana, mese
+        const commonIntervals: string[] = ["1h", "2h", "6h", "12h", "1d", "2d", "3d", "1w", "1M"]; // Formato di intervallo di tempo per Elasticsearch
+
+        // Trova l'indice dell'intervallo comune più vicino all'intervallo desiderato
+        let minDifferenceIndex: number = 0;
+        let minDifference: number = Math.abs(desiredInterval - commonIntervalsInMillis[0]);
+        for (let i = 1; i < commonIntervalsInMillis.length; i++) {
+            const difference: number = Math.abs(desiredInterval - commonIntervalsInMillis[i]);
+            if (difference < minDifference) {
+                minDifference = difference;
+                minDifferenceIndex = i;
+            }
+        }
+
+        // Restituisci l'intervallo comune trovato nel formato richiesto da Elasticsearch
+        return commonIntervals[minDifferenceIndex];
+    }
+
+    getClaimedRewardsHistogram(whoClaimed: string, dataProvider: string, startTime: number, endTime: number, groupBy: string, aggregationInterval?:string): Promise<ClaimedRewardHistogramElement[]> {
         return new Promise<ClaimedRewardHistogramElement[]>((resolve, reject) => {
             let results: ClaimedRewardHistogramElement[] = [];
+            let interval: string;
+            if (isNotEmpty(aggregationInterval)) {
+                if (Commons.getHistogramPointsFromInterval(aggregationInterval, startTime, endTime) > 120) {
+                    let error: Error = new Error(`Results set is too big. Try to reduce the aggregation interval.`)
+                    error.name = 'tooBigException';
+                    throw error
+                }
+                interval = aggregationInterval;
+            } else {
+                interval = Commons.getBestHistogramPointsInterval(startTime,endTime,30);
+            }
             let body: any = {
                 "size": 0,
                 "query": {
@@ -813,21 +848,11 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
                     }
                 }
             }
-            /*
-             "aggs": {
-                                "histogram": {
-                                    "auto_date_histogram": {
-                                        "field": "timestamp",
-                                        "buckets": 120
-                                    }
-                                }
-                            }
-            */
-            if (groupBy == ClaimedRewardsGroupByEnum.claimTimestamp) {
+            if (groupBy == ClaimedRewardsGroupByEnum.timestamp) {
                 body.aggs.histogram = {
-                    "auto_date_histogram": {
+                    "date_histogram": {
                         "field": "timestamp",
-                        "buckets": 120
+                        "interval": interval
                     },
                     "aggs": {
                         "sum": {
@@ -875,16 +900,16 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
             if (isNotEmpty(dataProvider)) {
                 body.query.query_string.query += ` AND dataProvider: ${dataProvider}`;
             }
-            
+
             this.elasticsearchClient.search({ index: this.getIndex(PersistenceConstants.CLAIMED_REWARDS_INDEX), body: body }).then(response => {
                 this._getBuckets(response.body?.aggregations?.histogram)
                     .flatMap(histogramAggBucket => {
                         let key: number = histogramAggBucket.key;
                         let count: number = histogramAggBucket.doc_count;
-                        if (histogramAggBucket.topSum) {
+                        if (histogramAggBucket.topSum && histogramAggBucket.topSum.buckets && histogramAggBucket.topSum.buckets.length > 0) {
                             this._getBuckets(histogramAggBucket.topSum).flatMap(topSumBucket => {
                                 let tmpObj: ClaimedRewardHistogramElement = new ClaimedRewardHistogramElement();
-                                tmpObj.claimTimestamp = groupBy == ClaimedRewardsGroupByEnum.claimTimestamp ? key : null;
+                                tmpObj.timestamp = groupBy == ClaimedRewardsGroupByEnum.timestamp ? key : null;
                                 tmpObj.rewardEpochId = groupBy == ClaimedRewardsGroupByEnum.rewardEpochId ? key : null;
                                 tmpObj.whoClaimed = whoClaimed;
                                 tmpObj.dataProvider = topSumBucket.key;
@@ -894,7 +919,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
                             });
                         } else {
                             let tmpObj: ClaimedRewardHistogramElement = new ClaimedRewardHistogramElement();
-                            tmpObj.claimTimestamp = groupBy == ClaimedRewardsGroupByEnum.claimTimestamp ? key : null;
+                            tmpObj.timestamp = groupBy == ClaimedRewardsGroupByEnum.timestamp ? key : null;
                             tmpObj.rewardEpochId = groupBy == ClaimedRewardsGroupByEnum.rewardEpochId ? key : null;
                             tmpObj.whoClaimed = whoClaimed;
                             tmpObj.dataProvider = dataProvider;

@@ -1,6 +1,7 @@
-import { VotePowerSortEnum, SortOrderEnum, PaginatedResult } from "../model";
-import { BlockScanInfo } from "../model/blockchain";
 import { SHA256 } from 'crypto-js';
+import { PaginatedResult, SortOrderEnum } from "../model";
+import { AggregationInterval } from "../model/aggregation-intervals";
+import { BlockScanInfo } from "../model/blockchain";
 
 
 export class Commons {
@@ -94,5 +95,28 @@ export class Commons {
         return pResult;
 
 
+    }
+
+    static getHistogramPointsFromInterval(timeInterval: string, from: number, to: number): number {
+        const intervalInMillis = AggregationInterval[timeInterval];
+        if (intervalInMillis === undefined) {
+            throw new Error("Invalid time interval");
+        }
+
+        const difference = to - from;
+        return Math.ceil(difference / intervalInMillis);
+    }
+
+    static getBestHistogramPointsInterval(from: number, to: number, targetPoints: number): string {
+        let resultInterval: string = null;
+        for (const intervalKey in AggregationInterval) {
+            const timeInterval = AggregationInterval[intervalKey];
+            const points = Commons.getHistogramPointsFromInterval(intervalKey, from, to);
+
+            if (points <= targetPoints && resultInterval === null) {
+                resultInterval = intervalKey;
+            }
+        }
+        return resultInterval;
     }
 }

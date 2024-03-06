@@ -1,4 +1,4 @@
-import { ActionResult, ClaimedRewardHistogramElement, ClaimedRewardsSortEnum, Commons, NetworkEnum, PaginatedResult, RewardDTO, SortOrderEnum } from "@flare-base/commons";
+import { ActionResult, ClaimedRewardHistogramElement, ClaimedRewardsGroupByEnum, ClaimedRewardsSortEnum, Commons, NetworkEnum, PaginatedResult, RewardDTO, SortOrderEnum } from "@flare-base/commons";
 import { Controller, Get, Headers, HttpStatus, Logger, Param, ParseIntPipe, Query, Req, Res } from "@nestjs/common";
 import { ApiHeader, ApiParam, ApiProduces, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { isEmpty } from "class-validator";
@@ -6,7 +6,8 @@ import { ApiActionResult } from "libs/commons/src/model/action-result";
 import { ApiPaginatedResult } from "libs/commons/src/model/paginated-result";
 import { RewardsService } from "../../service/rewards/rewards.service";
 import { AddressValidationPipe } from "../model/address-validation-pipe";
-import { ClaimedRewardsGroupByDTO, ClaimedRewardsGroupByEnum, ClaimedRewardsGroupByValidationPipe } from "../model/claimed-rewards-groupBy-validation-pipe";
+import { AggregationIntervalDTO, AggregationIntervalValidationPipe } from "../model/aggregation-interval-validation-pipe";
+import { ClaimedRewardsGroupByDTO, ClaimedRewardsGroupByValidationPipe } from "../model/claimed-rewards-groupBy-validation-pipe";
 import { NetworkValidationPipe } from "../model/network-validation-pipe";
 import { PageDTO } from "../model/page-dto";
 import { PageSizeDTO } from "../model/page-size-dto";
@@ -91,8 +92,11 @@ export class RewardsController {
     @ApiQuery({ name: 'whoClaimed', type: String, required: false, description: 'Address that actually performed the claim.' })
     @ApiQuery({ name: 'dataProvider', type: String, required: false, description: 'Address of the data provider that accrued the reward.' })
     @ApiQuery({ name: 'groupBy', type: ClaimedRewardsGroupByDTO, required: false, description: 'Specifies whether to aggregate by claimTimestamp or rewardEpochId.' })
+    @ApiQuery({ name: 'aggregationInterval', type: AggregationIntervalDTO, required: false, description: 'Specifies whether to aggregate by claimTimestamp or rewardEpochId.' })
+
     @ApiActionResult(ClaimedRewardHistogramElement, 'The function returns a histogram that presents statistical data regarding claimed rewards, categorized either by reward epoch ID or claim timestamp. Additionally, if a \'whoClaimed\' address is provided, the results will also be grouped by the address of the data provider.')
-    @Get("/getClaimedRewardsDateHistogram/:network")
+
+    @Get("/getClaimedRewardsHistogram/:network")
     async getClaimedRewardsDateHistogram(
         @Headers() headers,
         @Param('network', NetworkValidationPipe) network: NetworkEnum,
@@ -101,6 +105,7 @@ export class RewardsController {
         @Query('startTime', ParseIntPipe) startTime: number,
         @Query('endTime', ParseIntPipe) endTime: number,
         @Query('groupBy', ClaimedRewardsGroupByValidationPipe) groupBy: ClaimedRewardsGroupByEnum,
+        @Query('aggregationInterval', AggregationIntervalValidationPipe) aggregationInterval: string,
         @Res() res
     ): Promise<ActionResult<ClaimedRewardHistogramElement[]>> {
         return new Promise<ActionResult<ClaimedRewardHistogramElement[]>>(async resolve => {
@@ -112,7 +117,7 @@ export class RewardsController {
                 if (startTime > endTime) {
                     throw new Error(`Wrong time range`);
                 }
-                const claimedRewardDateHistogramElements: ClaimedRewardHistogramElement[] = await this._rewardsService.getClaimedRewardsHistogram(network, whoClaimed, dataProvider, startTime, endTime, groupBy);
+                const claimedRewardDateHistogramElements: ClaimedRewardHistogramElement[] = await this._rewardsService.getClaimedRewardsHistogram(network, whoClaimed, dataProvider, startTime, endTime, groupBy, aggregationInterval);
                 actionResult.status = 'OK';
                 actionResult.result = claimedRewardDateHistogramElements;
                 actionResult.duration = new Date().getTime() - actionResult.start;
