@@ -11,28 +11,33 @@
             <div class="flex flex-col md:flex-row justify-start md:justify-end items-end md:items-center md:mb-2">
                 <mat-form-field class="flex w-full md:max-w-72 md:mr-2 ui-mat-dense mb-2 md:mb-0 button-sm text-sm"
                     subscriptSizing="dynamic">
-                    <input [disabled]="loading" name="whoClaimedAddress" matInput autocomplete="off" spellcheck="false"
-                        [(ngModel)]="request.whoClaimed" placeholder="Claimer address" />
+                    <input [disabled]="loadingMap.isLoading('tableData')||loadingMap.isLoading('chartData')"
+                        name="whoClaimedAddress" matInput autocomplete="off" spellcheck="false"
+                        [(ngModel)]="tableRequest.whoClaimed" placeholder="Claimer address" />
                     <ng-icon matPrefix class="text-lg mr-2" strokeWidth="2" name="featherHash"></ng-icon>
                 </mat-form-field>
 
                 <mat-form-field class="flex w-full md:max-w-72 md:mr-2 ui-mat-dense mb-2 md:mb-0 button-sm text-sm"
                     subscriptSizing="dynamic">
-                    <input [disabled]="loading" name="dataProviderAddress" matInput autocomplete="off"
-                        spellcheck="false" [(ngModel)]="request.dataProvider" placeholder="Data provider address" />
+                    <input [disabled]="loadingMap.isLoading('tableData')||loadingMap.isLoading('chartData')"
+                        name="dataProviderAddress" matInput autocomplete="off" spellcheck="false"
+                        [(ngModel)]="tableRequest.dataProvider" placeholder="Data provider address" />
                     <ng-icon matPrefix class="text-lg mr-2" strokeWidth="2" name="featherHash"></ng-icon>
                 </mat-form-field>
 
                 <mat-form-field class="flex w-full md:max-w-72 ui-mat-dense mb-2 md:mb-0 button-sm text-sm"
                     subscriptSizing="dynamic">
-                    <input [disabled]="loading" name="sentToAddress" matInput autocomplete="off" spellcheck="false"
-                        [(ngModel)]="request.sentTo" placeholder="Receiver address" />
+                    <input [disabled]="loadingMap.isLoading('tableData')||loadingMap.isLoading('chartData')"
+                        name="sentToAddress" matInput autocomplete="off" spellcheck="false"
+                        [(ngModel)]="tableRequest.sentTo" placeholder="Receiver address" />
                     <ng-icon matPrefix class="text-lg mr-2" strokeWidth="2" name="featherHash"></ng-icon>
                 </mat-form-field>
             </div>
             <div class="flex flex-row justify-start md:justify-end mx-auto md:mx-0 items-center md:items-end">
                 <button type="button" class="justify-center button-sm button-sm-white mr-2 min-w-32" mat-stroked-button
-                    (click)="false" name="timeRangeMenu" [disabled]="loading" [matMenuTriggerFor]="timeRangeMenu">
+                    (click)="false" name="timeRangeMenu"
+                    [disabled]="loadingMap.isLoading('tableData') || loadingMap.isLoading('chartData')"
+                    [matMenuTriggerFor]="timeRangeMenu">
                     <ng-icon class="text-md text-gray-700 dark:text-gray-300 pt-0.5 mr-2" name="featherClock"></ng-icon>
                     <span class="font-medium text-sm">{{selectedTimeRangeDefinition.label}}</span>
                 </button>
@@ -42,12 +47,13 @@
                     <button mat-menu-item>Custom range</button>
                 </mat-menu>
                 <button type="button" class="button-sm  button-sm-light px-6 mr-2 rounded-md shadow " mat-stroked-button
-                    name="exportButton" (click)="exportCsv()" [disabled]="loading">
+                    name="exportButton" (click)="exportCsv()" [disabled]="loadingMap.isLoading('tableData')">
                     <ng-icon class="text-md pt-0.5 mr-2" name="featherDownload"></ng-icon>
                     <span class="font-medium text-sm">Export</span>
                 </button>
                 <button type="submit" class="button-sm button-sm-primary  px-5 py-1 mr-0" mat-flat-button
-                    [color]="'primary'" [disabled]="loading">
+                    [color]="'primary'"
+                    [disabled]="loadingMap.isLoading('tableData') || loadingMap.isLoading('chartData')">
                     <ng-icon class="text-md pt-0.5" name="heroMagnifyingGlass"></ng-icon>
                     <span class="ml-1">Search</span>
                 </button>
@@ -55,12 +61,22 @@
         </div>
     </form>
 </div>
-
+<div class="grid grid-cols-1 gap-4 md:gap-6 w-full min-w-0 pb-2 md:pb-6 px-4 md:px-8">
+    <div class="bg-card shadow rounded-lg overflow-hidden">
+        <div class="flex flex-col flex-auto h-64 overflow-hidden relative">
+            <flare-base-claimed-rewards-chart [claimedRewardsDateHistogramData]="claimedRewardsDateHistogramData"
+                [dataProvidersInfo]="dataProvidersInfo" (groupByEvent)="setHistogramGroupBy($event)"
+                [groupBy]="histogramGroupBy"
+                [loading]="loadingMap.isLoading('chartData')"></flare-base-claimed-rewards-chart>
+        </div>
+    </div>
+</div>
 <div class="flex flex-col flex-auto overflow-y-auto overflow-x-auto relative h-full relative min-h-40 bg-card">
     <flare-base-claimed-rewards-table [claimedRewardsData]="claimedRewards" [dynamicData]="true"
-    [dataProvidersInfo]="dataProvidersInfo" [loading]="loading" [tableColumns]="tableColumns"
-    [paginatorPosition]="'right'" [sortOnColumn]="request.sortField" [pageSize]="request.pageSize"
-    (requestEvent)="handleRequestEvent($event)" [request]="request" [showTopPaginator]="true" [hidePageSize]="false"
-    (whoClaimedSelected)="selectWhoClaimed($event)" (dataProviderSelected)="selectDataProvider($event)" (sentToSelected)="selectReceiver($event)">
-</flare-base-claimed-rewards-table>
+        [dataProvidersInfo]="dataProvidersInfo" [loading]="loadingMap.isLoading('tableData')"
+        [tableColumns]="tableColumns" [paginatorPosition]="'right'" [sortOnColumn]="tableRequest.sortField"
+        [pageSize]="tableRequest.pageSize" (requestEvent)="handleRequestEvent($event)" [request]="tableRequest"
+        [showTopPaginator]="true" [hidePageSize]="false" (whoClaimedSelected)="selectWhoClaimed($event)"
+        (dataProviderSelected)="selectDataProvider($event)" (sentToSelected)="selectReceiver($event)">
+    </flare-base-claimed-rewards-table>
 </div>

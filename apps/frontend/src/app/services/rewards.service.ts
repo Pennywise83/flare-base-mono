@@ -2,9 +2,9 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Utils } from 'app/commons/utils';
 import { isNotEmpty } from 'class-validator';
-import { Observable, catchError, map } from 'rxjs';
-import { ActionResult, ClaimedRewardDateHistogramElement, PaginatedResult, RewardDTO } from '../../../../../libs/commons/src';
-import { ClaimedRewardsDateHistogramRequest, ClaimedRewardsRequest } from '../model/claimed-rewards-request';
+import { Observable, catchError, delay, map } from 'rxjs';
+import { ActionResult, ClaimedRewardHistogramElement, PaginatedResult, RewardDTO } from '../../../../../libs/commons/src';
+import { ClaimedRewardsHistogramRequest, ClaimedRewardsRequest } from '../model/claimed-rewards-request';
 
 
 @Injectable({
@@ -53,15 +53,15 @@ export class RewardsService {
     });
   }
 
-  public getClaimedRewardsgetClaimedRewardsDateHistogram(network: string, request: ClaimedRewardsDateHistogramRequest): Observable<ClaimedRewardDateHistogramElement[]> {
-    const dataUrl = `/api/rewards/getClaimedRewardsDateHistogram/${network}?whoClaimed=${isNotEmpty(request.whoClaimed) ? request.whoClaimed : ''}&dataProvider=${isNotEmpty(request.dataProvider) ? request.dataProvider : ''}&startTime=${request.startTime}&endTime=${request.endTime}&dateHistogramPoints=${request.dateHistogramPoints}`;
+  public getClaimedRewardsgetClaimedRewardsDateHistogram(network: string, request: ClaimedRewardsHistogramRequest): Observable<ClaimedRewardHistogramElement[]> {
+    const dataUrl = `/api/rewards/getClaimedRewardsHistogram/${network}?whoClaimed=${isNotEmpty(request.whoClaimed) ? request.whoClaimed : ''}&dataProvider=${isNotEmpty(request.dataProvider) ? request.dataProvider : ''}&startTime=${request.startTime}&endTime=${request.endTime}&groupBy=${request.groupBy}`;
     const headers = new HttpHeaders().set('Accept', 'application/json');
     const requestOptions = {
       headers: headers,
     };
-    return new Observable<ClaimedRewardDateHistogramElement[]>(observer => {
-      this._http.get<ActionResult<ClaimedRewardDateHistogramElement[]>>(dataUrl, requestOptions).pipe(
-        map((res: ActionResult<ClaimedRewardDateHistogramElement[]>) => {
+    return new Observable<ClaimedRewardHistogramElement[]>(observer => {
+      this._http.get<ActionResult<ClaimedRewardHistogramElement[]>>(dataUrl, requestOptions).pipe(
+        map((res: ActionResult<ClaimedRewardHistogramElement[]>) => {
           if (res.status == 'OK') {
             observer.next(res.result);
             observer.complete();

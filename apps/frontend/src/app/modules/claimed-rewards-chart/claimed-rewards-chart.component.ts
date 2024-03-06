@@ -1,45 +1,55 @@
-import { CommonModule, DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnChanges, OnInit, SimpleChanges, ViewEncapsulation } from '@angular/core';
+import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges, ViewEncapsulation } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { AppModule } from 'app/app.module';
-import { isEmpty, isNotEmpty } from 'class-validator';
-import { ApexAxisChartSeries, ApexOptions, NgApexchartsModule } from 'ng-apexcharts';
-import { ClaimedRewardDateHistogramElement, Commons, DataProviderInfo, RewardDTO } from '../../../../../../libs/commons/src';
 import { animations } from 'app/commons/animations';
 import { LoaderComponent } from 'app/commons/loader/loader.component';
 import { NoDataComponent } from 'app/commons/no-data/no-data.component';
+import { isEmpty, isNotEmpty } from 'class-validator';
+import { ApexAxisChartSeries, ApexOptions, NgApexchartsModule } from 'ng-apexcharts';
+import { ClaimedRewardHistogramElement, ClaimedRewardsGroupByEnum, Commons, DataProviderInfo } from '../../../../../../libs/commons/src';
 
 @Component({
     selector: 'flare-base-claimed-rewards-chart',
     templateUrl: './claimed-rewards-chart.component.html',
+    styles: [`flare-base-claimed-rewards-chart {
+        display: contents;
+    }`],
     encapsulation: ViewEncapsulation.None,
-    imports: [AppModule, CommonModule, LoaderComponent, NoDataComponent,
-        MatMenuModule, MatIconModule, MatTooltipModule, NgApexchartsModule, DecimalPipe
-    ],
-    providers: [DecimalPipe],
+    imports: [AppModule, CommonModule, LoaderComponent, NoDataComponent, MatMenuModule, MatIconModule, MatTooltipModule, NgApexchartsModule, DecimalPipe, DatePipe, MatButtonToggleModule, FormsModule],
+    providers: [DecimalPipe, DatePipe],
     standalone: true,
     changeDetection: ChangeDetectionStrategy.Default,
     animations: animations
 
 })
 export class ClaimedRewardsChartComponent implements OnInit, OnChanges {
-    @Input() public claimedRewardsDateHistogramData: ClaimedRewardDateHistogramElement[] = null;
+    @Input() public claimedRewardsDateHistogramData: ClaimedRewardHistogramElement[] = null;
     @Input() public dataProvidersInfo: DataProviderInfo[] = [];
     @Input() public loading: boolean = false;
-    @Input() public progress: number = 0;
+    @Output() public groupByEvent: EventEmitter<ClaimedRewardsGroupByEnum> = new EventEmitter<ClaimedRewardsGroupByEnum>();
+    @Input() public groupBy: ClaimedRewardsGroupByEnum = ClaimedRewardsGroupByEnum.rewardEpochId;
     claimedRewardsChartData: ApexOptions;
+    claimedRewardsGroupByEnum = ClaimedRewardsGroupByEnum;
 
     constructor(
         private _cdr: ChangeDetectorRef,
-        private _decimalPipe: DecimalPipe
+        private _decimalPipe: DecimalPipe,
+        private _datePipe: DatePipe
     ) {
 
     }
+
     ngOnInit(): void {
         this._prepareChartData();
 
+    }
+    emitGroupBy(groupBy: string) {
+        this.groupByEvent.emit(ClaimedRewardsGroupByEnum[groupBy]);
     }
     ngOnChanges(changes: SimpleChanges): void {
         if (changes.claimedRewardsDateHistogramData) {
@@ -61,41 +71,30 @@ export class ClaimedRewardsChartComponent implements OnInit, OnChanges {
         return dataProviderInfo;
     }
     parseChartData() {
-        if (isNotEmpty(this.claimedRewardsChartData)) {
+        if (isNotEmpty(this.claimedRewardsDateHistogramData)) {
             try {
-
                 let timestampMap: { [xAxis: number]: any } = {};
-                let rewardEpochIdMap: { [xAxis: number]: any } = {};
                 this.claimedRewardsDateHistogramData.map(claimedReward => {
-                    if (!timestampMap[claimedReward.claimTimestamp]) { timestampMap[claimedReward.claimTimestamp] = {} }
-                    if (!timestampMap[claimedReward.claimTimestamp][this.getDataProviderInfo(claimedReward.dataProvider).name]) {
-                        timestampMap[claimedReward.claimTimestamp][this.getDataProviderInfo(claimedReward.dataProvider).name] = 0;
+                    const mapKey: string = claimedReward.timestamp + '_' + (claimedReward.rewardEpochId ? claimedReward.rewardEpochId : '');
+                    if (!timestampMap[mapKey]) { timestampMap[mapKey] = {} }
+                    if (!timestampMap[mapKey][this.getDataProviderInfo(claimedReward.dataProvider).name]) {
+                        timestampMap[mapKey][this.getDataProviderInfo(claimedReward.dataProvider).name] = 0;
                     }
-                    timestampMap[claimedReward.claimTimestamp][this.getDataProviderInfo(claimedReward.dataProvider).name] += claimedReward.amount;
-
-
-                    if (!rewardEpochIdMap[claimedReward.rewardEpochId]) { rewardEpochIdMap[claimedReward.rewardEpochId] = {} }
-                    if (!rewardEpochIdMap[claimedReward.rewardEpochId][this.getDataProviderInfo(claimedReward.dataProvider).name]) {
-                        rewardEpochIdMap[claimedReward.rewardEpochId][this.getDataProviderInfo(claimedReward.dataProvider).name] = 0;
-                    }
-                    rewardEpochIdMap[claimedReward.rewardEpochId][this.getDataProviderInfo(claimedReward.dataProvider).name] += claimedReward.amount;
+                    timestampMap[mapKey][this.getDataProviderInfo(claimedReward.dataProvider).name] += claimedReward.amount;
                 });
 
                 let xAxisElements: number[] = [];
-
                 let series: ApexAxisChartSeries = [];
-
                 for (let xAxisElement in timestampMap) {
-                    xAxisElements.push(parseInt(xAxisElement));
+                    xAxisElements.push(parseInt(xAxisElement.split('_')[0]));
                     for (let address in timestampMap[xAxisElement]) {
                         if (!series.find(serie => serie.name == address)) {
                             series.push({ name: address, data: [] });
                         }
-                        let data: any = { y: timestampMap[xAxisElement][address], x: parseInt(xAxisElement) };
+                        let data: any = { y: timestampMap[xAxisElement][address], x: parseInt(xAxisElement), rewardEpochId: xAxisElement.split('_')[1] };
                         series.find(serie => serie.name == address).data.push(data);
                     }
                 }
-
                 xAxisElements = [... new Set(xAxisElements)].sort((a, b) => b - a);
                 xAxisElements.map(timestamp => {
                     series.map(serie => {
@@ -105,27 +104,20 @@ export class ClaimedRewardsChartComponent implements OnInit, OnChanges {
                             dataCopy.y = null;
                             serie.data.push(dataCopy);
                         }
-
                     });
                 });
                 this.claimedRewardsChartData.xaxis.categories = xAxisElements;
                 series.map(serie => {
                     serie.data.sort((a, b) => b.x - a.x);
                 });
-
                 (this.claimedRewardsChartData.yaxis as any).min = 0;
                 this.claimedRewardsChartData.series = series;
-
-
             } catch (err) {
                 console.error(err);
             }
         }
     }
-
-
     private _prepareChartData(): void {
-
         this.claimedRewardsChartData = {
             chart: {
                 type: 'bar',
@@ -158,74 +150,80 @@ export class ClaimedRewardsChartComponent implements OnInit, OnChanges {
                     stops: [0, 100]
                 }
             },
+
             grid: {
                 show: false,
                 padding: {
-                    top: 0,
+                    top: 20,
                     bottom: 0,
-                    left: 0,
+                    left: 10,
                     right: 10,
                 },
             },
             legend: {
                 show: true,
                 position: "top",
+                floating: true,
+                offsetY: 10,
                 horizontalAlign: 'right'
             },
             tooltip: {
-                followCursor: true,
+                followCursor: false,
                 shared: true,
                 intersect: false,
                 theme: 'dark',
                 x: {
-                    format: 'MMM dd, yyyy',
-                },
+                    formatter: (value: number, opts: any) => {
+                        let rewardEpochId: string = null;
+                        this.claimedRewardsChartData.series.map(serie => {
+                            if (rewardEpochId == null) {
+                                rewardEpochId = serie.data.find(singleData => singleData.x == value).rewardEpochId;
+                            }
+                        });
+                        if (isNotEmpty(rewardEpochId)) {
+                            return `Reward epoch: ${rewardEpochId} - ${this._datePipe.transform(value, 'MMM dd, yyyy HH:mm:ss')}`;
+                        } else {
+                            return this._datePipe.transform(value, 'MMM dd, yyyy');
+                        }
+                    }
+                }
             },
-            plotOptions: {
-                bar: {
-                    horizontal: false,
-                    columnWidth: '100%'
-                },
-            },
-            stroke: {
-                width: 1,
-                colors: ['transparent']
-            },
-
             dataLabels: {
                 enabled: false,
             },
-
             yaxis: {
                 labels: {
                     style: {
-                        colors: 'var(--fuse-text-secondary)',
+                        colors: 'rgba(var(--ui-text-secondary-rgb), var(--tw-text-opacity))',
                     },
                     formatter: (val) => {
-                        return this._decimalPipe.transform(val)
+                        if (val < 1000) {
+                            return this._decimalPipe.transform(val, '1.3-3')
+                        } else {
+                            return this._decimalPipe.transform(val, '1.0-0')
+                        }
+
                     }
                 }
             },
             xaxis: {
-                type:'datetime',
+                type: 'datetime',
                 axisBorder: {
                     show: true
                 },
                 axisTicks: {
-                    show: true
+                    show: true,
                 },
                 labels: {
                     offsetY: 0,
                     style: {
-                        colors: 'var(--fuse-text-secondary)',
+                        colors: 'rgba(var(--ui-text-secondary-rgb), var(--tw-text-opacity))',
                     },
                 },
-                tickPlacement: 'between',
                 tooltip: {
                     enabled: false,
                 }
             },
-
             responsive: [{
                 breakpoint: 480,
                 options: {
@@ -236,6 +234,14 @@ export class ClaimedRewardsChartComponent implements OnInit, OnChanges {
                     },
                     legend: {
                         show: false
+                    },
+                    grid: {
+                        padding: {
+                            top: 0,
+                            bottom: 0,
+                            left: 5,
+                            right: 5,
+                        },
                     }
                 }
             }],

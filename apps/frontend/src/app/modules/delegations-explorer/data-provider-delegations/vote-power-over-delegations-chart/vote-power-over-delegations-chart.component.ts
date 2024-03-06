@@ -149,7 +149,7 @@ export class VotePowerOverDelegationsChartComponent implements OnInit, OnDestroy
                 labels: {
                     offsetY: -20,
                     style: {
-                        colors: 'var(--fuse-text-secondary)',
+                        colors: 'rgba(var(--ui-text-secondary-rgb), var(--tw-text-opacity))',
                     },
                 },
                 tickPlacement: 'between',

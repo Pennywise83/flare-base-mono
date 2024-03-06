@@ -12,10 +12,11 @@ import { LoaderComponent } from "app/commons/loader/loader.component";
 import { NoDataComponent } from "app/commons/no-data/no-data.component";
 import { UiNotificationsService } from "app/commons/ui-notifications/ui-notifications.service";
 import { Utils } from "app/commons/utils";
-import { ClaimedRewardsRequest } from "app/model/claimed-rewards-request";
-import { DelegatorsRequest } from "app/model/delegators-request";
+import { ClaimedRewardsHistogramRequest, ClaimedRewardsRequest } from "app/model/claimed-rewards-request";
+import { LoadingMap } from "app/model/loading-map";
 import { TimeRange, TimeRangeDefinition } from "app/model/time-range";
-import { DelegationsTableComponent } from "app/modules/delegations-table/delegations-table.component";
+import { ClaimedRewardsChartComponent } from "app/modules/claimed-rewards-chart/claimed-rewards-chart.component";
+import { ClaimedRewardsTableComponent } from "app/modules/claimed-rewards-table/claimed-rewards-table.component";
 import { FtsoService } from "app/services/ftso.service";
 import { RewardsService } from "app/services/rewards.service";
 import { availableChains } from "app/services/web3/model/available-chains";
@@ -24,14 +25,12 @@ import { Web3Service } from "app/services/web3/web3.service";
 import { isEmpty } from "class-validator";
 import { saveAs } from 'file-saver';
 import { Subject, takeUntil } from "rxjs";
-import { DataProviderInfo, NetworkEnum, PaginatedResult, RewardDTO } from "../../../../../../../libs/commons/src";
-import { WalletDelegationsComponent } from "../wallet-delegations/wallet-delegations.component";
-import { ClaimedRewardsTableComponent } from "app/modules/claimed-rewards-table/claimed-rewards-table.component";
+import { ClaimedRewardHistogramElement, ClaimedRewardsGroupByEnum, DataProviderInfo, NetworkEnum, PaginatedResult, RewardDTO } from "../../../../../../../libs/commons/src";
 import { WalletDelegationsRewardsComponent } from "../wallet-claimed-rewards/wallet-delegations-rewards.component";
 
 @Component({
     selector: 'flare-base-wallet-rewards-management',
-    imports: [AppModule, WalletDelegationsRewardsComponent, ClaimedRewardsTableComponent, NoDataComponent, LoaderComponent, MatFormFieldModule, MatMenuModule, FormsModule, MatButtonModule, MatInputModule],
+    imports: [AppModule, WalletDelegationsRewardsComponent, ClaimedRewardsTableComponent, NoDataComponent, LoaderComponent, MatFormFieldModule, MatMenuModule, FormsModule, MatButtonModule, MatInputModule, ClaimedRewardsChartComponent],
     providers: [DatePipe],
     templateUrl: './wallet-rewards-management.component.html',
     standalone: true,
@@ -48,12 +47,11 @@ export class WalletRewardsManagementComponent implements OnInit {
     public selectedAddress: string;
     public selectedChainId: number;
     public selectedChain: IChainDefinition;
-    public loading: boolean;
-    public rewardsLoading: boolean;
+    public loadingMap: LoadingMap;
     public claimedRewards: PaginatedResult<RewardDTO[]>;
     public dataProvidersInfo: DataProviderInfo[] = [];
     tableColumns: string[] = ['timestamp', 'rewardEpoch', 'dataProvider', 'sentTo', 'amount'];
-    public request: ClaimedRewardsRequest;
+    public tableRequest: ClaimedRewardsRequest;
     selectedTimeRangeDefinition: TimeRangeDefinition;
     timeRanges: TimeRangeDefinition[] = [
         new TimeRangeDefinition('lastMonth', 'Last month', (60 * 60 * 24 * 30) * 1000),
@@ -62,7 +60,8 @@ export class WalletRewardsManagementComponent implements OnInit {
         new TimeRangeDefinition('lastYear', 'Last year', ((60 * 60 * 24 * 30) * 12) * 1000),
         new TimeRangeDefinition('last2Years', 'Last 2 years', ((60 * 60 * 24 * 30) * 12) * 2 * 1000)
     ];
-
+    histogramGroupBy: ClaimedRewardsGroupByEnum = ClaimedRewardsGroupByEnum.rewardEpochId;
+    claimedRewardsDateHistogramData: ClaimedRewardHistogramElement[];
     constructor(
         private _cdr: ChangeDetectorRef,
         private _route: ActivatedRoute,
@@ -74,15 +73,16 @@ export class WalletRewardsManagementComponent implements OnInit {
         private _ftsoService: FtsoService,
         private _titleService: Title
     ) {
+        this.loadingMap = new LoadingMap(this._cdr);
     }
     ngOnDestroy(): void {
         this._unsubscribeAll.next(null);
         this._unsubscribeAll.complete();
     }
     ngOnInit(): void {
-        this.request = new ClaimedRewardsRequest(null, null, null, null);
+        this.tableRequest = new ClaimedRewardsRequest(null, null, null, null);
         this.selectedTimeRangeDefinition = this.timeRanges[0];
-        this.rewardsLoading = true;
+
         Utils.getParentParams(this._route).pipe(
             takeUntil(this._unsubscribeAll))
             .subscribe(params => {
@@ -105,11 +105,12 @@ export class WalletRewardsManagementComponent implements OnInit {
                             this.selectedChain = availableChains.find(chain => chain.chainId == this.selectedChainId);
                             this.selectedAddress = this._web3Service.getConnectedAddress();
                             if (this.isWalletConnected()) {
-                                this.request = new ClaimedRewardsRequest(this.selectedAddress, null, this.selectedTimeRangeDefinition.getTimeRange().start, this.selectedTimeRangeDefinition.getTimeRange().end);
-                                this.request.pageSize = 10;
+                                this.tableRequest = new ClaimedRewardsRequest(this.selectedAddress, null, this.selectedTimeRangeDefinition.getTimeRange().start, this.selectedTimeRangeDefinition.getTimeRange().end);
+                                this.tableRequest.pageSize = 10;
                                 this._web3Service.fetchBalances(this.selectedAddress).subscribe();
                                 this._web3Service.fetchDelegatesOf(this.selectedAddress).subscribe();
-                                this.refreshData();
+                                this.refreshTableData();
+                                this.refreshChartData(this.tableRequest);
                             }
                         }, clientErr => {
                             this._uiNotificationsService.error(`Unable to check if Web3 Client is connected`, clientErr, 10_000);
@@ -125,17 +126,38 @@ export class WalletRewardsManagementComponent implements OnInit {
     isWalletConnected(): boolean {
         return (this.isClientConnected && this.selectedChainId != null && this.isSmartContractsInitialized && typeof this.selectedAddress != 'undefined' && this.selectedAddress != null);
     }
-    refreshData(): void {
-        this.rewardsLoading = true;
+    setHistogramGroupBy(groupBy: ClaimedRewardsGroupByEnum): void {
+        this.histogramGroupBy = groupBy;
+        let currentParams = { ...this._route.snapshot.queryParams };
+        currentParams.groupBy = this.histogramGroupBy;
+        this.refreshChartData(this.tableRequest);
+    }
+    refreshChartData(request: ClaimedRewardsRequest): void {
+        this.loadingMap.setLoading('chartData', true);
+        let chartRequest: ClaimedRewardsHistogramRequest = new ClaimedRewardsHistogramRequest(request.whoClaimed, request.dataProvider, request.startTime, request.endTime, this.histogramGroupBy);
+        this._cdr.detectChanges();
+        this._ftsoService.getDataProvidersInfo(this.network).subscribe(dataProvidersInfoRes => {
+            this.dataProvidersInfo = dataProvidersInfoRes;
+            this._rewardsService.getClaimedRewardsgetClaimedRewardsDateHistogram(this.network, chartRequest).subscribe(claimedRewardsRes => {
+                this.claimedRewardsDateHistogramData = claimedRewardsRes;
+            }, claimedRewardsErr => {
+                this._uiNotificationsService.error('Unable to get claimed rewards date histogram with provided search', claimedRewardsErr);
+            }).add(() => {
+                this.loadingMap.setLoading('chartData', false);
+            });
+        });
+    }
+    refreshTableData(): void {
+        this.loadingMap.setLoading('tableData', true);
         this.claimedRewards = null;
         this._ftsoService.getDataProvidersInfo(this.network).subscribe(dataProvidersInfoRes => {
             this.dataProvidersInfo = dataProvidersInfoRes;
-            this._rewardsService.getClaimedRewards(this.network, this.request).subscribe(latestRewards => {
+            this._rewardsService.getClaimedRewards(this.network, this.tableRequest).subscribe(latestRewards => {
                 this.claimedRewards = latestRewards;
             }, latestDelegationsErr => {
                 this._uiNotificationsService.error('Unable to fetch claimed rewards', latestDelegationsErr);
             }).add(() => {
-                this.rewardsLoading = false;
+                this.loadingMap.setLoading('tableData', false);
                 this._cdr.detectChanges();
             });
         });
@@ -145,11 +167,11 @@ export class WalletRewardsManagementComponent implements OnInit {
         if (whoClaimed.targetRoute.includes('delegations')) {
             this._router.navigate([this.network, ...whoClaimed.targetRoute], { queryParams: { from: whoClaimed.value } });
         } else {
-            this.request.whoClaimed = whoClaimed.value;
-            this.request.dataProvider = null;
-            this.request.sentTo = null;
-            this.request.page = 1;
-            this.refreshData();
+            this.tableRequest.whoClaimed = whoClaimed.value;
+            this.tableRequest.dataProvider = null;
+            this.tableRequest.sentTo = null;
+            this.tableRequest.page = 1;
+            this.refreshTableData();
         }
     }
 
@@ -175,28 +197,28 @@ export class WalletRewardsManagementComponent implements OnInit {
     setTimeRange(timeRangeDefinition: TimeRangeDefinition): void {
         this.selectedTimeRangeDefinition = timeRangeDefinition;
         const timeRange: TimeRange = timeRangeDefinition.getTimeRange();
-        this.request.startTime = timeRange.start;
-        this.request.endTime = timeRange.end;
-        this.refreshData();
+        this.tableRequest.startTime = timeRange.start;
+        this.tableRequest.endTime = timeRange.end;
+        this.refreshTableData();
     }
     exportCsv(): void {
-        this.rewardsLoading = true;
-        let startTime: string = this._datePipe.transform(this.request.startTime, 'YYYY-MM-dd _HH-mm-ss');
-        let endTime: string = this._datePipe.transform(this.request.endTime, 'YYYY-MM-dd_HH-mm-ss');
-        this._rewardsService.getClaimedRewardsCsv(this.network, this.request).subscribe(claimedRewards => {
-            saveAs(claimedRewards, `${this.network}-ClaimedRewards-whoClaimed_${this.request.whoClaimed ? this.request.whoClaimed : 'all'}-dataProvider_${this.request.dataProvider ? this.request.dataProvider : 'all'}-sentTo_${this.request.sentTo ? this.request.sentTo : 'all'}-startTime_${startTime}-endTime_${endTime}.csv`);
+        this.loadingMap.setLoading('tableData', true);
+        let startTime: string = this._datePipe.transform(this.tableRequest.startTime, 'YYYY-MM-dd _HH-mm-ss');
+        let endTime: string = this._datePipe.transform(this.tableRequest.endTime, 'YYYY-MM-dd_HH-mm-ss');
+        this._rewardsService.getClaimedRewardsCsv(this.network, this.tableRequest).subscribe(claimedRewards => {
+            saveAs(claimedRewards, `${this.network}-ClaimedRewards-whoClaimed_${this.tableRequest.whoClaimed ? this.tableRequest.whoClaimed : 'all'}-dataProvider_${this.tableRequest.dataProvider ? this.tableRequest.dataProvider : 'all'}-sentTo_${this.tableRequest.sentTo ? this.tableRequest.sentTo : 'all'}-startTime_${startTime}-endTime_${endTime}.csv`);
         }, statsErr => {
             this._uiNotificationsService.error('Unable to export data provider delegations data', statsErr);
         }).add(() => {
-            this.rewardsLoading = false;
+            this.loadingMap.setLoading('tableData', false);
             this._cdr.detectChanges();
         });
     }
     handleRequestEvent(requestEvent: ClaimedRewardsRequest): void {
-        this.request.page = requestEvent.page;
-        this.request.pageSize = requestEvent.pageSize;
-        this.request.sortField = requestEvent.sortField;
-        this.request.sortOrder = requestEvent.sortOrder;
-        this.refreshData();
+        this.tableRequest.page = requestEvent.page;
+        this.tableRequest.pageSize = requestEvent.pageSize;
+        this.tableRequest.sortField = requestEvent.sortField;
+        this.tableRequest.sortOrder = requestEvent.sortOrder;
+        this.refreshTableData();
     }
 }
