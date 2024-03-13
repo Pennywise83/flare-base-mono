@@ -30,11 +30,7 @@ export class DelegationsController {
     @ApiQuery({ name: 'sortOrder', type: SortOrderDTO })
     @ApiPaginatedResult(DelegationDTO, 'Returns a list of delegations for the specified address')
 
-    @ApiHeader({
-        name: 'requestId',
-        description: 'A custom header field that allows tracking the progress of the request. If you pass a `requestId` in the request header, you can track the progress of the API call by connecting to the WebSocket at `ws://%FLARE_BASE_URL%/progress/${requestId}`.',
-        required: false,
-    })
+    
     @ApiProduces('text/csv')
     @ApiProduces('application/json')
     @Get("/getDelegations/:network")

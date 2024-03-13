@@ -1,13 +1,13 @@
 import { Client } from "@elastic/elasticsearch";
-import { Balance, ClaimedRewardsSortEnum, DataProviderInfo, Delegation, DelegationSnapshot, DelegationsSortEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, Reward, RewardEpoch, RewardEpochSettings, VotePower, VoterWhitelist, WrappedBalance } from "@flare-base/commons";
+import { Balance, ClaimedRewardsSortEnum, DataProviderInfo, Delegation, DelegationSnapshot, DelegationsSortEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, PriceFinalized, PriceFinalizedSortEnum, Reward, RewardEpoch, RewardEpochSettings, VotePower, VoterWhitelist, WrappedBalance } from "@flare-base/commons";
 import { Logger } from "@nestjs/common";
 import { EpochSortEnum } from "libs/commons/src/model/epochs/price-epoch";
 import { SortOrderEnum } from "libs/commons/src/model/paginated-result";
+import { ClaimedRewardHistogramElement } from "libs/commons/src/model/rewards/reward";
 import { PersistenceDaoConfig } from "../../model/app-config/persistence-dao-config";
 import { ServiceStatusEnum } from "../../service/network-dao-dispatcher/model/service-status.enum";
 import { EpochStats } from "./impl/model/epoch-stats";
 import { PersistenceMetadata, PersistenceMetadataType } from "./impl/model/persistence-metadata";
-import { ClaimedRewardHistogramElement } from "libs/commons/src/model/rewards/reward";
 
 export interface IPersistenceDao {
     logger: Logger;
@@ -72,4 +72,7 @@ export interface IPersistenceDao {
     getUniqueDataProviderAddressList(endTime: number): Promise<string[]>;
     getVoterWhitelist(address: string, targetBlockNumber: number): Promise<VoterWhitelist[]>;
     storeVoterWhitelist(blockchainData: VoterWhitelist[]): Promise<number>;
+
+    getFinalizedPrices(symbol: string, startBlock: number, endBlock: number, page: number, pageSize: number, sortField: PriceFinalizedSortEnum, sortOrder: SortOrderEnum): Promise<PaginatedResult<PriceFinalized[]>>;
+    storeFinalizedPrices(blockchainData: PriceFinalized[]): Promise<number>;
 }

@@ -177,7 +177,7 @@ export class FtsoManagerWrapper {
                                     counter++;
                                 } else {
                                     break;
-                                } 
+                                }
                             }
                             // Do the scan with the new Ftso Contract
                             if (!oldFtsoFound) {
@@ -278,6 +278,17 @@ export class FtsoManagerWrapper {
             }
         })
         return symbol;
+    }
+    getContractAddressBySymbol(symbol: string): string {
+        let address: string = null;
+        this.contracts.map(ftsoManager => {
+            for (const dynamicFtso of Object.values(ftsoManager.ftsoContracts)) {
+                if (dynamicFtso.symbol == symbol) {
+                    address = dynamicFtso.address;
+                }
+            }
+        })
+        return address;
     }
     getSymbolByIndex(index: number): string {
         let symbol: string = null;

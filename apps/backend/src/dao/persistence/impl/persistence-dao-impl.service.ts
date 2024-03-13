@@ -1,5 +1,5 @@
 import { Client } from "@elastic/elasticsearch";
-import { Balance, BalanceSortEnum, ClaimedRewardHistogramElement, ClaimedRewardsGroupByEnum, ClaimedRewardsSortEnum, Commons, DataProviderInfo, Delegation, DelegationSnapshot, DelegationsSortEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, Reward, RewardEpoch, RewardEpochSettings, VotePower, VoterWhitelist, WrappedBalance } from "@flare-base/commons";
+import { Balance, BalanceSortEnum, ClaimedRewardHistogramElement, ClaimedRewardsGroupByEnum, ClaimedRewardsSortEnum, Commons, DataProviderInfo, Delegation, DelegationSnapshot, DelegationsSortEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, PriceFinalized, PriceFinalizedSortEnum, Reward, RewardEpoch, RewardEpochSettings, VotePower, VoterWhitelist, WrappedBalance } from "@flare-base/commons";
 import { Process } from '@nestjs/bull';
 import { Logger } from "@nestjs/common";
 import { PersistenceDaoConfig } from "apps/backend/src/model/app-config/persistence-dao-config";
@@ -17,7 +17,6 @@ import { PersistenceConstants } from "./model/persistence-constants";
 import { PersistenceMetadata, PersistenceMetadataType } from "./model/persistence-metadata";
 
 export abstract class PersistenceDaoImpl implements IPersistenceDao {
-
     logger: Logger;
     _persistenceDaoQueue: Queue;
     _cacheDao: ICacheDao;
@@ -821,7 +820,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
         return commonIntervals[minDifferenceIndex];
     }
 
-    getClaimedRewardsHistogram(whoClaimed: string, dataProvider: string, startTime: number, endTime: number, groupBy: string, aggregationInterval?:string): Promise<ClaimedRewardHistogramElement[]> {
+    getClaimedRewardsHistogram(whoClaimed: string, dataProvider: string, startTime: number, endTime: number, groupBy: string, aggregationInterval?: string): Promise<ClaimedRewardHistogramElement[]> {
         return new Promise<ClaimedRewardHistogramElement[]>((resolve, reject) => {
             let results: ClaimedRewardHistogramElement[] = [];
             let interval: string;
@@ -833,7 +832,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
                 }
                 interval = aggregationInterval;
             } else {
-                interval = Commons.getBestHistogramPointsInterval(startTime,endTime,30);
+                interval = Commons.getBestHistogramPointsInterval(startTime, endTime, 30);
             }
             let body: any = {
                 "size": 0,
@@ -1527,6 +1526,23 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
                 delete voterWhitelist.nonce;
             });
             let storedObjectCount: number = await this._bulkLoad<VoterWhitelist>(blockchainData, this.getIndex(PersistenceConstants.VOTER_WHITELIST_INDEX));
+            resolve(storedObjectCount);
+        })
+    }
+    async getFinalizedPrices(symbol: string, startBlock: number, endBlock: number, page: number, pageSize: number, sortField: PriceFinalizedSortEnum, sortOrder: SortOrderEnum): Promise<PaginatedResult<PriceFinalized[]>> {
+        const queryString: string = `symbol: ${isEmpty(symbol) ? '*' : symbol} AND blockNumber: [${startBlock} TO ${endBlock}]`;
+        const sortClause = `${sortField}:${sortOrder}`;
+        const finalizedPrices: PaginatedResult<PriceFinalized[]> = await this._paginatedSearch<PriceFinalized>(this.getIndex(PersistenceConstants.FINALIZED_PRICES_V1_INDEX), queryString, page, pageSize, sortClause);
+        return finalizedPrices;
+    }
+    
+    storeFinalizedPrices(blockchainData: PriceFinalized[]): Promise<number> {
+        return new Promise<number>(async (resolve, reject) => {
+            blockchainData.forEach(finalizedPrice => {
+                (finalizedPrice as any).objId = `${finalizedPrice.epochId}_${finalizedPrice.symbol}`;
+                delete finalizedPrice.nonce;
+            });
+            let storedObjectCount: number = await this._bulkLoad<PriceFinalized>(blockchainData, this.getIndex(PersistenceConstants.FINALIZED_PRICES_V1_INDEX));
             resolve(storedObjectCount);
         })
     }

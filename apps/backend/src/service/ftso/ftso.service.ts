@@ -1,4 +1,4 @@
-import { Commons, DataProviderExtendedInfo, DataProviderInfo, HashSubmitted, NetworkEnum, PriceEpoch, PriceEpochSettings, PriceFinalized, PriceRevealed, RewardEpoch, RewardEpochSettings, SortOrderEnum, VotePower, VotePowerDTO, VoterWhitelist } from "@flare-base/commons";
+import { Commons, DataProviderExtendedInfo, DataProviderInfo, HashSubmitted, NetworkEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, PriceFinalized, PriceFinalizedSortEnum, PriceRevealed, RewardEpoch, RewardEpochSettings, SortOrderEnum, VotePower, VotePowerDTO, VoterWhitelist } from "@flare-base/commons";
 import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -11,6 +11,7 @@ import { interval } from "rxjs";
 import { IBlockchainDao } from "../../dao/blockchain/i-blockchain-dao.service";
 import { ICacheDao } from "../../dao/cache/i-cache-dao.service";
 import { IPersistenceDao } from "../../dao/persistence/i-persistence-dao.service";
+import { EpochStats } from "../../dao/persistence/impl/model/epoch-stats";
 import { PersistenceMetadata, PersistenceMetadataScanInfo, PersistenceMetadataType } from "../../dao/persistence/impl/model/persistence-metadata";
 import { NetworkConfig } from "../../model/app-config/network-config";
 import { DelegationsService } from "../delegations/delegations.service";
@@ -19,7 +20,6 @@ import { ServiceStatusEnum } from "../network-dao-dispatcher/model/service-statu
 import { NetworkDaoDispatcherService } from "../network-dao-dispatcher/network-dao-dispatcher.service";
 import { ServiceUtils } from "../service-utils";
 import { TowoLabsDataProviderInfo } from "./model/towo-data-provider-info";
-import { EpochStats } from "../../dao/persistence/impl/model/epoch-stats";
 @Injectable()
 export class FtsoService {
     logger: Logger = new Logger(FtsoService.name);
@@ -248,16 +248,27 @@ export class FtsoService {
 
         this._lastBlockNumber[network] = lastBlockNumber;
 
-        if (this._priceRevealedList[network][priceEpoch.id]) {
+        if (this._priceFinalizedList[network] && this._priceFinalizedList[network][priceEpoch.id]) {
+            let finalizedPricesToLoad: PriceFinalized[] = [];
+            for (let symbol in this._priceFinalizedList[network][priceEpoch.id]) {
+                this.logger.log(`${network} - ${priceEpoch.id} - ${symbol} - Collected ${this._priceFinalizedList[network][priceEpoch.id].length} finalized prices from listener`)
+                finalizedPricesToLoad.push(this._priceFinalizedList[network][priceEpoch.id][symbol]);
+            }
+            const storedFinalizedPrices: number = await persistenceDao.storeFinalizedPrices(finalizedPricesToLoad);
+            await persistenceDao.storePersistenceMetadata(PersistenceMetadataType.FinalizedPrice, null, startBlock, endBlock);
+            this.logger.debug(`${network} - Stored ${storedFinalizedPrices} finalized prices from listener.`);
+        }
+
+        if (this._priceRevealedList[network] && this._priceRevealedList[network][priceEpoch.id]) {
             for (let symbol in this._priceRevealedList[network][priceEpoch.id]) {
-                this.logger.log(`${network} - ${priceEpoch.id} - ${symbol} - ${this._priceRevealedList[network][priceEpoch.id][symbol].length} revealed prices`)
+                this.logger.log(`${network} - ${priceEpoch.id} - ${symbol} - Collected ${this._priceRevealedList[network][priceEpoch.id][symbol].length} revealed prices from listener`)
             }
         }
-        if (this._hashSubmittedList[network][priceEpoch.id]) {
-            this.logger.log(`${network} - ${priceEpoch.id} -  ${this._hashSubmittedList[network][priceEpoch.id].length} hashes submitted`)
+        if (this._hashSubmittedList[network] && this._hashSubmittedList[network][priceEpoch.id]) {
+            this.logger.log(`${network} - ${priceEpoch.id} -  Collected ${this._hashSubmittedList[network][priceEpoch.id].length} hashes submitted from listener`)
         }
-        if (this._rewardDistributedList[network][priceEpoch.id]) {
-            this.logger.log(`${network} - ${priceEpoch.id} -  ${this._rewardDistributedList[network][priceEpoch.id].length} rewards distributes `)
+        if (this._rewardDistributedList[network] && this._rewardDistributedList[network][priceEpoch.id]) {
+            this.logger.log(`${network} - ${priceEpoch.id} -  Collected ${this._rewardDistributedList[network][priceEpoch.id].length} rewards distributed from listener `)
         }
         this._priceFinalizedList[network][priceEpoch.id] = null;
         delete this._priceFinalizedList[network][priceEpoch.id];
@@ -268,7 +279,7 @@ export class FtsoService {
         this._rewardDistributedList[network][priceEpoch.id] = null;
         delete this._rewardDistributedList[network][priceEpoch.id];
 
-        this.logger.debug(`${network} - Stored 0 priceEpochs from listener`);
+
     }
 
     async getDataProvidersInfo(network: NetworkEnum): Promise<DataProviderInfo[]> {
@@ -385,5 +396,94 @@ export class FtsoService {
         if (!fs.existsSync(folderPath)) {
             fs.mkdirSync(folderPath, { recursive: true });
         }
+    }
+    async getFinalizedPricesDto(
+        network: NetworkEnum,
+        symbol: string,
+        startTime: number,
+        endTime: number,
+        page: number,
+        pageSize: number,
+        sortField?: PriceFinalizedSortEnum,
+        sortOrder?: SortOrderEnum,
+        requestId?: string
+    ): Promise<PaginatedResult<PriceFinalized[]>> {
+        const blockchainDao: IBlockchainDao = await this._networkDaoDispatcher.getBlockchainDao(network);
+        const persistenceDao: IPersistenceDao = await this._networkDaoDispatcher.getPersistenceDao(network);
+
+        if (ServiceUtils.isServiceUnavailable(blockchainDao) || ServiceUtils.isServiceUnavailable(persistenceDao)) {
+            throw new Error(`Service unavailable`);
+        }
+
+        let paginatedResults: PaginatedResult<PriceFinalized[]> = new PaginatedResult<PriceFinalized[]>(page, pageSize, sortField, sortOrder, 0, []);
+        const epochStats: EpochStats = await this._epochsService.getBlockNumberRangeByPriceEpochs(network, startTime, endTime);
+        const epochBlockNumberFrom: number = epochStats.minBlockNumber;
+        const epochBlockNumberTo: number = epochStats.maxBlockNumber;
+
+        paginatedResults = await this.getFinalizedPrices(network, symbol, epochBlockNumberFrom, epochBlockNumberTo, page, pageSize, sortField!, sortOrder!, requestId!);
+        return paginatedResults;
+    }
+
+    async getFinalizedPrices(
+        network: NetworkEnum,
+        symbol: string,
+        startBlock: number,
+        endBlock: number,
+        page: number,
+        pageSize: number,
+        sortField?: PriceFinalizedSortEnum,
+        sortOrder?: SortOrderEnum,
+        requestId?: string
+    ): Promise<PaginatedResult<PriceFinalized[]>> {
+        const blockchainDao: IBlockchainDao = await this._networkDaoDispatcher.getBlockchainDao(network);
+        const persistenceDao: IPersistenceDao = await this._networkDaoDispatcher.getPersistenceDao(network);
+
+        if (ServiceUtils.isServiceUnavailable(blockchainDao) || ServiceUtils.isServiceUnavailable(persistenceDao)) {
+            throw new Error(`Service unavailable`);
+        }
+
+        let missingBlocks: PersistenceMetadataScanInfo[] = [];
+        let persistenceMetadata: PersistenceMetadata[] = [];
+        if (isNotEmpty(symbol)) {
+            persistenceMetadata.push(...await persistenceDao.getPersistenceMetadata(PersistenceMetadataType.FinalizedPrice, symbol, startBlock, endBlock));
+            missingBlocks.push(...new PersistenceMetadata().findMissingIntervals(persistenceMetadata, startBlock, endBlock))
+        } else {
+            persistenceMetadata.push(...await persistenceDao.getPersistenceMetadata(PersistenceMetadataType.FinalizedPrice, null, startBlock, endBlock));
+            missingBlocks.push(...new PersistenceMetadata().findMissingIntervals(persistenceMetadata, startBlock, endBlock))
+        }
+        if (missingBlocks.length > 0) {
+            for (const missingBlockNumber of missingBlocks) {
+                this.logger.log(`${network} - Fetching finalized prices for symbol: ${isNotEmpty(symbol) ? symbol : '*'} - From block ${missingBlockNumber.from} to ${missingBlockNumber.to} - Size: ${missingBlockNumber.to - missingBlockNumber.from}`);
+                let blockchainData: PriceFinalized[] = [];
+                if (isNotEmpty(symbol)) {
+                    blockchainData.push(...await blockchainDao.getFinalizedPrices(symbol, missingBlockNumber.from, missingBlockNumber.to))
+                } else {
+                    blockchainData.push(...await blockchainDao.getFinalizedPrices(null, missingBlockNumber.from, missingBlockNumber.to))
+                }
+
+                if (blockchainData.length > 0) {
+                    await persistenceDao.storeFinalizedPrices(blockchainData);
+                }
+                if (isNotEmpty(symbol)) {
+                    await persistenceDao.storePersistenceMetadata(PersistenceMetadataType.FinalizedPrice, symbol, missingBlockNumber.from, missingBlockNumber.to);
+                } else {
+                    await persistenceDao.storePersistenceMetadata(PersistenceMetadataType.FinalizedPrice, null, missingBlockNumber.from, missingBlockNumber.to);
+                }
+            }
+            return this.getFinalizedPrices(network, symbol, startBlock, endBlock, page, pageSize, sortField!, sortOrder!);
+        }
+
+        if (missingBlocks.length === 0) {
+            let daoData: PaginatedResult<PriceFinalized[]> = new PaginatedResult<PriceFinalized[]>(page, pageSize, sortField, sortOrder, 0, []);
+            if (pageSize > 0) {
+                daoData = await persistenceDao.getFinalizedPrices(symbol, startBlock, endBlock, page, pageSize, sortField!, sortOrder!);
+            }
+            if (persistenceMetadata.length > 5) {
+                await persistenceDao.optimizePersistenceMetadata(PersistenceMetadataType.FinalizedPrice, persistenceMetadata);
+            }
+            return daoData;
+        }
+        throw new Error(`Unable to get finalized prices symbol:'${isNotEmpty(symbol) ? symbol : '*'}'.`);
+
     }
 }

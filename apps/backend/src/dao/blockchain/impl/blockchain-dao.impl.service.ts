@@ -45,7 +45,6 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
     private _blockNumberTimestampCache: { [blockNumber: number]: number } = {};
     private _activeFtsoContracts: number = 0;
     constructor() { }
-
     abstract initialize(): Promise<void>;
 
     public async getCurrentRewardEpoch(): Promise<RewardEpoch> {
@@ -89,7 +88,7 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
             if (blockNumberEnd == null) {
                 blockNumberEnd = await this.provider.getBlockNumber();
             }
-            const filteredFtsoContracts = this.ftsoManagerWrapper.getContractsByBlockNumberRange(blockNumberStart, blockNumberEnd);
+            const filteredFtsoContracts: { [symbol: string]: DynamicFtso[] } = this.ftsoManagerWrapper.getContractsByBlockNumberRange(blockNumberStart, blockNumberEnd);
             const targetContract = Object.values(filteredFtsoContracts)
                 .flatMap(currencies => currencies)
                 .reduce((minCurrency, currency) => (
@@ -124,7 +123,7 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
     @Process({ name: 'scanPriceEpochsProcessor', concurrency: 1 })
     private async _scanPriceEpochsProcessor(job: Job<unknown>): Promise<any> {
         return new Promise((resolve, reject) => {
-            this._scanPriceEpochs(job.data['contract'], job.data['startBlock'], job.data['endBlock'])
+            this._scanFinalizedPrices(job.data['contract'], job.data['startBlock'], job.data['endBlock'])
                 .then(res => {
                     let results: PriceEpoch[] = [];
                     if (res.length > 0) {
@@ -145,49 +144,6 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
                 });
         });
     }
-    private async _scanPriceEpochs(dynamicFtso: DynamicFtso, blockNumberStart: number, blockNumberEnd: number): Promise<FlrContractCommon.TypedEventLog<any>[]> {
-        return new Promise<FlrContractCommon.TypedEventLog<any>[]>(async (resolve, reject) => {
-            let maxScanSize: number = 5000;
-            let results: FlrContractCommon.TypedEventLog<any>[] = [];
-            let contract: FlrContract.Ftso | FlrContract.FtsoOld;
-            let filter: any;
-            let stopScan: boolean = false;
-            if (dynamicFtso.hasElasticBand) {
-                contract = FlrContract.Ftso__factory.connect(dynamicFtso.address, this.provider);
-                filter = contract.filters.PriceFinalized();
-            } else {
-                contract = contract = FlrContract.FtsoOld__factory.connect(dynamicFtso.address, this.provider);
-                filter = contract.filters.PriceFinalized();
-            }
-            const processBlocks = async (start: number, end: number, contract: FlrContract.Ftso | FlrContract.FtsoOld, filter: any) => {
-                this.logger.verbose(`_scanPriceEpochs - Contract: ${dynamicFtso.address} - Processing blocks from ${start} to ${end}  - Size: ${maxScanSize}`);
-                const startTime: number = new Date().getTime();
-                const priceFinalizedEvents: FlrContractCommon.TypedEventLog<any>[] = await contract.queryFilter(filter, start, end);
-                maxScanSize = this.getMaxScanSize(startTime, maxScanSize, 500);
-                if (dynamicFtso.hasElasticBand) {
-                    priceFinalizedEvents.map(e => (e as any).hasElasticBand = true);
-                } else {
-                    priceFinalizedEvents.map(e => (e as any).hasElasticBand = false);
-                }
-                results = results.concat(priceFinalizedEvents);
-                if (priceFinalizedEvents.length > 0) {
-                    priceFinalizedEvents.map(pfe => {
-                        if (pfe.args[0] && Number(pfe.args[0]) > blockNumberEnd) {
-                            stopScan = true;
-                        }
-                    });
-                }
-                if (end < blockNumberEnd && !stopScan) {
-                    await processBlocks(end + 1, Math.min(end + maxScanSize, blockNumberEnd), contract, filter);
-                }
-            };
-            await processBlocks(blockNumberStart, Math.min(blockNumberStart + maxScanSize, blockNumberEnd), contract, filter);
-            resolve(results);
-        })
-    }
-
-
-
     public async getDelegations(address: string, startBlock: number, endBlock: number): Promise<Delegation[]> {
         return new Promise<Delegation[]>(async (resolve, reject) => {
             try {
@@ -306,8 +262,8 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
                 priceFinalized.price = (Number(price) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(ftsoAddress));
                 priceFinalized.lowIQRRewardPrice = (Number(lowIQRRewardPrice) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(ftsoAddress));
                 priceFinalized.highIQRRewardPrice = (Number(highIQRRewardPrice) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(ftsoAddress));
-                priceFinalized.lowElasticBandRewardPrice = (Number(lowElasticBandRewardPrice) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(ftsoAddress));
-                priceFinalized.highElasticBandRewardPrice = (Number(highElasticBandRewardPrice) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(ftsoAddress));
+                priceFinalized.lowPctRewardPrice = (Number(lowElasticBandRewardPrice) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(ftsoAddress));
+                priceFinalized.highPctRewardPrice = (Number(highElasticBandRewardPrice) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(ftsoAddress));
                 priceFinalized.blockNumber = event.log.blockNumber;
                 this.pricesFinalizedListener$.next(priceFinalized);
             })
@@ -520,7 +476,7 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
                 priceRevealed.epochId = Number(epochId);
                 priceRevealed.symbol = this.ftsoManagerWrapper.getSymbolByContractAddress(ftso);
                 priceRevealed.price = (Number(prices[ftsoIdx]) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(ftso));
-                priceRevealed.voter = voter;
+                priceRevealed.dataProvider = voter;
                 this.pricesRevealedListener$.next(priceRevealed);
             });
         })
@@ -808,6 +764,130 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
         });
     }
 
+    async getFinalizedPrices(symbol: string, blockNumberStart: number, blockNumberEnd: number): Promise<PriceFinalized[]> {
+        try {
+            if (blockNumberEnd == null) {
+                blockNumberEnd = await this.provider.getBlockNumber();
+            }
+            const filteredFtsoContracts: { [symbol: string]: DynamicFtso[] } = this.ftsoManagerWrapper.getContractsByBlockNumberRange(blockNumberStart, blockNumberEnd);
+            var dynamicFtsoContracts: DynamicFtso[] = [];
+            if (isNotEmpty(symbol)) {
+                if (filteredFtsoContracts[symbol]) {
+                    dynamicFtsoContracts.push(...filteredFtsoContracts[symbol]);
+                }
+            } else {
+                for (let symbol in filteredFtsoContracts) {
+                    dynamicFtsoContracts.push(...filteredFtsoContracts[symbol]);
+                }
+            }
 
+            const events: PriceFinalized[] = [];
+            for (const contract of dynamicFtsoContracts) {
+                const { activeFromBlock, activeToBlock } = contract;
+                let startBlock = activeFromBlock;
+                let endBlock = activeToBlock || blockNumberEnd;
+
+                if (startBlock <= blockNumberEnd && endBlock >= blockNumberStart) {
+                    startBlock = Math.max(startBlock, blockNumberStart);
+                    endBlock = Math.min(endBlock, blockNumberEnd);
+                    const job = await this._blockchainDaoQueue.add('scanFinalizedPricesProcessor', { contract, startBlock, endBlock });
+                    const evts: PriceFinalized[] = await job.finished() as PriceFinalized[];
+                    events.push(...evts);
+                }
+            }
+            return events;
+        } catch (err) {
+            throw err;
+        }
+    }
+
+    /*
+0 112341
+1 37221
+2 false
+3 37219
+4 37222
+5 1
+6 1677962520
+
+    */
+    @Process({ name: 'scanFinalizedPricesProcessor', concurrency: 1 })
+    private async scanFinalizedPricesProcessor(job: Job<unknown>): Promise<any> {
+        return new Promise((resolve, reject) => {
+            this._scanFinalizedPrices(job.data['contract'], job.data['startBlock'], job.data['endBlock'])
+                .then(res => {
+                    let results: PriceFinalized[] = [];
+                    if (res.length > 0) {
+                        results = res.map(evt => {
+                            const finalizedPrice: PriceFinalized = new PriceFinalized();
+                            finalizedPrice.epochId = Number(evt.args[0]);
+                            finalizedPrice.blockNumber = evt.blockNumber;
+                            finalizedPrice.rewardedSymbol = Boolean(evt.args[2]);
+                            finalizedPrice.symbol = this.ftsoManagerWrapper.getSymbolByContractAddress(job.data['contract'].address);
+                            if ((evt as any).hasElasticBand) {
+                                finalizedPrice.timestamp = Number(evt.args[8]) * 1000;
+                                finalizedPrice.price = (Number(evt.args[1]) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(job.data['contract'].address));
+                                finalizedPrice.lowIQRRewardPrice = (Number(evt.args[3]) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(job.data['contract'].address));
+                                finalizedPrice.highIQRRewardPrice = (Number(evt.args[4]) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(job.data['contract'].address));
+                                finalizedPrice.lowPctRewardPrice = (Number(evt.args[5]) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(job.data['contract'].address));
+                                finalizedPrice.highPctRewardPrice = (Number(evt.args[6]) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(job.data['contract'].address));
+                            } else {
+                                finalizedPrice.timestamp = Number(evt.args[6]) * 1000;
+                                finalizedPrice.price = (Number(evt.args[1]) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(job.data['contract'].address));
+                                finalizedPrice.lowIQRRewardPrice = (Number(evt.args[3]) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(job.data['contract'].address));
+                                finalizedPrice.highIQRRewardPrice = (Number(evt.args[4]) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(job.data['contract'].address));
+                            }
+                            return finalizedPrice;
+                        });
+                    }
+                    resolve(results);
+                })
+                .catch(error => {
+                    reject(error);
+                });
+        });
+    }
+
+
+    private async _scanFinalizedPrices(dynamicFtso: DynamicFtso, blockNumberStart: number, blockNumberEnd: number): Promise<FlrContractCommon.TypedEventLog<any>[]> {
+        return new Promise<FlrContractCommon.TypedEventLog<any>[]>(async (resolve, reject) => {
+            let maxScanSize: number = 5000;
+            let results: FlrContractCommon.TypedEventLog<any>[] = [];
+            let contract: FlrContract.Ftso | FlrContract.FtsoOld;
+            let filter: any;
+            let stopScan: boolean = false;
+            if (dynamicFtso.hasElasticBand) {
+                contract = FlrContract.Ftso__factory.connect(dynamicFtso.address, this.provider);
+                filter = contract.filters.PriceFinalized();
+            } else {
+                contract = contract = FlrContract.FtsoOld__factory.connect(dynamicFtso.address, this.provider);
+                filter = contract.filters.PriceFinalized();
+            }
+            const processBlocks = async (start: number, end: number, contract: FlrContract.Ftso | FlrContract.FtsoOld, filter: any) => {
+                this.logger.verbose(`_scanFinalizedPrices - Contract: ${dynamicFtso.address} - Processing blocks from ${start} to ${end}  - Size: ${maxScanSize}`);
+                const startTime: number = new Date().getTime();
+                const priceFinalizedEvents: FlrContractCommon.TypedEventLog<any>[] = await contract.queryFilter(filter, start, end);
+                maxScanSize = this.getMaxScanSize(startTime, maxScanSize, 500);
+                if (dynamicFtso.hasElasticBand) {
+                    priceFinalizedEvents.map(e => (e as any).hasElasticBand = true);
+                } else {
+                    priceFinalizedEvents.map(e => (e as any).hasElasticBand = false);
+                }
+                results = results.concat(priceFinalizedEvents);
+                if (priceFinalizedEvents.length > 0) {
+                    priceFinalizedEvents.map(pfe => {
+                        if (pfe.args[0] && Number(pfe.args[0]) > blockNumberEnd) {
+                            stopScan = true;
+                        }
+                    });
+                }
+                if (end < blockNumberEnd && !stopScan) {
+                    await processBlocks(end + 1, Math.min(end + maxScanSize, blockNumberEnd), contract, filter);
+                }
+            };
+            await processBlocks(blockNumberStart, Math.min(blockNumberStart + maxScanSize, blockNumberEnd), contract, filter);
+            resolve(results);
+        })
+    }
 
 }

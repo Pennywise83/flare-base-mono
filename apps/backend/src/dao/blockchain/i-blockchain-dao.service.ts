@@ -76,6 +76,7 @@ export interface IBlockchainDao {
     voterWhitelistListener$: Subject<VoterWhitelist>;
 
     getFtsoWhitelistedPriceProviders(): Promise<string[]>;
+    getFinalizedPrices(symbol: string, startBlock: number, endBlock: number): Promise<PriceFinalized[]>;
 
 
 

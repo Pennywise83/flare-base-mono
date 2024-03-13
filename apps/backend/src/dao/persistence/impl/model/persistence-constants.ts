@@ -127,6 +127,47 @@ export class PersistenceConstants {
         }
     };
 
+    static FINALIZED_PRICES_V1_INDEX = 'v1finalizedprices';
+    static FINALIZED_PRICES_V1_INDEX_MAPPING = {
+        _source: {
+            enabled: true
+        },
+        properties: {
+            blockNumber: { type: 'long' },
+            timestamp: { type: 'date', format: 'epoch_millis' },
+            epochId: { type: 'long' },
+            symbol: { type: 'keyword' },
+            price: { type: 'double' },
+            rewardedSymbol: { type: 'boolean' },
+            lowIQRRewardPrice: { type: 'double' },
+            highIQRRewardPrice: { type: 'double' },
+            lowPctRewardPrice: { type: 'double' },
+            highPctRewardPrice: { type: 'double' },
+
+        }
+    };
+    static REVEALED_PRICES_V1_INDEX = 'v1revealedprices';
+    static REVEALED_PRICES_V1_INDEX_MAPPING = {
+        _source: {
+            enabled: true
+        },
+        properties: {
+            blockNumber: { type: 'long' },
+            timestamp: { type: 'date', format: 'epoch_millis' },
+            epochId: { type: 'long' },
+            symbol: { type: 'keyword' },
+            price: { type: 'double' },
+            dataProvider: { type: 'keyword' },
+            innerIQR: { type: 'boolean' },
+            innerPct: { type: 'boolean' },
+            borderIQR: { type: 'boolean' },
+            borderPct: { type: 'boolean' },
+            outIQR: { type: 'boolean' },
+            outPct: { type: 'boolean' },
+            rewardedSymbol: { type: 'boolean' }
+
+        }
+    };
 }
 
 

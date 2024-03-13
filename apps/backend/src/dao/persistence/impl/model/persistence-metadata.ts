@@ -59,5 +59,6 @@ export enum PersistenceMetadataType {
     DelegationSnapshot = "DelegationSnapshot",
     PriceEpoch = "PriceEpoch",
     Balance = "Balance",
-    VoterWhitelist = "VoterWhitelist"
+    VoterWhitelist = "VoterWhitelist",
+    FinalizedPrice = "FinalizedPrice"
 }
