@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, ViewEncapsulation } from "@angular/core";
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { Title } from "@angular/platform-browser";
 import { ActivatedRoute } from "@angular/router";
 import { AppModule } from "app/app.module";
 import { AddressTrimPipe } from "app/commons/pipes/address-trim.pipe";
@@ -12,11 +13,13 @@ import { MediaWatcherService } from "app/services/media-watcher";
 import { Web3Service } from "app/services/web3/web3.service";
 import { isEmpty } from "class-validator";
 import { JazziconModule } from 'ngx-jazzicon';
+import { MatomoTracker } from 'ngx-matomo';
 import { Subject, combineLatest, map, takeUntil } from "rxjs";
 import { WalletBalanceComponent } from "../wallet-balance/wallet-balance.component";
+import { WalletDelegationsRewardsComponent } from "../wallet-claimed-rewards/wallet-delegations-rewards.component";
 import { WalletDelegationsComponent } from "../wallet-delegations/wallet-delegations.component";
 import { WalletWrapComponent } from "../wallet-wrap/wallet-wrap.component";
-import { WalletDelegationsRewardsComponent } from "../wallet-claimed-rewards/wallet-delegations-rewards.component";
+import { Commons } from "../../../../../../../libs/commons/src";
 
 @Component({
     selector: 'flare-base-wallet-dashboard',
@@ -48,7 +51,9 @@ export class WalletDashboardComponent implements OnInit {
         private _route: ActivatedRoute,
         private _web3Service: Web3Service,
         private _uiNotificationsService: UiNotificationsService,
-        private _cdr: ChangeDetectorRef) {
+        private _cdr: ChangeDetectorRef,
+        private _titleService: Title,
+        private _matomoTracker: MatomoTracker) {
 
     }
     isWalletConnected(): boolean {
@@ -67,6 +72,8 @@ export class WalletDashboardComponent implements OnInit {
                     return;
                 }
                 this.network = this._parentParams['network'];
+                Commons.setPageTitle(`Flare Base - ${this.network.charAt(0).toUpperCase() + this.network.slice(1)} - Wallet`, this._titleService, this._matomoTracker)
+
                 combineLatest([
                     this._configService.config$,
                     this._mediaWatcherService.onMediaQueryChange$(['(prefers-color-scheme: dark)', '(prefers-color-scheme: light)'])

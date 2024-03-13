@@ -23,8 +23,9 @@ import { IChainDefinition } from "app/services/web3/model/i-chain-definition";
 import { Web3Service } from "app/services/web3/web3.service";
 import { isEmpty } from "class-validator";
 import { saveAs } from 'file-saver';
+import { MatomoTracker } from 'ngx-matomo';
 import { Subject, takeUntil } from "rxjs";
-import { DataProviderInfo, DelegationDTO, NetworkEnum, PaginatedResult } from "../../../../../../../libs/commons/src";
+import { Commons, DataProviderInfo, DelegationDTO, NetworkEnum, PaginatedResult } from "../../../../../../../libs/commons/src";
 import { WalletDelegationsComponent } from "../wallet-delegations/wallet-delegations.component";
 
 @Component({
@@ -70,7 +71,8 @@ export class WalletDelegationsManagementComponent implements OnInit {
         private _delegationsService: DelegatotionService,
         private _datePipe: DatePipe,
         private _ftsoService: FtsoService,
-        private _titleService: Title
+        private _titleService: Title,
+        private _matomoTracker: MatomoTracker
     ) {
     }
     ngOnDestroy(): void {
@@ -91,7 +93,7 @@ export class WalletDelegationsManagementComponent implements OnInit {
                 }
                 if (this._parentParams['network'] != this.network) {
                     this.network = NetworkEnum[this._parentParams['network']];
-                    this._titleService.setTitle(`Flare Base - ${this.network} - Wallet Delegations management`);
+                    Commons.setPageTitle(`Flare Base - ${this.network.charAt(0).toUpperCase() + this.network.slice(1)} - Wallet Delegations management`, this._titleService, this._matomoTracker)
                 }
                 this._web3Service.checkMetamaskProvider().subscribe(web3ClientInstalled => {
                     this.isWeb3ClientInstalled = web3ClientInstalled;

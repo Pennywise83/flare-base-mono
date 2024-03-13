@@ -9,6 +9,7 @@ import { MatSelectChange, MatSelectModule } from "@angular/material/select";
 import { MatSortModule } from "@angular/material/sort";
 import { MatTableModule } from "@angular/material/table";
 import { MatTooltipModule } from "@angular/material/tooltip";
+import { Title } from "@angular/platform-browser";
 import { ActivatedRoute, Router, RouterLink, RouterLinkActive } from "@angular/router";
 import { AppModule } from "app/app.module";
 import { animations } from "app/commons/animations";
@@ -28,12 +29,12 @@ import { EpochsService } from "app/services/epochs.service";
 import { FtsoService } from "app/services/ftso.service";
 import { VotePowerService } from "app/services/votepower.service";
 import { isDefined, isEmpty } from "class-validator";
+import { MatomoTracker } from 'ngx-matomo';
 import { Socket } from "ngx-socket-io";
 import { Observable, Subject, forkJoin, takeUntil } from "rxjs";
-import { DataProviderInfo, DelegationDTO, DelegationsSortEnum, NetworkEnum, PaginatedResult, RewardEpochSettings, SortOrderEnum, VotePowerDTO } from "../../../../../../../libs/commons/src";
+import { Commons, DataProviderInfo, DelegationDTO, DelegationsSortEnum, NetworkEnum, PaginatedResult, RewardEpochSettings, SortOrderEnum, VotePowerDTO } from "../../../../../../../libs/commons/src";
 import { VotePowerDelegationsChangeTableComponent } from "./vote-power-delegations-table/vote-power-delegations-table.component";
 import { VotePowerOverDelegationsChartComponent } from "./vote-power-over-delegations-chart/vote-power-over-delegations-chart.component";
-import { Title } from "@angular/platform-browser";
 
 @Component({
     selector: 'flare-base-data-provider-delegations',
@@ -82,7 +83,8 @@ export class DataProviderDelegationsComponent implements OnInit, OnDestroy {
         private _votePowerService: VotePowerService,
         private _epochsService: EpochsService,
         private _titleService: Title,
-        private _dataProvidersService: FtsoService
+        private _dataProvidersService: FtsoService,
+        private _matomoTracker: MatomoTracker
     ) {
         this.loadingMap = new LoadingMap(this._cdr);
     }
@@ -112,7 +114,6 @@ export class DataProviderDelegationsComponent implements OnInit, OnDestroy {
                     if (this.selectedRewardEpoch != parseInt(this._parentParams['rewardEpoch'])) {
                         this._router.navigate([this._network, 'delegations', 'explorer', this.rewardEpochSettings.getCurrentEpochId(), this.address]);
                     }
-                    this._titleService.setTitle(`Flare Base - ${this._network} - Delegations explorer - ${this.address} (${this.selectedRewardEpoch})`);
                     this.request = new DelegatorsRequest(this.address, this.selectedRewardEpoch);
                     this._parseQueryParams();
                 }, rewardEpochSettingsErr => {
@@ -222,8 +223,7 @@ export class DataProviderDelegationsComponent implements OnInit, OnDestroy {
             this._getLatestDelegations(this.address, startTime, endTime, 250)
         ];
         forkJoin(calls).subscribe(res => {
-            this._titleService.setTitle(`Flare Base - ${this._network} - Delegations explorer - ${this.dataProviderInfo.name} (${this.selectedRewardEpoch})`);
-
+            Commons.setPageTitle(`Flare base - ${this._network.charAt(0).toUpperCase() + this._network.slice(1)} - Delegations explorer - ${this.dataProviderInfo.name} (${this.selectedRewardEpoch})`, this._titleService,this._matomoTracker)
         }).add(() => {
             this.loading = false;
             this._cdr.detectChanges();

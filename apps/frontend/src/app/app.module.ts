@@ -10,6 +10,8 @@ import { NgEventBus } from 'ng-event-bus';
 import { SocketIoConfig, SocketIoModule } from 'ngx-socket-io';
 import { BreadcrumbModule } from 'xng-breadcrumb';
 import { JazziconModule } from 'ngx-jazzicon';
+import { MatomoModule } from 'ngx-matomo';
+import { environment } from 'environment';
 
 
 const progressWsConfig: SocketIoConfig = {
@@ -30,7 +32,20 @@ const progressWsConfig: SocketIoConfig = {
     SocketIoModule.forRoot(progressWsConfig),
     NgIconsModule.withIcons({ heroMagnifyingGlass, heroWallet, heroBanknotes, heroHashtag, heroGlobeAlt, heroFaceFrown, heroQuestionMarkCircle, heroChevronRight, featherDownload, heroArrowPath, featherRefreshCw, featherHash, featherClock, featherAward, heroCheckBadge, featherGithub, matSwapHorizOutline, heroArrowRight, featherLoader, heroPlusCircle, heroLink, heroClipboardDocumentList }),
     JazziconModule.forRoot({}),
-    BreadcrumbModule
+    BreadcrumbModule,
+    MatomoModule.forRoot({  // Flare-base supports Matomo for tracking. Compile the module options with your data, leave empty to disable tracking.
+      scriptUrl: environment.matomoScriptUrl,
+      trackers: [
+        {
+          trackerUrl: environment.matomoTrackerUrl,
+          siteId: environment.matomoSiteId
+        }
+      ],
+      trackLinks: true,
+      routeTracking: {
+        enable: true
+      }
+    }),
   ],
   providers: [NgEventBus],
   exports: [NgIconsModule, CommonModule, BreadcrumbModule],

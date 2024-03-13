@@ -24,8 +24,9 @@ import { IChainDefinition } from "app/services/web3/model/i-chain-definition";
 import { Web3Service } from "app/services/web3/web3.service";
 import { isEmpty } from "class-validator";
 import { saveAs } from 'file-saver';
+import { MatomoTracker } from 'ngx-matomo';
 import { Subject, takeUntil } from "rxjs";
-import { ClaimedRewardHistogramElement, ClaimedRewardsGroupByEnum, DataProviderInfo, NetworkEnum, PaginatedResult, RewardDTO } from "../../../../../../../libs/commons/src";
+import { ClaimedRewardHistogramElement, ClaimedRewardsGroupByEnum, Commons, DataProviderInfo, NetworkEnum, PaginatedResult, RewardDTO } from "../../../../../../../libs/commons/src";
 import { WalletDelegationsRewardsComponent } from "../wallet-claimed-rewards/wallet-delegations-rewards.component";
 
 @Component({
@@ -71,7 +72,8 @@ export class WalletRewardsManagementComponent implements OnInit {
         private _rewardsService: RewardsService,
         private _datePipe: DatePipe,
         private _ftsoService: FtsoService,
-        private _titleService: Title
+        private _titleService: Title,
+        private _matomoTracker: MatomoTracker
     ) {
         this.loadingMap = new LoadingMap(this._cdr);
     }
@@ -93,7 +95,8 @@ export class WalletRewardsManagementComponent implements OnInit {
                 }
                 if (this._parentParams['network'] != this.network) {
                     this.network = NetworkEnum[this._parentParams['network']];
-                    this._titleService.setTitle(`Flare Base - ${this.network} - Wallet Delegations management`);
+                    Commons.setPageTitle(`Flare Base - ${this.network.charAt(0).toUpperCase() + this.network.slice(1)} - Wallet Rewards management`, this._titleService, this._matomoTracker)
+
                 }
                 this._web3Service.checkMetamaskProvider().subscribe(web3ClientInstalled => {
                     this.isWeb3ClientInstalled = web3ClientInstalled;

@@ -19,7 +19,7 @@ import { saveAs } from 'file-saver';
 import { isEmpty } from "lodash";
 import { NgxMatSelectSearchModule } from 'ngx-mat-select-search';
 import { Subject, takeUntil } from "rxjs";
-import { DataProviderInfo, NetworkEnum, RewardEpochSettings, VotePowerDTO } from "../../../../../../libs/commons/src";
+import { Commons, DataProviderInfo, NetworkEnum, RewardEpochSettings, VotePowerDTO } from "../../../../../../libs/commons/src";
 import { AppModule } from "../../app.module";
 import { animations } from "../../commons/animations";
 import { LoaderComponent } from "../../commons/loader/loader.component";
@@ -29,7 +29,7 @@ import { DataProviderDelegationsComponent, VotePowerDelegatorsChange } from "../
 import { VotePowerDelegationsChangeTableComponent } from "../delegations-explorer/data-provider-delegations/vote-power-delegations-table/vote-power-delegations-table.component";
 import { VotePowerOverDelegationsChartComponent } from "../delegations-explorer/data-provider-delegations/vote-power-over-delegations-chart/vote-power-over-delegations-chart.component";
 import { Title } from "@angular/platform-browser";
-
+import { MatomoTracker } from 'ngx-matomo';
 
 @Component({
     selector: 'flare-base-votepower-history',
@@ -69,7 +69,8 @@ export class VotePowerHistoryComponent implements OnInit, OnDestroy {
         private _ftsoService: FtsoService,
         private _votePowerService: VotePowerService,
         private _datePipe: DatePipe,
-        private _titleService: Title
+        private _titleService: Title,
+        private _matomoTracker: MatomoTracker
     ) {
     }
 
@@ -117,7 +118,7 @@ export class VotePowerHistoryComponent implements OnInit, OnDestroy {
             this.filteredDataProvidersInfo = dataProvidersInfo;
             this._votePowerService.getDelegatedVotePowerHistory(this._network, request).subscribe(votePowerHistory => {
                 this.delegatedVotePowerHistory = votePowerHistory.results;
-                this._titleService.setTitle(`Flare Base - ${this._network} - Vote power history - ${isEmpty(request.address) ? '' : dataProvidersInfo.find(dp => dp.address == request.address).name}`);
+                Commons.setPageTitle(`Flare Base - ${this._network.charAt(0).toUpperCase() + this._network.slice(1)} - Vote power history - ${isEmpty(request.address) ? '' : dataProvidersInfo.find(dp => dp.address == request.address).name}`, this._titleService, this._matomoTracker)
                 if (votePowerHistory.results.length > 1) {
                     this.votePowerHistoryChange = DataProviderDelegationsComponent.getVotePowerAndDelegatorsChange(votePowerHistory.results, votePowerHistory.results.length - 1, this.rewardEpochSettings);
                     this._cdr.detectChanges();

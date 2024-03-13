@@ -18,8 +18,9 @@ import { FtsoService } from "app/services/ftso.service";
 import { RewardsService } from "app/services/rewards.service";
 import { isDefined, isEmpty, isNotEmpty, isNumber } from "class-validator";
 import { saveAs } from 'file-saver';
+import { MatomoTracker } from 'ngx-matomo';
 import { Subject, takeUntil } from "rxjs";
-import { ClaimedRewardHistogramElement, ClaimedRewardsGroupByEnum, DataProviderInfo, DelegationsSortEnum, NetworkEnum, PaginatedResult, RewardDTO, SortOrderEnum } from "../../../../../../libs/commons/src";
+import { ClaimedRewardHistogramElement, ClaimedRewardsGroupByEnum, Commons, DataProviderInfo, DelegationsSortEnum, NetworkEnum, PaginatedResult, RewardDTO, SortOrderEnum } from "../../../../../../libs/commons/src";
 import { AppModule } from "../../app.module";
 import { animations } from "../../commons/animations";
 import { LoaderComponent } from "../../commons/loader/loader.component";
@@ -74,7 +75,8 @@ export class ClaimedRewardsSearchComponent implements OnInit, OnDestroy {
         private _epochsService: EpochsService,
         private _datePipe: DatePipe,
         private _ftsoService: FtsoService,
-        private _titleService: Title
+        private _titleService: Title,
+        private _matomoTracker: MatomoTracker
     ) {
         this.loadingMap = new LoadingMap(this._cdr);
     }
@@ -104,7 +106,7 @@ export class ClaimedRewardsSearchComponent implements OnInit, OnDestroy {
                 if (this._parentParams['network'] != this._network) {
                     this._network = NetworkEnum[this._parentParams['network']];
                     this.selectedTimeRangeDefinition = this.timeRanges[0];
-                    this._titleService.setTitle(`Flare Base - ${this._network} - Delegations search`);
+                    Commons.setPageTitle(`Flare base - ${this._network.charAt(0).toUpperCase() + this._network.slice(1)} - Claimed rewards search`, this._titleService, this._matomoTracker);
                     this.tableRequest = new ClaimedRewardsRequest(null, null, null, null);
                     this._parseQueryParams();
                     this._route.queryParams.pipe(takeUntil(this._unsubscribeAll)).subscribe(queryParams => {

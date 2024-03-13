@@ -2,6 +2,8 @@ import { SHA256 } from 'crypto-js';
 import { PaginatedResult, SortOrderEnum } from "../model";
 import { AggregationInterval } from "../model/aggregation-intervals";
 import { BlockScanInfo } from "../model/blockchain";
+import { Title } from "@angular/platform-browser";
+import { MatomoTracker } from 'ngx-matomo';
 
 
 export class Commons {
@@ -118,5 +120,10 @@ export class Commons {
             }
         }
         return resultInterval;
+    }
+
+    static setPageTitle(title: string, titleService: Title, tracker: MatomoTracker): void {
+        titleService.setTitle(title);
+        tracker.setDocumentTitle(title);
     }
 }

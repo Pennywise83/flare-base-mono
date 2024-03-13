@@ -19,8 +19,9 @@ import { EpochsService } from "app/services/epochs.service";
 import { FtsoService } from "app/services/ftso.service";
 import { isDefined, isEmpty, isNotEmpty, isNumber } from "class-validator";
 import { saveAs } from 'file-saver';
+import { MatomoTracker } from 'ngx-matomo';
 import { Subject, takeUntil } from "rxjs";
-import { DataProviderInfo, DelegationDTO, DelegationsSortEnum, NetworkEnum, PaginatedResult, SortOrderEnum } from "../../../../../../libs/commons/src";
+import { Commons, DataProviderInfo, DelegationDTO, DelegationsSortEnum, NetworkEnum, PaginatedResult, SortOrderEnum } from "../../../../../../libs/commons/src";
 import { AppModule } from "../../app.module";
 import { animations } from "../../commons/animations";
 import { LoaderComponent } from "../../commons/loader/loader.component";
@@ -71,7 +72,8 @@ export class DelegationsSearchComponent implements OnInit, OnDestroy {
         private _epochsService: EpochsService,
         private _datePipe: DatePipe,
         private _ftsoService: FtsoService,
-        private _titleService: Title
+        private _titleService: Title,
+        private _matomoTracker: MatomoTracker
     ) {
     }
     ngOnDestroy(): void {
@@ -100,6 +102,7 @@ export class DelegationsSearchComponent implements OnInit, OnDestroy {
                     this._network = NetworkEnum[this._parentParams['network']];
                     this.selectedTimeRangeDefinition = this.timeRanges[0];
                     this._titleService.setTitle(`Flare Base - ${this._network} - Delegations search`);
+                    Commons.setPageTitle(`Flare base - ${this._network.charAt(0).toUpperCase() + this._network.slice(1)} - Delegations search`, this._titleService, this._matomoTracker)
                     this.request = new DelegationsRequest();
                     this._parseQueryParams();
                     this._route.queryParams.pipe(takeUntil(this._unsubscribeAll)).subscribe(queryParams => {
