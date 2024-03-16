@@ -37,7 +37,7 @@ export class DataProvidersComponent implements OnInit, OnChanges {
     @Output() selectedAddress: EventEmitter<string> = new EventEmitter<string>();
     @ViewChild('dataProvidersSort', { static: false }) public dataProvidersSort: MatSort;
     @Input() searchFilter: DataProviderSearchFilter;
-    dataProvidersTableColumns: string[] = ['#', 'name', 'votePower', 'votePowerChange', 'numberOfDelegators', 'numberOfDelegatorsChange', 'votePowerPercentage'];
+    dataProvidersTableColumns: string[] = ['#', 'name', 'votePower', 'votePowerChange', 'numberOfDelegators', 'numberOfDelegatorsChange'];
     dataProvidersDataSource: MatTableDataSource<DataProviderExtendedInfo> = new MatTableDataSource();
 
 
