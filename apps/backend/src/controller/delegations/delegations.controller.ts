@@ -80,7 +80,7 @@ export class DelegationsController {
     }
 
     @ApiParam({ name: "network", enum: NetworkEnum, enumName: "NetworkEnum", required: true })
-    @ApiQuery({ name: 'address', description: 'The address of the data provider.', type: String, required: true })
+    @ApiQuery({ name: 'address', description: 'Address of the data provider.', type: String, required: true })
     @ApiQuery({ name: 'page', type: PageDTO })
     @ApiQuery({ name: 'pageSize', type: PageSizeDTO })
     @ApiQuery({ name: 'sortField', type: SortFieldDelegationsDTO })
