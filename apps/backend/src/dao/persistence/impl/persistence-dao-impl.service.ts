@@ -252,7 +252,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
                     let objs = {};
                     let objs2 = [];
                     const body = chunk.flatMap(doc => {
-                        const objId = Commons.sha256Hash((doc as any).objId.toString());
+                        const objId = (doc as any).objId;
                         objs2.push(objId);
                         objs[objId] = objId;
                         delete (doc as any).objId;
@@ -430,7 +430,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
         return new Promise<any>((resolve, reject) => {
             this.elasticsearchClient.get({
                 index: indexName,
-                id: Commons.sha256Hash(id.toString()),
+                id: id,
                 _source: 'true'
             }).then(response => {
                 let result: Array<any> = [];
