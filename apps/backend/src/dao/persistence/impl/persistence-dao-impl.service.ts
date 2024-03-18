@@ -1,5 +1,5 @@
 import { Client } from "@elastic/elasticsearch";
-import { Balance, BalanceSortEnum, ClaimedRewardHistogramElement, ClaimedRewardsGroupByEnum, ClaimedRewardsSortEnum, Commons, DataProviderInfo, Delegation, DelegationSnapshot, DelegationsSortEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, PriceFinalized, PriceFinalizedSortEnum, Reward, RewardEpoch, RewardEpochSettings, VotePower, VoterWhitelist, WrappedBalance } from "@flare-base/commons";
+import { Balance, BalanceSortEnum, ClaimedRewardHistogramElement, ClaimedRewardsGroupByEnum, ClaimedRewardsSortEnum, Commons, DataProviderInfo, Delegation, DelegationSnapshot, DelegationsSortEnum, FtsoFee, FtsoFeeSortEnum, FtsoRewardStats, FtsoRewardStatsGroupByEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, PriceFinalized, PriceFinalizedSortEnum, PriceRevealed, PriceRevealedSortEnum, Reward, RewardDistributed, RewardDistributedSortEnum, RewardEpoch, RewardEpochSettings, VotePower, VoterWhitelist, WrappedBalance } from "@flare-base/commons";
 import { Process } from '@nestjs/bull';
 import { Logger } from "@nestjs/common";
 import { PersistenceDaoConfig } from "apps/backend/src/model/app-config/persistence-dao-config";
@@ -15,6 +15,7 @@ import { IPersistenceDao } from "../i-persistence-dao.service";
 import { EpochStats } from "./model/epoch-stats";
 import { PersistenceConstants } from "./model/persistence-constants";
 import { PersistenceMetadata, PersistenceMetadataType } from "./model/persistence-metadata";
+import { SortFieldRewardDistributedDTO } from "apps/backend/src/controller/model/sort-field-reward-distributed-dto";
 
 export abstract class PersistenceDaoImpl implements IPersistenceDao {
     logger: Logger;
@@ -337,14 +338,9 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
             const from = (page - 1) * pageSize;
             if (page * pageSize > this.maxResultsLimit) {
                 const count: number = await this._countDocuments(index, queryString);
-                if (page * pageSize <= count) {
-                    const job = await this._persistenceDaoQueue.add('fullScanProcessor', { index, queryString });
-                    const results: T[] = await job.finished() as T[];
-                    resolve(Commons.parsePaginatedResults(results, page, pageSize, (isNotEmpty(sort) ? sort.split(':')[0] : null), (isNotEmpty(sort) ? sort.split(':')[1] : null)));
-                } else {
-                    pResult.numResults = count;
-                    resolve(pResult);
-                }
+                const job = await this._persistenceDaoQueue.add('fullScanProcessor', { index, queryString });
+                const results: T[] = await job.finished() as T[];
+                resolve(Commons.parsePaginatedResults(results, page, pageSize, (isNotEmpty(sort) ? sort.split(':')[0] : null), (isNotEmpty(sort) ? sort.split(':')[1] : null)));
             } else {
                 this.elasticsearchClient.search({
                     index: index,
@@ -504,6 +500,19 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
             const queryString: string = `id: [${startEpoch} TO ${endEpoch}]`;
             const results: PaginatedResult<RewardEpoch[]> = await this._paginatedSearch<RewardEpoch>(this.getIndex(PersistenceConstants.REWARD_EPOCHS_INDEX), queryString, page, pageSize, sortClause);
             resolve(results);
+        });
+    }
+    private _getRewardEpoch(rewardEpochId: number): Promise<RewardEpoch> {
+        return new Promise<RewardEpoch>(async (resolve, reject) => {
+            const result: RewardEpoch = await this._get(this.getIndex(PersistenceConstants.REWARD_EPOCHS_INDEX), rewardEpochId.toString());
+            resolve(result);
+        });
+    }
+    private _getRewardEpochByTargetBlockNumber(targetBlockNumber: number): Promise<RewardEpoch> {
+        return new Promise<RewardEpoch>(async (resolve, reject) => {
+            const queryString = `blockNumber: [ 0 TO ${targetBlockNumber}]`;
+            let result: RewardEpoch = (await this._search<RewardEpoch>(this.getIndex(PersistenceConstants.REWARD_EPOCHS_INDEX), queryString, 1, 'blockNumber:desc'))[0];
+            resolve(result);
         });
     }
 
@@ -734,23 +743,25 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
             }
 
             let objIds: string[] = [];
-            for (const metadata of metadataToOptimize) {
-                const objId: string = `${type}_${metadata.value.toLowerCase()}_${metadata.from}_${metadata.to}_${filter}`;
-                objIds.push(objId);
-                await this.storePersistenceMetadata(type, metadata.value.toLowerCase(), metadata.from, metadata.to, metadata.filter);
-                const queryString = `NOT _id:(${objIds.join(' OR ')}) AND type:${type} AND value:(${metadata.value.toLowerCase()}) AND from:[* TO ${metadata.to}] AND to:{${metadata.from} TO *] ${isNotEmpty(filter) ? 'AND filter: ' + filter : ''}`;
-                await this.elasticsearchClient.updateByQuery({
-                    index: this.getIndex(PersistenceConstants.METADATA_INDEX),
-                    body: {
-                        script: {
-                            source: 'ctx._source.delete = "true"',
+            if (metadataToOptimize.length > 0) {
+                for (const metadata of metadataToOptimize) {
+                    const objId: string = `${type}_${metadata.value.toLowerCase()}_${metadata.from}_${metadata.to}_${filter}`;
+                    objIds.push(objId);
+                    await this.storePersistenceMetadata(type, metadata.value.toLowerCase(), metadata.from, metadata.to, metadata.filter);
+                    const queryString = `NOT _id:(${objIds.join(' OR ')}) AND type:${type} AND value:(${metadata.value.toLowerCase()}) AND from:[* TO ${metadata.to}] AND to:{${metadata.from} TO *] ${isNotEmpty(filter) ? 'AND filter: ' + filter : ''}`;
+                    await this.elasticsearchClient.updateByQuery({
+                        index: this.getIndex(PersistenceConstants.METADATA_INDEX),
+                        body: {
+                            script: {
+                                source: 'ctx._source.delete = "true"',
+                            },
+                            query: {
+                                query_string: { query: queryString },
+                            },
                         },
-                        query: {
-                            query_string: { query: queryString },
-                        },
-                    },
-                });
-                optimizedCounter++;
+                    });
+                    optimizedCounter++;
+                }
             }
             this.logger.verbose(`optimize ${type} metadata -  Optimized elements: ${optimizedCounter}`);
             return optimizedCounter;
@@ -1062,7 +1073,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
             "aggs": {
                 "unique_terms": {
                     "terms": {
-                        "field": "${groupByField}.keyword",
+                        "field": "${groupByField}",
                         "size": ${this.maxResultsLimit}
                     },
                 "aggs": {
@@ -1531,20 +1542,162 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
     }
     async getFinalizedPrices(symbol: string, startBlock: number, endBlock: number, page: number, pageSize: number, sortField: PriceFinalizedSortEnum, sortOrder: SortOrderEnum): Promise<PaginatedResult<PriceFinalized[]>> {
         const queryString: string = `symbol: ${isEmpty(symbol) ? '*' : symbol} AND blockNumber: [${startBlock} TO ${endBlock}]`;
-        const sortClause = `${sortField}:${sortOrder}`;
+        const sortClause = `${isNotEmpty(sortField) && isNotEmpty(sortOrder) ? sortField + ':' + sortOrder : ''}`;
         const finalizedPrices: PaginatedResult<PriceFinalized[]> = await this._paginatedSearch<PriceFinalized>(this.getIndex(PersistenceConstants.FINALIZED_PRICES_V1_INDEX), queryString, page, pageSize, sortClause);
         return finalizedPrices;
     }
-    
+
     storeFinalizedPrices(blockchainData: PriceFinalized[]): Promise<number> {
         return new Promise<number>(async (resolve, reject) => {
             blockchainData.forEach(finalizedPrice => {
                 (finalizedPrice as any).objId = `${finalizedPrice.epochId}_${finalizedPrice.symbol}`;
-                delete finalizedPrice.nonce;
             });
             let storedObjectCount: number = await this._bulkLoad<PriceFinalized>(blockchainData, this.getIndex(PersistenceConstants.FINALIZED_PRICES_V1_INDEX));
             resolve(storedObjectCount);
         })
+    }
+
+    async getRevealedPrices(symbol: string, address: string, startBlock: number, endBlock: number, page: number, pageSize: number, sortField: PriceRevealedSortEnum, sortOrder: SortOrderEnum): Promise<PaginatedResult<PriceRevealed[]>> {
+        const queryString: string = `symbol: ${isEmpty(symbol) ? '*' : symbol} AND dataProvider:${isEmpty(address) ? '*' : address} AND blockNumber: [${startBlock} TO ${endBlock}]`;
+        const sortClause = `${sortField}:${sortOrder}`;
+        const finalizedPrices: PaginatedResult<PriceRevealed[]> = await this._paginatedSearch<PriceRevealed>(this.getIndex(PersistenceConstants.REVEALED_PRICES_V1_INDEX), queryString, page, pageSize, sortClause);
+        return finalizedPrices;
+    }
+
+    storeRevealedPrices(blockchainData: PriceRevealed[]): Promise<number> {
+        return new Promise<number>(async (resolve, reject) => {
+            blockchainData.forEach(revealedPrice => {
+                revealedPrice.dataProvider = revealedPrice.dataProvider.toLowerCase();
+                (revealedPrice as any).objId = `${revealedPrice.epochId}_${revealedPrice.symbol}_${revealedPrice.dataProvider}`;
+            });
+            let storedObjectCount: number = await this._bulkLoad<PriceRevealed>(blockchainData, this.getIndex(PersistenceConstants.REVEALED_PRICES_V1_INDEX));
+            resolve(storedObjectCount);
+        })
+    }
+
+
+    async getFtsoFee(targetBlockNumber: number, dataProvider: string, sortField: FtsoFeeSortEnum, sortOrder: SortOrderEnum): Promise<FtsoFee[]> {
+        const queryString = `dataProvider: (${isNotEmpty(dataProvider) ? dataProvider : '*'} OR defaultFtsoFee) AND validFromEpoch: [ 0 TO ${targetBlockNumber}]`;
+        const voterWhitelist = await this.getVoterWhitelist(null, targetBlockNumber);
+        const uniqueDataProviderAddressList: string[] = [... new Set(voterWhitelist.filter(voterWhitelist => voterWhitelist.whitelisted == true).map(voterWhitelist => voterWhitelist.address))];
+        let result: FtsoFee[] = await this._search<FtsoFee>(this.getIndex(PersistenceConstants.FTSO_FEE_V1_INDEX), queryString, this.maxResultsLimit, 'timestamp:asc');
+        const rewardEpoch: RewardEpoch = await this._getRewardEpochByTargetBlockNumber(targetBlockNumber);
+        // Filter out defaultFtsoFee
+        const filteredResult = result.filter(ftsoFee => ftsoFee.dataProvider !== 'defaultFtsoFee');
+        if (filteredResult.length > 0) {
+            const resultMap: { [dataProvider: string]: FtsoFee } = {};
+
+            // Initialize resultMap
+            uniqueDataProviderAddressList.forEach(dataProviderAddress => {
+                resultMap[dataProviderAddress] = null;
+            });
+
+            // Map filteredResult to resultMap
+            filteredResult.forEach(ftsoFee => {
+                if (!resultMap[ftsoFee.dataProvider]) {
+                    resultMap[ftsoFee.dataProvider] = ftsoFee;
+                }
+                resultMap[ftsoFee.dataProvider] = ftsoFee;
+            });
+
+            // Handle defaultFtsoFee
+            result.filter(ftsoFee => ftsoFee.dataProvider === 'defaultFtsoFee').forEach(defaultFtsoFee => {
+                Object.keys(resultMap).forEach(dataProviderAddress => {
+                    if ((resultMap[dataProviderAddress] !== null && defaultFtsoFee.validFromEpoch <= rewardEpoch.id && defaultFtsoFee.validFromEpoch >= resultMap[dataProviderAddress].validFromEpoch) || resultMap[dataProviderAddress] === null) {
+                        resultMap[dataProviderAddress] = Commons.clone(defaultFtsoFee);
+                        resultMap[dataProviderAddress].dataProvider = dataProviderAddress;
+                    }
+                });
+            });
+
+            // Convert resultMap to parsedResults and filter for whitelisted addresses only
+            const parsedResults = Object.values(resultMap).filter(ftsoFee => uniqueDataProviderAddressList.indexOf(ftsoFee.dataProvider) >= 0);
+
+            // Sort parsedResults
+            if (sortField) {
+                parsedResults.sort((a, b) => {
+                    const aValue = a[sortField] as any;
+                    const bValue = b[sortField] as any;
+                    return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
+                });
+            }
+
+            return parsedResults;
+        } else {
+            return [];
+        }
+    }
+    async getFtsoFeeHistory(dataProvider: string): Promise<FtsoFee[]> {
+        let result: FtsoFee[] = [];
+        const queryString = `dataProvider: (${dataProvider} OR defaultFtsoFee)`;
+        const rewardEpochSettings: RewardEpochSettings = await this.getRewardEpochSettings();
+        const rewardEpoch: RewardEpoch = await this._getRewardEpoch(rewardEpochSettings.getCurrentEpochId());
+        const voterWhitelist = await this.getVoterWhitelist(dataProvider, rewardEpoch.votePowerBlockNumber);
+        if (isNotEmpty(voterWhitelist)) {
+            result = await this._search<FtsoFee>(this.getIndex(PersistenceConstants.FTSO_FEE_V1_INDEX), queryString, this.maxResultsLimit, 'timestamp:asc');
+            result.map(ftsoFee => ftsoFee.dataProvider = dataProvider);
+        }
+
+        return result;
+    }
+
+    storeFtsoFee(blockchainData: FtsoFee[]): Promise<number> {
+        return new Promise<number>(async (resolve, reject) => {
+            blockchainData.forEach(ftsoFee => {
+                if (ftsoFee.dataProvider != 'defaultFtsoFee') {
+                    ftsoFee.dataProvider = ftsoFee.dataProvider.toLowerCase();
+                }
+                (ftsoFee as any).objId = `${ftsoFee.validFromEpoch}_${ftsoFee.dataProvider}_${ftsoFee.blockNumber}`;
+            });
+            let storedObjectCount: number = await this._bulkLoad<FtsoFee>(blockchainData, this.getIndex(PersistenceConstants.FTSO_FEE_V1_INDEX));
+            resolve(storedObjectCount);
+        })
+    }
+    storeRewardDistributed(blockchainData: RewardDistributed[]): Promise<number> {
+        return new Promise<number>(async (resolve, reject) => {
+            blockchainData.forEach(rewardDistributed => {
+                rewardDistributed.dataProvider = rewardDistributed.dataProvider.toLowerCase();
+                (rewardDistributed as any).objId = `${rewardDistributed.priceEpochId}_${rewardDistributed.symbol}_${rewardDistributed.dataProvider}`;
+            });
+            let storedObjectCount: number = await this._bulkLoad<RewardDistributed>(blockchainData, this.getIndex(PersistenceConstants.FTSO_REWARD_DISTRIBUTED_V1_INDEX));
+            resolve(storedObjectCount);
+        })
+    }
+    async getRewardDistributed(dataProvider: string, symbol: string, startBlock: number, endBlock: number, page: number, pageSize: number, sortField: RewardDistributedSortEnum, sortOrder: SortOrderEnum): Promise<PaginatedResult<RewardDistributed[]>> {
+        const queryString: string = `symbol: ${isEmpty(symbol) ? '*' : symbol} AND dataProvider:${isEmpty(dataProvider) ? '*' : dataProvider} AND blockNumber: [${startBlock} TO ${endBlock}]`;
+        const sortClause = `${sortField}:${sortOrder}`;
+        const results: PaginatedResult<RewardDistributed[]> = await this._paginatedSearch<RewardDistributed>(this.getIndex(PersistenceConstants.FTSO_REWARD_DISTRIBUTED_V1_INDEX), queryString, page, pageSize, sortClause);
+        return results;
+    }
+    async getFtsoRewardStats(dataProvider: string, startBlock: number, endBlock: number, groupBy: FtsoRewardStatsGroupByEnum): Promise<FtsoRewardStats[]> {
+        let results: FtsoRewardStats[] = [];
+        const queryString: string = `dataProvider:${isEmpty(dataProvider) ? '*' : dataProvider} AND blockNumber: [${startBlock} TO ${endBlock}]`;
+        const providerRewards = await this._doGroupedStatsAggregation(groupBy, RewardDistributedSortEnum.providerReward, AggregationOperationEnum.sum, queryString, this.getIndex(PersistenceConstants.FTSO_REWARD_DISTRIBUTED_V1_INDEX));
+        const delegatorsRewards = await this._doGroupedStatsAggregation(groupBy, RewardDistributedSortEnum.reward, AggregationOperationEnum.sum, queryString, this.getIndex(PersistenceConstants.FTSO_REWARD_DISTRIBUTED_V1_INDEX));
+        if (groupBy == FtsoRewardStatsGroupByEnum.dataProvider) {
+            const rewardEpoch: RewardEpoch = await this._getRewardEpochByTargetBlockNumber(endBlock);
+            providerRewards.map((bucket, bucketIdx) => {
+                let ftsoRewardStats: FtsoRewardStats = new FtsoRewardStats();
+                ftsoRewardStats.dataProvider = bucket.key;
+                ftsoRewardStats.epochId = rewardEpoch.id;
+                ftsoRewardStats.count = bucket.doc_count;
+                ftsoRewardStats.providerReward = bucket.value;
+                ftsoRewardStats.delegatorsReward = delegatorsRewards[bucketIdx].value;
+                results.push(ftsoRewardStats);
+            });
+        } else if (groupBy == FtsoRewardStatsGroupByEnum.rewardEpochId) {
+            const rewardEpoch: RewardEpoch = await this._getRewardEpochByTargetBlockNumber(endBlock);
+            providerRewards.map((bucket, bucketIdx) => {
+                let ftsoRewardStats: FtsoRewardStats = new FtsoRewardStats();
+                delete ftsoRewardStats.dataProvider;
+                ftsoRewardStats.epochId = parseInt(bucket.key);
+                ftsoRewardStats.count = bucket.doc_count;
+                ftsoRewardStats.providerReward = bucket.value;
+                ftsoRewardStats.delegatorsReward = delegatorsRewards[bucketIdx].value;
+                results.push(ftsoRewardStats);
+            });
+        }
+        return results;
     }
 }
 

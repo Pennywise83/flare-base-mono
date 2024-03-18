@@ -1,12 +1,10 @@
-import { DataProviderExtendedInfo, DelegationDTO, DelegationSnapshot, PriceEpoch, RewardEpoch, VotePowerDTO, WrappedBalance } from "@flare-base/commons";
+import { DataProviderExtendedInfo, DelegationDTO, DelegationSnapshot, FtsoFee, FtsoRewardStats, PriceEpoch, RewardEpoch, VotePowerDTO, WrappedBalance } from "@flare-base/commons";
 import { Logger } from "@nestjs/common";
 import * as Redis from 'ioredis';
 import { CacheDaoConfig } from "../../model/app-config/cache-dao-config";
 import { ServiceStatusEnum } from "../../service/network-dao-dispatcher/model/service-status.enum";
 
 export interface ICacheDao {
-
-
     logger: Logger;
     status: ServiceStatusEnum;
     config: CacheDaoConfig;
@@ -33,6 +31,12 @@ export interface ICacheDao {
 
     getDataProvidersData(rewardEpochId: number): Promise<DataProviderExtendedInfo[]>;
     setDataProvidersData(rewardEpochId: number, results: DataProviderExtendedInfo[], endTime?: number): Promise<void>;
+    getFtsoFee(rewardEpochId: number): Promise<FtsoFee[]>;
+    setFtsoFee(rewardEpochId: number, daoData: FtsoFee[], endTime?: number): Promise<void>;
+    setFtsoRewardStatsByRewardEpoch(rewardEpochId: number, ftsoRewardStats: FtsoRewardStats[], endTime?:number): Promise<void>;
+    getFtsoRewardStatsByRewardEpoch(rewardEpochId: number): Promise<FtsoRewardStats[]>;
+
+
 
     // Balances
     setUniqueDataProviderAddressList(rewardEpochId: number, addresses: string[], endTime?: number): Promise<void>;

@@ -48,6 +48,9 @@ export class PersistenceDaoSgbImpl extends PersistenceDaoImpl {
         this.indicesMapping[`${this._network}_${this.config.prefix}_${PersistenceConstants.VOTER_WHITELIST_INDEX}`] = PersistenceConstants.VOTER_WHITELIST_INDEX_MAPPING;
         this.indicesMapping[`${this._network}_${this.config.prefix}_${PersistenceConstants.FINALIZED_PRICES_V1_INDEX}`] = PersistenceConstants.FINALIZED_PRICES_V1_INDEX_MAPPING;
         this.indicesMapping[`${this._network}_${this.config.prefix}_${PersistenceConstants.REVEALED_PRICES_V1_INDEX}`] = PersistenceConstants.REVEALED_PRICES_V1_INDEX_MAPPING;
+        this.indicesMapping[`${this._network}_${this.config.prefix}_${PersistenceConstants.FTSO_FEE_V1_INDEX}`] = PersistenceConstants.FTSO_FEE_V1_INDEX_MAPPING;
+        this.indicesMapping[`${this._network}_${this.config.prefix}_${PersistenceConstants.FTSO_REWARD_DISTRIBUTED_V1_INDEX}`] = PersistenceConstants.FTSO_REWARD_DISTRIBUTED_V1_INDEX_MAPPING;
+        
     }
 
     getIndex(indexType: string): string {

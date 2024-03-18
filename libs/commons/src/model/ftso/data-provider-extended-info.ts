@@ -1,8 +1,13 @@
 import { isNotEmpty } from "class-validator";
 import { VotePower } from "../votepower";
 import { DataProviderInfo } from "./data-provider-info";
+import { FtsoRewardStats } from "./ftso-reward-stats";
 
-export class DataProviderExtendedInfo extends DataProviderInfo {
+export class DataProviderExtendedInfo {
+    address: string;
+    name: string;
+    listed: boolean;
+    icon: string;
     votePower: number;
     previousVotePower: number;
     votePowerChange: number = 0;
@@ -15,20 +20,29 @@ export class DataProviderExtendedInfo extends DataProviderInfo {
     previousNumberOfDelegations: number;
     numberOfDelegationsChange: number = 0;
     whitelisted: boolean = false;
+    providerReward: number = 0;
+    delegatorsReward: number = 0;
+    rewardRate: number = 0;
+    previousRewardRate: number = 0;
 
-    constructor(votePower: VotePower, previousVotePower: VotePower, dataProvidersInfo: DataProviderInfo[], totalVotePower: VotePower, previousTotalVotePower: VotePower, whitelistedAddresses: string[]) {
-        super();
+    constructor(
+        votePower: VotePower, 
+        previousVotePower: VotePower, 
+        dataProvidersInfo: DataProviderInfo[], 
+        totalVotePower: VotePower, 
+        previousTotalVotePower: VotePower, 
+        whitelistedAddresses: string[],
+        ftsoRewardStat: FtsoRewardStats,
+        previousFtsoRewardStat: FtsoRewardStats
+        ) {
         this.address = votePower.address;
         let dataProviderInfo: DataProviderInfo = dataProvidersInfo.find(dpInfo => dpInfo.address == votePower.address)
         if (isNotEmpty(dataProviderInfo)) {
             this.name = dataProviderInfo.name;
-            this.url = dataProviderInfo.url;
-            this.description = dataProviderInfo.description;
             this.icon = dataProviderInfo.icon;
             this.listed = dataProviderInfo.listed;
         } else {
             this.name = 'Unknown provider';
-            this.description = '';
             this.listed = false;
         }
         if (whitelistedAddresses.includes(votePower.address)) {
@@ -52,6 +66,15 @@ export class DataProviderExtendedInfo extends DataProviderInfo {
             if (isNotEmpty(previousTotalVotePower)) {
                 this.previousVotePowerPercentage = (previousVotePower.amount * 100) / previousTotalVotePower.amount
             }
+        }
+        if (isNotEmpty(ftsoRewardStat)) {
+            this.providerReward = ftsoRewardStat.providerReward;
+            this.delegatorsReward = ftsoRewardStat.delegatorsReward;
+            this.rewardRate = ftsoRewardStat.rewardRate;
+            
+        }
+        if (isNotEmpty(previousFtsoRewardStat)) {
+            this.previousRewardRate = previousFtsoRewardStat.rewardRate;
         }
     }
 }

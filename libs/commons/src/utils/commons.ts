@@ -126,4 +126,10 @@ export class Commons {
         titleService.setTitle(title);
         tracker.setDocumentTitle(title);
     }
+    static divideBlocks = (blockStart: number, blockEnd: number, blockSize: number): { from: number, to: number }[] =>
+    Array.from({ length: Math.ceil((blockEnd - blockStart) / blockSize) }, (_, index) => ({
+        from: blockStart + index * blockSize,
+        to: Math.min(blockStart + (index + 1) * blockSize - 1, blockEnd)
+    }));
+
 }

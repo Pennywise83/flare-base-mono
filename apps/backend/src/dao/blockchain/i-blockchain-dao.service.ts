@@ -1,4 +1,4 @@
-import { Balance, Delegation, FlrContract, HashSubmitted, PriceEpoch, PriceEpochSettings, PriceFinalized, PriceRevealed, Reward, RewardEpoch, RewardEpochSettings, RewardsDistributed, SgbContract, VoterWhitelist } from "@flare-base/commons";
+import { Balance, Delegation, FlrContract, FtsoFee, HashSubmitted, PriceEpoch, PriceEpochSettings, PriceFinalized, PriceRevealed, Reward, RewardDistributed, RewardEpoch, RewardEpochSettings, SgbContract, VoterWhitelist } from "@flare-base/commons";
 import { Logger } from "@nestjs/common";
 import { ethers } from "ethers";
 import { Subject } from "rxjs";
@@ -8,7 +8,6 @@ import { ServiceStatusEnum } from "../../service/network-dao-dispatcher/model/se
 import { FtsoManagerWrapper } from "./model/ftso-manager-wrapper";
 
 export interface IBlockchainDao {
-
     logger: Logger;
     status: ServiceStatusEnum;
     config: BlockchainDaoConfig;
@@ -68,7 +67,7 @@ export interface IBlockchainDao {
     startHashSubmittedListener(): Promise<void>;
     hashSubmittedListener$: Subject<HashSubmitted>;
     startRewardDistributedListener(): Promise<void>;
-    rewardDistributedListener$: Subject<RewardsDistributed>;
+    rewardDistributedListener$: Subject<RewardDistributed>;
     getActiveFtsoContracts(): number;
 
     getVoterWhitelist(startBlock: number, endBlock: number): Promise<VoterWhitelist[]>;
@@ -77,6 +76,13 @@ export interface IBlockchainDao {
 
     getFtsoWhitelistedPriceProviders(): Promise<string[]>;
     getFinalizedPrices(symbol: string, startBlock: number, endBlock: number): Promise<PriceFinalized[]>;
+    getRevealedPrices(dataProvider: string, startBlock: number, endBlock: number): Promise<PriceRevealed[]>;
+    getFtsoFee(dataProvider: string, startBlock: number, endBlock: number): Promise<FtsoFee[]>;
+    startFtsoFeeListener(): Promise<void>;
+    ftsoFeeListener$: Subject<FtsoFee>;
+    getRewardDistributed(startBlock: number, endBlock: number): Promise<RewardDistributed[]>;
+
+
 
 
 

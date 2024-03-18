@@ -67,6 +67,7 @@ export class BlockchainDaoSgbImpl extends BlockchainDaoImpl {
                         this.ftsoManagerWrapper.getSymbolByContractAddress = new FtsoManagerWrapper(this.contractsList['FtsoManager'], this.provider, this.logger).getSymbolByContractAddress;
                         this.ftsoManagerWrapper.getSymbolByIndex = new FtsoManagerWrapper(this.contractsList['FtsoManager'], this.provider, this.logger).getSymbolByIndex;
                         this.ftsoManagerWrapper.getDecimalsByContractAddress = new FtsoManagerWrapper(this.contractsList['FtsoManager'], this.provider, this.logger).getDecimalsByContractAddress;
+                        this.ftsoManagerWrapper.getContractAddressBySymbol = new FtsoManagerWrapper(this.contractsList['FtsoManager'], this.provider, this.logger).getContractAddressBySymbol;
 
                     } catch (fsErr) {
                         this.ftsoManagerWrapper = new FtsoManagerWrapper(this.contractsList['FtsoManager'], this.provider, this.logger);
@@ -81,6 +82,88 @@ export class BlockchainDaoSgbImpl extends BlockchainDaoImpl {
                 resolve();
             } catch (e) {
                 reject(new Error(`Unable to initialize smart contracts: ${e.message}`));
+            }
+        });
+    }
+    async scanFtsoFee(address: string, blockNumberStart: number, blockNumberEnd: number): Promise<SgbContractCommon.TypedEventLog<any>[]> {
+        return new Promise<SgbContractCommon.TypedEventLog<any>[]>(async (resolve, reject) => {
+            try {
+                let maxScanSize: number = 10000;
+                let results: SgbContractCommon.TypedEventLog<any>[] = [];
+                let contractsBlockNumberList = [];
+                const fillContractsBlockNumberList = async (contract: SgbContract.FtsoRewardManager) => {
+                    const rewardManagerAddress: string = await contract.getAddress();
+                    if (rewardManagerAddress != '0x0000000000000000000000000000000000000000' && rewardManagerAddress != '0xc5738334b972745067fFa666040fdeADc66Cb925') {
+                        const initialRewardEpoch: number = Number(await contract.getInitialRewardEpoch());
+                        const initialRewardEpochBlockNumber = (await this.getRewardEpoch(initialRewardEpoch)).blockNumber;
+                        contractsBlockNumberList.push({
+                            contract: contract,
+                            address: rewardManagerAddress,
+                            initialRewardEpochBlockNumber: initialRewardEpochBlockNumber,
+                            initialRewardEpoch: initialRewardEpoch
+                        });
+                        const oldAddress: string = await contract.oldFtsoRewardManager();
+                        let oldFtsoRewardManager: SgbContract.FtsoRewardManager = SgbContract.FtsoRewardManager__factory.connect(oldAddress, this.provider);
+                        await fillContractsBlockNumberList(oldFtsoRewardManager);
+                    }
+                    /* This RewardManager instance (0xc5738334b972745067fFa666040fdeADc66Cb925) doesn't have  "oldFtsoRewardManager()" and "getInitialRewardEpoch()" method. */
+                    if (rewardManagerAddress == '0xc5738334b972745067fFa666040fdeADc66Cb925') {
+                        const initialRewardEpoch: number = 1;
+                        const initialRewardEpochBlockNumber = 0;
+                        contractsBlockNumberList.push({
+                            contract: contract,
+                            address: rewardManagerAddress,
+                            initialRewardEpochBlockNumber: initialRewardEpochBlockNumber,
+                            initialRewardEpoch: initialRewardEpoch
+                        });
+                    }
+                };
+                await fillContractsBlockNumberList(this.ftsoRewardManager)
+                contractsBlockNumberList.sort((a, b) => b.initialRewardEpochBlockNumber - a.initialRewardEpochBlockNumber);
+                let contractsBlockNumberRanges = [];
+
+                for (let i = 0; i < contractsBlockNumberList.length; i++) {
+                    const current = contractsBlockNumberList[i];
+                    const previous = contractsBlockNumberList[i - 1];
+                    const range = {
+                        "contract": current.contract,
+                        "address": current.address,
+                        "from": current.initialRewardEpochBlockNumber,
+                        "to": await this.provider.getBlockNumber(),
+                        "initialRewardEpoch": current.initialRewardEpoch
+                    };
+                    if (previous) {
+                        range.to = previous.initialRewardEpochBlockNumber;
+                    }
+                    contractsBlockNumberRanges.push(range);
+                }
+                const processBlocks = async (start: number, end: number) => {
+                    let ranges = contractsBlockNumberRanges.filter(br => br.from <= end && br.to >= start);
+                    for (let idx in ranges) {
+                        const range = ranges[idx];
+                        this.logger.verbose(`scanFtsoFee - Contract: ${range.address} - Processing blocks from ${start} to ${end} - Size: ${maxScanSize}`);
+                        const startTime: number = new Date().getTime();
+                        const filter = range.contract.filters["FeePercentageChanged(address,uint256,uint256)"](address, null, null);
+                        let events: SgbContractCommon.TypedEventLog<any>[] = await range.contract.queryFilter(filter, start, end);
+                        results = results.concat(events);
+                        maxScanSize = this.getMaxScanSize(startTime, maxScanSize, 200);
+                    }
+                    if (end < blockNumberEnd) {
+                        await processBlocks(end + 1, Math.min(end + maxScanSize, blockNumberEnd));
+                    }
+                };
+                let defaultFtsoFees: any[] = [];
+                contractsBlockNumberRanges.map(range => {
+                    let evt: any = {};
+                    evt.blockNumber = range.from;
+                    evt.ftsoDefaultFeePlaceholder = range.initialRewardEpoch;
+                    defaultFtsoFees.push(evt);
+                });
+                results = results.concat(defaultFtsoFees);
+                await processBlocks(blockNumberStart, Math.min(blockNumberStart + maxScanSize, blockNumberEnd));
+                resolve(results);
+            } catch (e) {
+                reject(e);
             }
         });
     }

@@ -1,5 +1,5 @@
 import { Client } from "@elastic/elasticsearch";
-import { Balance, ClaimedRewardsSortEnum, DataProviderInfo, Delegation, DelegationSnapshot, DelegationsSortEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, PriceFinalized, PriceFinalizedSortEnum, Reward, RewardEpoch, RewardEpochSettings, VotePower, VoterWhitelist, WrappedBalance } from "@flare-base/commons";
+import { Balance, ClaimedRewardsSortEnum, DataProviderInfo, Delegation, DelegationSnapshot, DelegationsSortEnum, FtsoFee, FtsoFeeSortEnum, FtsoRewardStats, FtsoRewardStatsGroupByEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, PriceFinalized, PriceFinalizedSortEnum, PriceRevealed, PriceRevealedSortEnum, Reward, RewardDistributed, RewardDistributedSortEnum, RewardEpoch, RewardEpochSettings, VotePower, VoterWhitelist, WrappedBalance } from "@flare-base/commons";
 import { Logger } from "@nestjs/common";
 import { EpochSortEnum } from "libs/commons/src/model/epochs/price-epoch";
 import { SortOrderEnum } from "libs/commons/src/model/paginated-result";
@@ -75,4 +75,17 @@ export interface IPersistenceDao {
 
     getFinalizedPrices(symbol: string, startBlock: number, endBlock: number, page: number, pageSize: number, sortField: PriceFinalizedSortEnum, sortOrder: SortOrderEnum): Promise<PaginatedResult<PriceFinalized[]>>;
     storeFinalizedPrices(blockchainData: PriceFinalized[]): Promise<number>;
+
+    getRevealedPrices(symbol: string, address: string, startBlock: number, endBlock: number, page: number, pageSize: number, sortField: PriceRevealedSortEnum, sortOrder: SortOrderEnum): Promise<PaginatedResult<PriceRevealed[]>>;
+    storeRevealedPrices(blockchainData: PriceRevealed[]): Promise<number>;
+
+    storeFtsoFee(blockchainData: FtsoFee[]): Promise<number>;
+    getFtsoFee(targetBlockNumber: number, dataProvider: string, sortField: FtsoFeeSortEnum, sortOrder: SortOrderEnum): Promise<FtsoFee[]>;
+    getFtsoFeeHistory(dataProvider: string): Promise<FtsoFee[]>;
+
+    storeRewardDistributed(blockchainData: RewardDistributed[]): Promise<number>;
+    getRewardDistributed(dataProvider: string, symbol: string, startBlock: number, endBlock: number, page: number, pageSize: number, sortField: RewardDistributedSortEnum, sortOrder: SortOrderEnum): Promise<PaginatedResult<RewardDistributed[]>>;
+
+    getFtsoRewardStats(dataProvider: string, startBlock: number, endBlock: number, groupBy: FtsoRewardStatsGroupByEnum): Promise<FtsoRewardStats[]>;
+
 }

@@ -1,4 +1,4 @@
-import { Balance, Commons, Delegation, FlrContract, FlrContractCommon, FlrContractVP, FlrFtsoRewardManager, FlrVoterWhitelister, FlrWNat, HashSubmitted, PriceEpoch, PriceEpochSettings, PriceFinalized, PriceRevealed, Reward, RewardEpoch, RewardEpochSettings, SgbContract, VoterWhitelist } from "@flare-base/commons";
+import { Balance, Commons, Delegation, FlrContract, FlrContractCommon, FlrContractVP, FlrFtsoRewardManager, FlrVoterWhitelister, FlrWNat, FtsoFee, HashSubmitted, PriceEpoch, PriceEpochSettings, PriceFinalized, PriceRevealed, Reward, RewardEpoch, RewardEpochSettings, SgbContract, VoterWhitelist } from "@flare-base/commons";
 import { Process } from "@nestjs/bull";
 import { Logger } from "@nestjs/common";
 import { BlockchainDaoConfig } from "apps/backend/src/model/app-config/blockchain-dao-config";
@@ -39,12 +39,14 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
     hashSubmittedListener$: Subject<HashSubmitted> = new Subject<HashSubmitted>();
     rewardDistributedListener$: Subject<RewardDistributed> = new Subject<RewardDistributed>();
     voterWhitelistListener$: Subject<VoterWhitelist> = new Subject<VoterWhitelist>();
+    ftsoFeeListener$: Subject<FtsoFee> = new Subject<FtsoFee>();
 
     blockScanProgressListener$: Subject<{ key: string, lastBlockNumber: number }> = new Subject<{ key: string, lastBlockNumber: number }>();
 
     private _blockNumberTimestampCache: { [blockNumber: number]: number } = {};
     private _activeFtsoContracts: number = 0;
     constructor() { }
+
     abstract initialize(): Promise<void>;
 
     public async getCurrentRewardEpoch(): Promise<RewardEpoch> {
@@ -354,7 +356,6 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
     getClaimedRewards(address: string, startBlock: number, endBlock: number): Promise<Reward[]> {
         return new Promise<Array<Reward>>(async (resolve, reject) => {
             try {
-                // let events: FlrContractCommon.TypedEventLog<FlrContractCommon.TypedContractEvent<RewardClaimedEvent.InputTuple, RewardClaimedEvent.OutputTuple, RewardClaimedEvent.OutputObject>>[] = await this.scanClaimedRewards(startBlock, endBlock, address, requestId);
                 const job = await this._blockchainDaoQueue.add('scanClaimedRewardsProcessor', { startBlock, endBlock, address });
                 let results: Array<Reward> = await job.finished() as Array<Reward>;
 
@@ -483,25 +484,6 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
         return Promise.resolve();
     }
     abstract startHashSubmittedListener(): Promise<void>;
-    startRewardDistributedListener(): Promise<void> {
-        (this.ftsoRewardManager as FlrContract.FtsoRewardManager).on((this.ftsoRewardManager as FlrContract.FtsoRewardManager).filters.RewardsDistributed, async (
-            ftso: string,
-            epochId: bigint,
-            addresses: string[],
-            rewards: bigint[]
-        ) => {
-            addresses.map((address, addressIdx) => {
-                let rewardDistributed: RewardDistributed = new RewardDistributed();
-                rewardDistributed.address = address;
-                rewardDistributed.epochId = Number(epochId);
-                rewardDistributed.symbol = this.ftsoManagerWrapper.getSymbolByContractAddress(ftso);
-                rewardDistributed.reward = (Number(rewards[addressIdx]) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(ftso));
-                this.rewardDistributedListener$.next(rewardDistributed);
-            });
-        })
-        return Promise.resolve();
-    }
-
 
     startWrappedBalanceListener(): Promise<void> {
         (this.wnat as FlrContract.WNat).on(this.wnat.filters.Transfer, async (
@@ -704,8 +686,6 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
     }
 
 
-
-
     @Process({ name: 'scanDepositsAndWithdrawalsProcessor', concurrency: 1 })
     private async _scanDepositsAndWithdrawalsProcessor(job: Job<unknown>): Promise<any> {
         return new Promise((resolve, reject) => {
@@ -800,17 +780,6 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
             throw err;
         }
     }
-
-    /*
-0 112341
-1 37221
-2 false
-3 37219
-4 37222
-5 1
-6 1677962520
-
-    */
     @Process({ name: 'scanFinalizedPricesProcessor', concurrency: 1 })
     private async scanFinalizedPricesProcessor(job: Job<unknown>): Promise<any> {
         return new Promise((resolve, reject) => {
@@ -819,7 +788,7 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
                     let results: PriceFinalized[] = [];
                     if (res.length > 0) {
                         results = res.map(evt => {
-                            const finalizedPrice: PriceFinalized = new PriceFinalized();
+                            let finalizedPrice: PriceFinalized = new PriceFinalized();
                             finalizedPrice.epochId = Number(evt.args[0]);
                             finalizedPrice.blockNumber = evt.blockNumber;
                             finalizedPrice.rewardedSymbol = Boolean(evt.args[2]);
@@ -851,43 +820,267 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
 
     private async _scanFinalizedPrices(dynamicFtso: DynamicFtso, blockNumberStart: number, blockNumberEnd: number): Promise<FlrContractCommon.TypedEventLog<any>[]> {
         return new Promise<FlrContractCommon.TypedEventLog<any>[]>(async (resolve, reject) => {
-            let maxScanSize: number = 5000;
-            let results: FlrContractCommon.TypedEventLog<any>[] = [];
-            let contract: FlrContract.Ftso | FlrContract.FtsoOld;
-            let filter: any;
-            let stopScan: boolean = false;
-            if (dynamicFtso.hasElasticBand) {
-                contract = FlrContract.Ftso__factory.connect(dynamicFtso.address, this.provider);
-                filter = contract.filters.PriceFinalized();
-            } else {
-                contract = contract = FlrContract.FtsoOld__factory.connect(dynamicFtso.address, this.provider);
-                filter = contract.filters.PriceFinalized();
-            }
-            const processBlocks = async (start: number, end: number, contract: FlrContract.Ftso | FlrContract.FtsoOld, filter: any) => {
-                this.logger.verbose(`_scanFinalizedPrices - Contract: ${dynamicFtso.address} - Processing blocks from ${start} to ${end}  - Size: ${maxScanSize}`);
-                const startTime: number = new Date().getTime();
-                const priceFinalizedEvents: FlrContractCommon.TypedEventLog<any>[] = await contract.queryFilter(filter, start, end);
-                maxScanSize = this.getMaxScanSize(startTime, maxScanSize, 500);
+            try {
+                let maxScanSize: number = 250;
+                let results: FlrContractCommon.TypedEventLog<any>[] = [];
+                let contract: FlrContract.Ftso | FlrContract.FtsoOld;
+                let filter: any;
                 if (dynamicFtso.hasElasticBand) {
-                    priceFinalizedEvents.map(e => (e as any).hasElasticBand = true);
+                    contract = FlrContract.Ftso__factory.connect(dynamicFtso.address, this.provider);
+                    filter = contract.filters.PriceFinalized();
                 } else {
-                    priceFinalizedEvents.map(e => (e as any).hasElasticBand = false);
+                    contract = contract = FlrContract.FtsoOld__factory.connect(dynamicFtso.address, this.provider);
+                    filter = contract.filters.PriceFinalized();
                 }
-                results = results.concat(priceFinalizedEvents);
-                if (priceFinalizedEvents.length > 0) {
-                    priceFinalizedEvents.map(pfe => {
-                        if (pfe.args[0] && Number(pfe.args[0]) > blockNumberEnd) {
-                            stopScan = true;
-                        }
-                    });
-                }
-                if (end < blockNumberEnd && !stopScan) {
-                    await processBlocks(end + 1, Math.min(end + maxScanSize, blockNumberEnd), contract, filter);
-                }
-            };
-            await processBlocks(blockNumberStart, Math.min(blockNumberStart + maxScanSize, blockNumberEnd), contract, filter);
-            resolve(results);
-        })
+                const processBlocks = async (start: number, end: number, contract: FlrContract.Ftso | FlrContract.FtsoOld, filter: any) => {
+                    this.logger.verbose(`_scanFinalizedPrices - Contract: ${dynamicFtso.address} - Processing blocks from ${start} to ${end}  - Size: ${maxScanSize}`);
+                    const startTime: number = new Date().getTime();
+                    const priceFinalizedEvents: FlrContractCommon.TypedEventLog<any>[] = await contract.queryFilter(filter, start, end);
+                    maxScanSize = this.getMaxScanSize(startTime, maxScanSize, 250);
+                    if (dynamicFtso.hasElasticBand) {
+                        priceFinalizedEvents.map(e => (e as any).hasElasticBand = true);
+                    } else {
+                        priceFinalizedEvents.map(e => (e as any).hasElasticBand = false);
+                    }
+                    results = results.concat(priceFinalizedEvents);
+                    if (end < blockNumberEnd) {
+                        await processBlocks(end + 1, Math.min(end + maxScanSize, blockNumberEnd), contract, filter);
+                    }
+                };
+                await processBlocks(blockNumberStart, Math.min(blockNumberStart + maxScanSize, blockNumberEnd), contract, filter);
+                resolve(results);
+            } catch (e) {
+                reject(e);
+            }
+        });
     }
 
+    async getRevealedPrices(dataProvider: string, blockNumberStart: number, blockNumberEnd: number): Promise<PriceRevealed[]> {
+        try {
+            if (blockNumberEnd == null) {
+                blockNumberEnd = await this.provider.getBlockNumber();
+            }
+            const job = await this._blockchainDaoQueue.add('scanRevealedPricesProcessor', { dataProvider, blockNumberStart, blockNumberEnd });
+            const events: PriceRevealed[] = await job.finished() as PriceRevealed[];
+            return events;
+        } catch (err) {
+            throw err;
+        }
+    }
+    @Process({ name: 'scanRevealedPricesProcessor', concurrency: 1 })
+    private async scanRevealedPricesProcessor(job: Job<unknown>): Promise<any> {
+        return new Promise((resolve, reject) => {
+            this._scanRevealedPrices(job.data['dataProvider'], job.data['blockNumberStart'], job.data['blockNumberEnd'])
+                .then(res => {
+                    let results: PriceRevealed[] = [];
+                    if (res.length > 0) {
+                        this.logger.verbose(`_scanRevealedPrices - Processing events...`);
+                        for (let evt of res) {
+                            
+                            for (let argIndex in evt.args[2]) {
+                                let revealedPrice: PriceRevealed = new PriceRevealed();
+                                revealedPrice.epochId = Number(evt.args[1]);
+                                revealedPrice.blockNumber = evt.blockNumber;
+                                revealedPrice.timestamp = Number(evt.args[5]) * 1000;
+                                revealedPrice.symbol = this.ftsoManagerWrapper.getSymbolByContractAddress(evt.args[2][argIndex]);
+                                revealedPrice.price = (Number(evt.args[3][argIndex]) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(evt.args[2][argIndex]))
+                                revealedPrice.dataProvider = evt.args[0];
+                                results.push(revealedPrice);
+                            }
+                        }
+                    }
+                    this.logger.verbose(`_scanRevealedPrices - Processing events finished.`);
+                    resolve(results);
+                })
+                .catch(error => {
+                    reject(error);
+                });
+        });
+    }
+
+
+    private async _scanRevealedPrices(address: string, blockNumberStart: number, blockNumberEnd: number): Promise<FlrContractCommon.TypedEventLog<any>[]> {
+        return new Promise<FlrContractCommon.TypedEventLog<any>[]>(async (resolve, reject) => {
+            try {
+                const contractAddress: string = await this.priceSubmitter.getAddress();
+                let filter: any = (this.priceSubmitter as FlrContract.PriceSubmitter).filters.PricesRevealed(address, null, null);
+                let maxScanSize: number = 500;
+                let results: FlrContractCommon.TypedEventLog<any>[] = [];
+
+                while (blockNumberStart <= blockNumberEnd) {
+                    const endBlock = Math.min(blockNumberStart + maxScanSize, blockNumberEnd);
+                    this.logger.verbose(`_scanRevealedPrices - Contract: ${contractAddress} - Processing blocks from ${blockNumberStart} to ${endBlock}  - Size: ${maxScanSize}`);
+                    let startTime: number = new Date().getTime();
+                    const priceFinalizedEvents: FlrContractCommon.TypedEventLog<any>[] = await (this.priceSubmitter as FlrContract.PriceSubmitter).queryFilter(filter, blockNumberStart, endBlock);
+                    results = results.concat(priceFinalizedEvents);
+
+                    blockNumberStart = endBlock + 1;
+                    maxScanSize = this.getMaxScanSize(startTime, maxScanSize, 250);
+                }
+
+                resolve(results);
+            } catch (error) {
+                reject(error);
+            }
+        });
+    }
+
+    async getFtsoFee(dataProvider: string, startBlock: number, endBlock: number): Promise<FtsoFee[]> {
+        try {
+            const job = await this._blockchainDaoQueue.add('scanFtsoFeeProcessor', { dataProvider, startBlock, endBlock });
+            const events: FtsoFee[] = await job.finished() as FtsoFee[];
+            return events;
+        } catch (err) {
+            throw err;
+        }
+    }
+    @Process({ name: 'scanFtsoFeeProcessor', concurrency: 1 })
+    private async scanFtsoFeeProcessor(job: Job<unknown>): Promise<any> {
+        return new Promise((resolve, reject) => {
+            this.scanFtsoFee(job.data['dataProvider'], job.data['startBlock'], job.data['endBlock'])
+                .then(async res => {
+                    let results: FtsoFee[] = [];
+                    for (let idx in res) {
+                        let evt = res[idx];
+                        if (typeof (evt as any).ftsoDefaultFeePlaceholder == 'undefined') {
+                            let ftsoFee: FtsoFee = new FtsoFee();
+                            ftsoFee.dataProvider = evt.args[0].toLowerCase();
+                            ftsoFee.validFromEpoch = Number(evt.args[2]);
+                            ftsoFee.value = Number(evt.args[1]) / 100;
+                            ftsoFee.blockNumber = evt.blockNumber;
+                            ftsoFee.timestamp = await this._getTimestampFromBlockNumber(Number(evt.blockNumber));
+                            results.push(ftsoFee);
+                        }
+                    }
+                    if (results.length > 0) {
+                        for (let idx in res) {
+                            let evt = res[idx];
+                            if (typeof (evt as any).ftsoDefaultFeePlaceholder != 'undefined') {
+                                let ftsoFee: FtsoFee = new FtsoFee();
+                                ftsoFee.dataProvider = 'defaultFtsoFee';
+                                ftsoFee.value = 20;
+                                ftsoFee.blockNumber = evt.blockNumber;
+                                ftsoFee.validFromEpoch = Number((evt as any).ftsoDefaultFeePlaceholder);
+                                ftsoFee.timestamp = await this._getTimestampFromBlockNumber(Number(evt.blockNumber));
+                                results.push(ftsoFee);
+                            }
+                        }
+                    }
+                    results.sort((a, b) => a.timestamp - b.timestamp)
+                    resolve(results);
+                })
+                .catch(error => {
+                    reject(error);
+                });
+        });
+    }
+    abstract scanFtsoFee(address: string, blockNumberStart: number, blockNumberEnd: number): Promise<FlrContractCommon.TypedEventLog<any>[]>;
+    startFtsoFeeListener(): Promise<void> {
+        (this.ftsoRewardManager as FlrContract.FtsoRewardManager).on(this.ftsoRewardManager.filters.FeePercentageChanged, async (
+            dataProvider: string,
+            value: bigint,
+            validFromEpoch: bigint,
+            event: ContractEventPayload
+        ) => {
+            let ftsoFee: FtsoFee = new FtsoFee();
+            ftsoFee.dataProvider = dataProvider;
+            ftsoFee.value = Number(ethers.formatEther(value));
+            ftsoFee.validFromEpoch = Number(validFromEpoch);
+            ftsoFee.blockNumber = event.log.blockNumber;
+            ftsoFee.timestamp = await this._getTimestampFromBlockNumber(event.log.blockNumber);
+        });
+        return Promise.resolve();
+    }
+
+
+    async getRewardDistributed(startBlock: number, endBlock: number): Promise<RewardDistributed[]> {
+        try {
+            const job = await this._blockchainDaoQueue.add('scanRewardDistributedProcessor', { startBlock, endBlock });
+            const events: RewardDistributed[] = await job.finished() as RewardDistributed[];
+            if (events.length > 0) {
+                this.logger.log(`_scanRewardDistributed - getting timestamps...`)
+                this._blockNumberTimestampCache = {};
+                const delegateTimestamps: Array<number> = await this._makeBatchedCalls(5000, 10, this._getTimestampFromBlockNumber.bind(this), events.map((evt) => [evt.blockNumber]));
+                delegateTimestamps.map((delegationTimestamp, idx) => {
+                    events[idx].timestamp = delegationTimestamp;
+                });
+            }
+            events.sort((a, b) => a.blockNumber - b.blockNumber);
+            return events;
+        } catch (err) {
+            throw err;
+        }
+    }
+
+    @Process({ name: 'scanRewardDistributedProcessor', concurrency: 1 })
+    private async scanRewardDistributedProcessor(job: Job<unknown>): Promise<any> {
+        return new Promise((resolve, reject) => {
+            this._scanRewardDistributed(job.data['startBlock'], job.data['endBlock'])
+                .then(async res => {
+                    let results: RewardDistributed[] = [];
+                    for (let idx in res) {
+                        let evt = res[idx];
+                        if (evt.args[2] && evt.args[2].length > 0) {
+                            for (let addressIdx in evt.args[2]) {
+                                let dataProviderAddress: string = evt.args[2][addressIdx];
+                                let rewardDistributed: RewardDistributed = new RewardDistributed();
+                                rewardDistributed.dataProvider = dataProviderAddress;
+                                rewardDistributed.priceEpochId = Number(evt.args[1]);
+                                rewardDistributed.symbol = this.ftsoManagerWrapper.getSymbolByContractAddress(evt.args[0]);
+                                rewardDistributed.reward = Number(ethers.formatEther(evt.args[3][addressIdx]));
+                                rewardDistributed.blockNumber = evt.blockNumber;
+                                results.push(rewardDistributed);
+                            }
+                        }
+                    }
+                    resolve(results);
+                })
+                .catch(error => {
+                    reject(error);
+                });
+        });
+    }
+    private async _scanRewardDistributed(blockNumberStart: number, blockNumberEnd: number): Promise<FlrContractCommon.TypedEventLog<any>[]> {
+        return new Promise<FlrContractCommon.TypedEventLog<any>[]>(async (resolve, reject) => {
+            try {
+                let maxScanSize: number = 5000;
+                let results: FlrContractCommon.TypedEventLog<any>[] = [];
+                const contractAddress: string = await this.ftsoRewardManager.getAddress();
+                let filter: any = this.ftsoRewardManager.filters.RewardsDistributed(null, null, null);
+                const processBlocks = async (start: number, end: number, contract: FlrContract.FtsoRewardManager, contractAddress: string, filter: any) => {
+                    this.logger.verbose(`_scanRewardDistributed - Contract: ${contractAddress} - Processing blocks from ${start} to ${end}  - Size: ${maxScanSize}`);
+                    const startTime: number = new Date().getTime();
+                    const rewardDistributed: FlrContractCommon.TypedEventLog<any>[] = await contract.queryFilter(filter, start, end);
+                    maxScanSize = this.getMaxScanSize(startTime, maxScanSize, 500);
+                    results = results.concat(rewardDistributed);
+                    if (end < blockNumberEnd) {
+                        await processBlocks(end + 1, Math.min(end + maxScanSize, blockNumberEnd), contract, contractAddress, filter);
+                    }
+                };
+                await processBlocks(blockNumberStart, Math.min(blockNumberStart + maxScanSize, blockNumberEnd), this.ftsoRewardManager, contractAddress, filter);
+                resolve(results);
+            } catch (e) {
+                reject(e);
+            }
+        });
+    }
+    startRewardDistributedListener(): Promise<void> {
+        (this.ftsoRewardManager as FlrContract.FtsoRewardManager).on((this.ftsoRewardManager as FlrContract.FtsoRewardManager).filters.RewardsDistributed, async (
+            ftso: string,
+            epochId: bigint,
+            addresses: string[],
+            rewards: bigint[]
+        ) => {
+            addresses.map((address, addressIdx) => {
+                let rewardDistributed: RewardDistributed = new RewardDistributed();
+                rewardDistributed.dataProvider = address;
+                rewardDistributed.priceEpochId = Number(epochId);
+                rewardDistributed.symbol = this.ftsoManagerWrapper.getSymbolByContractAddress(ftso);
+                rewardDistributed.reward = Number(ethers.formatEther(rewards[addressIdx]));
+                this.rewardDistributedListener$.next(rewardDistributed);
+            });
+
+        })
+        return Promise.resolve();
+    }
 }

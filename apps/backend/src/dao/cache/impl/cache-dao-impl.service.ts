@@ -3,7 +3,7 @@ import { CacheDaoConfig } from "../../../model/app-config/cache-dao-config";
 import { ServiceStatusEnum } from "../../../service/network-dao-dispatcher/model/service-status.enum";
 import { ICacheDao } from "../i-cache-dao.service";
 import { Logger } from '@nestjs/common';
-import { DataProviderExtendedInfo, DelegationDTO, DelegationSnapshot, PriceEpoch, RewardEpoch, VotePowerDTO, WrappedBalance } from '@flare-base/commons';
+import { DataProviderExtendedInfo, DelegationDTO, DelegationSnapshot, FtsoFee, FtsoRewardStats, PriceEpoch, RewardEpoch, VotePowerDTO, WrappedBalance } from '@flare-base/commons';
 import { isEmpty, isNotEmpty } from 'class-validator';
 
 export abstract class CacheDaoImpl implements ICacheDao {
@@ -13,9 +13,6 @@ export abstract class CacheDaoImpl implements ICacheDao {
     redisCluster: Redis.Cluster;
     abstract cacheDomain: string;
     constructor() { }
-
-
-
 
     initialize(): Promise<void> {
         return new Promise<void>(async (resolve, reject) => {
@@ -82,6 +79,24 @@ export abstract class CacheDaoImpl implements ICacheDao {
         return await this._set<DataProviderExtendedInfo[]>(cacheKey, results, endTime);
     }
 
+    async getFtsoFee(rewardEpochId: number): Promise<FtsoFee[]> {
+        const cacheKey: string = `ftsoFee_${rewardEpochId}`;
+        return await this._get<FtsoFee[]>(cacheKey);
+    }
+    async setFtsoFee(rewardEpochId: number, daoData: FtsoFee[], endTime?: number): Promise<void> {
+        const cacheKey: string = `ftsoFee_${rewardEpochId}`;
+        return await this._set<FtsoFee[]>(cacheKey, daoData, endTime);
+    }
+    async setFtsoRewardStatsByRewardEpoch(rewardEpochId: number, ftsoRewardStats: FtsoRewardStats[], endTime?: number): Promise<void> {
+        const cacheKey: string = `ftsoRewardStatsByRewardEpoch_${rewardEpochId}`;
+        return await this._set<FtsoRewardStats[]>(cacheKey, ftsoRewardStats, endTime);
+    }
+    async getFtsoRewardStatsByRewardEpoch(rewardEpochId: number): Promise<FtsoRewardStats[]> {
+        const cacheKey: string = `ftsoRewardStatsByRewardEpoch_${rewardEpochId}`;
+        return await this._get<FtsoRewardStats[]>(cacheKey);
+    }
+
+    // Balances
     async getWrappedBalancesByRewardEpoch(rewardEpochId: number): Promise<WrappedBalance> {
         const cacheKey: string = `wrappedBalancesByRewardEpoch_${rewardEpochId}`;
         return await this._get<WrappedBalance>(cacheKey);

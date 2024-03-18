@@ -93,6 +93,8 @@ export class PersistenceConstants {
             blockNumber: { type: 'long' },
             timestamp: { type: 'date', format: 'epoch_millis' },
             address: { type: 'keyword' },
+            addressA: { type: 'keyword' },
+            addressB: { type: 'keyword' },
             amount: { type: 'double' }
         }
     };
@@ -146,6 +148,7 @@ export class PersistenceConstants {
 
         }
     };
+
     static REVEALED_PRICES_V1_INDEX = 'v1revealedprices';
     static REVEALED_PRICES_V1_INDEX_MAPPING = {
         _source: {
@@ -168,6 +171,38 @@ export class PersistenceConstants {
 
         }
     };
+
+    static FTSO_FEE_V1_INDEX = 'v1ftsofees';
+    static FTSO_FEE_V1_INDEX_MAPPING = {
+        _source: {
+            enabled: true
+        },
+        properties: {
+            blockNumber: { type: 'long' },
+            timestamp: { type: 'date', format: 'epoch_millis' },
+            dataProvider: { type: 'keyword' },
+            validFromEpoch: { type: 'long' },
+            value: { type: 'double' },
+        }
+    };
+
+    static FTSO_REWARD_DISTRIBUTED_V1_INDEX = 'v1rewarddistributed';
+    static FTSO_REWARD_DISTRIBUTED_V1_INDEX_MAPPING = {
+        _source: {
+            enabled: true
+        },
+        properties: {
+            blockNumber: { type: 'long' },
+            timestamp: { type: 'date', format: 'epoch_millis' },
+            dataProvider: { type: 'keyword' },
+            symbol: { type: 'keyword' },
+            priceEpochId: { type: 'long' },
+            rewardEpochId: { type: 'long' },
+            providerReward: { type: 'double' },
+            reward: { type: 'double' }
+        }
+    };
+
 }
 
 
