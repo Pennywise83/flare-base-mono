@@ -389,6 +389,7 @@ export class DelegationsService {
                 const nextEpochId: number = rewardEpochSettings.getNextEpochId();
                 if (epochId > nextEpochId) {
                     throw new Error(`Invalid reward epoch. Reward epoch is not finalized yet.`);
+                    return;
                 }
                 let targetBlockNumber: number;
                 if (epochId == nextEpochId) {

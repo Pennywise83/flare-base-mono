@@ -260,7 +260,8 @@ export class EpochsService {
                 const rewardEpochSettings: RewardEpochSettings = await this.getRewardEpochSettings(network);
                 const currentRewardEpochId: number = rewardEpochSettings.getCurrentEpochId();
                 if (rewardEpochId > currentRewardEpochId) {
-                    reject(new Error(`Unable to retrieve reward epoch data for ${rewardEpochId} as it has not been initialized yet.`))
+                    reject(new Error(`Unable to retrieve reward epoch data for ${rewardEpochId} as it has not been initialized yet.`));
+                    return;
                 }
                 const rewardEpochs: PaginatedResult<RewardEpoch[]> = await this.getRewardEpochs(network, rewardEpochSettings.getStartTimeForEpochId(rewardEpochId), rewardEpochSettings.getEndTimeForEpochId(rewardEpochId), 1, 1);
                 cacheDao.setRewardEpoch(rewardEpochs.results[0]);
@@ -612,7 +613,8 @@ export class EpochsService {
                 const currentPriceEpochId: number = priceEpochSettings.getLastFinalizedEpochId();
 
                 if (priceEpochId > currentPriceEpochId) {
-                    reject(new Error(`Unable to retrieve price epoch data for ${priceEpochId} as it has not been finalized yet.`))
+                    reject(new Error(`Unable to retrieve price epoch data for ${priceEpochId} as it has not been finalized yet.`));
+                    return;
                 }
                 const priceEpochs: PaginatedResult<PriceEpoch[]> = await this.getPriceEpochs(network, priceEpochSettings.getStartTimeForEpochId(priceEpochId), priceEpochSettings.getEndTimeForEpochId(priceEpochId) + priceEpochSettings.revealEpochDurationMillis, 1, 1, EpochSortEnum.id, SortOrderEnum.desc);
                 cacheDao.setPriceEpoch(priceEpochId, priceEpochs.results[0], new Date().getTime() + (60 * 30 * 1000));

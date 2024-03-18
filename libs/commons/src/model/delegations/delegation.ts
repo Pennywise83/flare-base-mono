@@ -33,7 +33,7 @@ export class DelegationDTO extends Delegation {
     fromDelegation(data: Delegation, rewardEpochs: RewardEpoch[], rewardEpochSettings: RewardEpochSettings): DelegationDTO {
         let delegationDTO: DelegationDTO = new DelegationDTO();
         let rewardEpoch: RewardEpoch = null;
-        if (isNotEmpty(rewardEpochs) && rewardEpochs.length > 0 && isNotEmpty(rewardEpochSettings)) {
+        if (isNotEmpty(rewardEpochs) && rewardEpochs.length > 0) {
             rewardEpochs.map((re, idx) => {
                 if (idx > 0) {
                     if (data.timestamp <= re.votePowerTimestamp && data.timestamp >= rewardEpochs[idx - 1].votePowerTimestamp) {
