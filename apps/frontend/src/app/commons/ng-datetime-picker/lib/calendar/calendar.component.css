@@ -1,0 +1,40 @@
+/**
+ * @(#)calendar.component.scss Sept 07, 2023
+
+ * @author Aakash Kumar
+ */
+.mat-calendar {
+  min-width: 250px;
+}
+
+.calendar-container {
+  width: 100%;
+  display: block;
+  float: left;
+}
+
+.first-view,
+.second-view,
+.third-view,
+.fourth-view {
+  width: 50%;
+  display: block;
+  float: left;
+}
+
+.first-view,
+.second-view,
+.third-view,
+.fourth-view {
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 490px) {
+
+  .first-view,
+  .second-view,
+  .third-view,
+.fourth-view {
+    width: 100%;
+  }
+}

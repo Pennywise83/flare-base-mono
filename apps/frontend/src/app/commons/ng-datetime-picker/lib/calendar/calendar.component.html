@@ -1,0 +1,59 @@
+<!--**
+ * @(#)calendar.component.html Sept 07, 2023
+
+ * @author Aakash Kumar
+ *-->
+<div class="calendar-container">
+  <div class="first-view bg-card">
+    <mat-calendar id="firstCalendarView" #firstCalendarView [startAt]="firstCalendarViewData.startDate"
+      [selected]="selectedDates" (selectedChange)="updateDateRangeSelection($event)"
+      (monthSelected)="monthSelected($event)" [minDate]="minDate" [maxDate]="maxDate"></mat-calendar>
+  </div>
+  <div class="second-view bg-card">
+    <mat-calendar id="secondCalendarView" #secondCalendarView [startAt]="secondCalendarViewData.startDate"
+      [minDate]="secondCalendarViewData.minDate" [maxDate]="maxDate" [selected]="selectedDates"
+      (selectedChange)="updateDateRangeSelection($event)"
+      (monthSelected)=" secondViewMonthSelected($event)"></mat-calendar>
+  </div>
+  <div class="third-view bg-card w-full">
+
+    <div class="flex justify-around mb-2">
+      <div class="">
+        <label for="time" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Start time</label>
+        <div class="flex flex-row space-x-2 relative">
+          <select [(ngModel)]="startHour" (ngModelChange)="emitTime()"
+            class="bg-gray-50 border leading-none border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block  w-14 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+            <option *ngFor="let hour of hours" [value]="hour">{{ hour }}</option>
+          </select>
+          <select [(ngModel)]="startMinute" (ngModelChange)="emitTime()"
+            class="bg-gray-50 border leading-none border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-14 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+            <option *ngFor="let minute of minutes" [value]="minute">{{ minute }}</option>
+          </select>
+          <select [(ngModel)]="startSecond" (ngModelChange)="emitTime()"
+            class="bg-gray-50 border leading-none border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-14 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+            <option *ngFor="let second of seconds" [value]="second">{{ second }}</option>
+          </select>
+        </div>
+      </div>
+      <div >
+        <label for="time" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">End time</label>
+        <div class="flex flex-row space-x-2 relative">
+          <select [(ngModel)]="endHour" (ngModelChange)="emitTime()" [disabled]="!selectedDates?.end"
+            class="bg-gray-50 border leading-none border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block  w-14 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+            <option *ngFor="let hour of hours" [value]="hour">{{ hour }}</option>
+          </select>
+          <select [(ngModel)]="endMinute" (ngModelChange)="emitTime()" [disabled]="!selectedDates?.end"
+            class="bg-gray-50 border leading-none border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-14 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+            <option *ngFor="let minute of minutes" [value]="minute">{{ minute }}</option>
+          </select>
+          <select [(ngModel)]="endSecond" (ngModelChange)="emitTime()" [disabled]="!selectedDates?.end"
+            class="bg-gray-50 border leading-none border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-14 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+            <option *ngFor="let second of seconds" [value]="second">{{ second }}</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>

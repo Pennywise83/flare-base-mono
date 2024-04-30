@@ -1,0 +1,79 @@
+<!--**
+ * @(#)ng-date-picker.component.html Sept 05, 2023
+
+ * @author Aakash Kumar
+ *-->
+<div class="date-picker-main" cdkOverlayOrigin #trigger>
+  <button [disabled]="disabled" mat-stroked-button class="flex w-full button-sm button-sm-white"
+    (click)="toggleDateOptionSelectionList()">
+    <mat-label>{{inputLabel}}</mat-label>
+    <mat-icon [svgIcon]="'heroicons_outline:calendar'"></mat-icon>
+    <input matInput readonly="readonly" #dateInput class="ml-2 cursor-pointer text-sm truncate overflow-hidden"
+      id="date-input-field" [value]="inputValue">
+  </button>
+  <mat-action-list class="w-full custom-ckd-container range-input"
+    *ngIf="dateDropDownOptions && dateDropDownOptions.length &&  isShowStaticDefaultOptions">
+    <ng-container *ngFor="let option of dateDropDownOptions">
+      <mat-list-item [activated]="option.isSelected"
+        (click)="updateSelection(option, dateInput)">{{option.label}}</mat-list-item>
+    </ng-container>
+  </mat-action-list>
+
+  <ng-template cdkConnectedOverlay [cdkConnectedOverlayHasBackdrop]="true" [cdkConnectedOverlayOrigin]="trigger"
+    [cdkConnectedOverlayOpen]="isDateOptionList" [cdkConnectedOverlayPush]="true"
+    [cdkConnectedOverlayOffsetX]="listCdkConnectedOverlayOffsetX"
+    [cdkConnectedOverlayOffsetY]="listCdkConnectedOverlayOffsetY+28"
+    (backdropClick)="!isShowStaticDefaultOptions && toggleDateOptionSelectionList()">
+    <mat-action-list [id]="defaultOptionId"
+      class="w-full custom-ckd-container range-input bg-card rounded-md shadow-lg rounded-md  border border-gray-300 dark:border-gray-700 shadow-lg hidden md:block"
+      *ngIf="dateDropDownOptions && dateDropDownOptions.length && ! isShowStaticDefaultOptions">
+      <ng-container *ngFor="let option of dateDropDownOptions">
+        <mat-list-item [activated]="option.isSelected"
+          (click)="updateSelection(option, dateInput)">{{option.label}}</mat-list-item>
+      </ng-container>
+    </mat-action-list>
+  </ng-template>
+
+  <ng-template cdkConnectedOverlay [cdkConnectedOverlayHasBackdrop]="true" [cdkConnectedOverlayOrigin]="trigger"
+    [cdkConnectedOverlayOpen]="isCustomRange" [cdkConnectedOverlayPush]="true"
+    [cdkConnectedOverlayOffsetX]="cdkConnectedOverlayOffsetX"
+    [cdkConnectedOverlayOffsetY]="cdkConnectedOverlayOffsetY+28" (backdropClick)="toggleCustomDateRangeView()">
+    <div [id]="calendarId"
+      class="custom-ckd-container custom-calendar-container bg-card rounded-md shadow-lg rounded-md  border border-gray-300 dark:border-gray-700 shadow-lg"
+      [class]="{'without-default-opt':hideDefaultOptions}">
+      <div class="row-1">
+        <div class="pt-custom border-r column-1" *ngIf="!hideDefaultOptions"> <mat-action-list>
+            <ng-container *ngFor="let option of dateDropDownOptions">
+              <mat-list-item (click)="updateSelection(option, dateInput)"
+                [activated]="option.isSelected">{{option.label}}</mat-list-item>
+            </ng-container>
+          </mat-action-list>
+        </div>
+        <div class="mt-2 column-2"><lib-calendar [selectedDates]="selectedDates" #calendar [minDate]="minDate"
+            [maxDate]="maxDate"></lib-calendar></div>
+      </div>
+      <div class="row-2 border-t bg-card">
+        <div class="text-end my-2 w-full">
+          <div class="footer-content">
+            <span id="range-label-text">
+              {{calendar?.selectedDates?.start | date: dateFormat}}
+              <span *ngIf="calendar?.selectedDates?.end"> - {{calendar.selectedDates.end | date:
+                dateFormat}} </span>
+            </span>
+            <div class="d-inline buttons">
+              <button type="submit" class="button-sm button-sm-light" mat-stroked-button (click)="isCustomRange=false;">
+                Cancel
+              </button>
+              <button type="submit" class="button-sm  button-sm-primary hover:bg-primary-700 dark:hover:bg-primary-900"
+                [color]="'primary'" mat-flat-button
+                [class.disabled]="!(calendar?.selectedDates?.start && calendar?.selectedDates?.end)"
+                (click)="updateCustomRange(dateInput,calendar.selectedDates); isCustomRange=false;">
+                Apply
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ng-template>
+</div>
