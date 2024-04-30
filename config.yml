@@ -26,6 +26,7 @@ network:
       persistenceMetadataCleanTimeMinutes: 60
     cacheDao:
       members: [localhost:7000]
+      prefix: cache
   - name: songbird
     scanActive: false
     collectBlockchainDataIntervalSeconds: 300
@@ -44,3 +45,4 @@ network:
       persistenceMetadataCleanTimeMinutes: 60
     cacheDao:
       members: [localhost:6379]
+      prefix: cache
