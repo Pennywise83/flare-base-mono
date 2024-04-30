@@ -73,6 +73,7 @@ network:
       persistenceMetadataCleanTimeMinutes: 60
     cacheDao:
       members: [localhost:7000]
+      prefix: cache
   - name: songbird
     scanActive: false
     collectBlockchainDataIntervalSeconds: 300
@@ -91,6 +92,8 @@ network:
       persistenceMetadataCleanTimeMinutes: 60
     cacheDao:
       members: [localhost:6379]
+      prefix: cache
+
 ```
 
 ## Server settings
@@ -131,6 +134,7 @@ The `network` section specifies the settings relative to the the supported Flare
 | `network.persistenceDao.shards`            | Number of shards for persistence.                                              | 5                                         |
 | `network.persistenceDao.persistenceMetadataCleanTimeMinutes` | Time interval for persistence metadata cleanup.                   | 60                                        |
 | `network.cacheDao.members`                 | This setting defines the Redis cluster members, which are essential for handling caching and other data storage functionalities within the application. The parameter accepts a list of host:port combinations representing the Redis instances in the cluster. | [localhost:7000] |
+| `network.cacheDao.prefix`                 | Specifies the cache prefix. | cache |
 
 The `network.scanActive` parameter controls whether the server pre-indexes all data from the blockchain and keeps it updated over time.
 ### Impact
