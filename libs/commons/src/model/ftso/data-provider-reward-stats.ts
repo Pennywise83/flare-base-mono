@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 
-export class FtsoRewardStats {
+export class DataProviderRewardStats {
     @ApiProperty({ description: 'ID of the reward epoch where the rewards were accrued.' })
     epochId: number;
     @ApiProperty({ description: 'Data provider address that accrued the reward.' })
@@ -15,7 +15,7 @@ export class FtsoRewardStats {
     count: number;
 }
 
-export enum FtsoRewardStatsGroupByEnum {
+export enum DataProviderRewardStatsGroupByEnum {
     rewardEpochId='rewardEpochId',
     dataProvider='dataProvider'
 }
