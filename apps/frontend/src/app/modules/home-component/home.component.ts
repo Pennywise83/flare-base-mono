@@ -8,9 +8,11 @@ import { navigationDefinition } from "../../commons/navigation-definition";
 import { ActivatedRoute, Router, RouterModule } from "@angular/router";
 import { Navigation } from "app/services/navigation/navigation.types";
 
-import { NetworkEnum } from "../../../../../../libs/commons/src";
+import { Commons, NetworkEnum } from "../../../../../../libs/commons/src";
 import { IChainDefinition } from "app/services/web3/model/i-chain-definition";
 import { availableChains } from "app/services/web3/model/available-chains";
+import { MatomoTracker } from "ngx-matomo";
+import { Title } from "@angular/platform-browser";
 
 @Component({
     selector: 'flare-base-home',
@@ -26,7 +28,10 @@ export class HomeComponent implements OnInit {
     chains: IChainDefinition[] = availableChains;
     constructor(
         private _route: ActivatedRoute,
+        private _titleService: Title,
+        private _matomoTracker: MatomoTracker,
         private _cdr: ChangeDetectorRef,
+
     ) {
 
     }
@@ -36,6 +41,7 @@ export class HomeComponent implements OnInit {
             if (this.network) {
                 (this.navigation as any) = {};
                 this.navigation.default = navigationDefinition[this.network];
+                Commons.setPageTitle(`Flare base - ${this.network.charAt(0).toUpperCase() + this.network.slice(1)} - Home`, this._titleService, this._matomoTracker)
                 this._cdr.detectChanges();
 
             }
