@@ -6,9 +6,10 @@ export class DelegatorsRequest extends PaginatedRequest {
     epochId: number;
     sortField: DelegationsSortEnum;
     sortOrder: SortOrderEnum;
+
     constructor(address: string, epochId: number) {
         super();
-        this.address = address;
+        this.address = (address && address!=null) ? address.split(',')[0] : address;
         this.epochId = epochId;
         this.sortField = DelegationsSortEnum.timestamp;
         this.sortOrder = SortOrderEnum.desc;

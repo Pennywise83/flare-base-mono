@@ -1,22 +1,25 @@
 #main-container {
-    background-size: 100% 200%;
-    animation: gradient 15s ease infinite;
     height: 100vh;
+    animation: gradient 15s ease infinite;
 }
 
 .light #main-container {
-    background: linear-gradient(-45deg, #ecbec498, #05679fb0, #ffffff, #22b8b8a2);
+    background: linear-gradient(-45deg, #ffa8b398, #05679fb0, #ffffff, #22b8b8a2);
+    background-size: 200% 300%;
+
 }
 
 .dark #main-container {
-    background: linear-gradient(-45deg, #0f172a, #1e293b, #475569, #475569);
+    background: linear-gradient(-45deg, #0f172a, #1e293b, #043450b0, #105555a2);
+    background-size: 200% 300%;
+
 }
 @keyframes gradient {
     0% {
         background-position: 0% 50%;
     }
     50% {
-        background-position: 100% 50%;
+        background-position: 80% 80%;
     }
     100% {
         background-position: 0% 50%;
@@ -25,6 +28,9 @@
 
 .breadcrumb-icon {
     transform: scale(0.65);
+}
+.small-icon {
+    transform: scale(0.80);
 }
 .xng-breadcrumb-separator {
     margin: 0 4px;
@@ -217,4 +223,8 @@ input.numeric-field {
     100% {
         transform: rotate(-360deg);
     }
+}
+
+.mat-mdc-header-cell *{
+    text-align:left !important;
 }

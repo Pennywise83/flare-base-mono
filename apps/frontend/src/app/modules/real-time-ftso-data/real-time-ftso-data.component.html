@@ -1,0 +1,123 @@
+<div class="bg-card">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 gap-y-4 md:gap-y-0 min-w-0 pt-4 md:pt-6 pb-0 px-4 md:px-8">
+        <div class="col-span-2 md:col-span-1 relative min-h-8 md:min-h-14 overflow-hidden">
+            <flare-base-loader skeletonType="text" [loading]="loading">
+            </flare-base-loader>
+
+            <ng-container>
+                <div class="flex flex-auto justify-start gap-4" @slideInBottom>
+                    <div class="overflow-hidden">
+                        <h3 class="text-xl md:text-2xl lg:text-3xl font-medium tracking-tight leading-7 truncate">
+                            Real Time Ftso Data {{selectedPriceEpochId}}
+                        </h3>
+                    </div>
+                </div>
+            </ng-container>
+        </div>
+        <div class="flex flex-col col-span-2 md:col-span-1">
+            <div class="flex justify-end space-x-4">
+            </div>
+        </div>
+    </div>
+</div>
+
+<div
+    class="flex flex-col flex-auto p-0 pb-1 col-span-12 md:col-span-12 gap-4 md:gap-6 w-full min-w-0 py-6 px-4 md:px-8 border-t md:-mt-px">
+    <div class="flex flex-col flex-auto p-0 bg-card shadow rounded-lg overflow-hidden overflow-y-scroll  zoomable">
+        <div class="flex flex-col h-full p-6 relative min-h-96">
+
+            <ng-container *ngIf="realTimeDataMap">
+                <div *ngFor="for let epochId of epochIds">
+                    <div *ngFor="let data of realTimeDataMap| keyvalue">
+                        <div *ngIf="data.key == epochId.toString()">
+                            <h3 class="px-0 py-4 text-lg font-medium tracking-tight leading-6 truncate truncate">Price
+                                epoch: {{data.key}}</h3>
+                            <ng-container *ngFor="let singleData of data.value">
+                                <div *ngIf="singleData.type == realTimeDataTypes.hashSubmitted">
+                                    <div class="flex justify-start">
+                                        <div class="mr-2"><span class="w-2 h-2 rounded-full bg-yellow-500"></span>Hash
+                                            submitted </div>
+                                        <div class="mr-2">
+                                            <span class="flex flex-col items-start leading-4 pr-6 whitespace-nowrap">
+                                                <span>{{singleData.timestamp | date:'MMM dd, y'}}</span>
+                                                <span class="text-xs text-secondary">{{singleData.timestamp |
+                                                    date:'HH:mm:ss'}}</span>
+                                            </span>
+                                        </div>
+                                        <div class="flex justify-start spacing-x-4 min-w-52"><img
+                                                class="w-5 h-5 p-1 rounded-full ring-icon mr-2"
+                                                [src]="getDataProviderInfo(asHashSubmitted(singleData).submitter).icon"
+                                                [alt]="getDataProviderInfo(asHashSubmitted(singleData).submitter).name+' icon'">
+                                            <div class="leading-4">
+                                                <div>
+                                                    <a>{{getDataProviderInfo(asHashSubmitted(singleData).submitter).name}}</a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div *ngIf="singleData.type == realTimeDataTypes.revealedPrice">
+                                    <div class="flex justify-start spacing-x-4">
+                                        <div class="mr-2"><span class="w-2 h-2 rounded-full bg-primary-500"></span>Price
+                                            revealed </div>
+                                        <div class="mr-2">
+                                            <span class="flex flex-col items-start leading-4 pr-6 whitespace-nowrap">
+                                                <span>{{singleData.timestamp | date:'MMM dd, y'}}</span>
+                                                <span class="text-xs text-secondary">{{singleData.timestamp |
+                                                    date:'HH:mm:ss'}}</span>
+                                            </span>
+                                        </div>
+                                        <div class="flex justify-start min-w-52 mr-2"><img
+                                                class="w-5 h-5 p-1 rounded-full ring-icon mr-2"
+                                                [src]="getDataProviderInfo(asPriceRevealed(singleData).dataProvider).icon"
+                                                [alt]="getDataProviderInfo(asPriceRevealed(singleData).dataProvider).name+' icon'">
+                                            <div class="leading-4">
+                                                <div>
+                                                    <a>{{getDataProviderInfo(asPriceRevealed(singleData).dataProvider).name}}
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="mr-2 min-w-36">
+                                            {{asPriceRevealed(singleData).symbol}}
+                                        </div>
+                                        <div>
+                                            {{asPriceRevealed(singleData).value|number:'1.5-5'}}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div *ngIf="singleData.type == realTimeDataTypes.finalizedPrice">
+                                    <div class="flex justify-start spacing-x-4">
+
+                                        <div class="mr-2"><span class="w-2 h-2 rounded-full bg-primary-500"></span>Price
+                                            finalized </div>
+                                        <div class="mr-2">
+                                            <span class="flex flex-col items-start leading-4 pr-6 whitespace-nowrap">
+                                                <span>{{singleData.timestamp | date:'MMM dd, y'}}</span>
+                                                <span class="text-xs text-secondary">{{singleData.timestamp |
+                                                    date:'HH:mm:ss'}}</span>
+                                            </span>
+                                        </div>
+                                        <div class="mr-2 min-w-36">
+                                            {{asPriceRevealed(singleData).symbol}}
+                                        </div>
+                                        <div>
+                                            {{asPriceRevealed(singleData).value|number:'1.5-5'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </ng-container>
+                        </div>
+                    </div>
+                </div>
+
+            </ng-container>
+            <!--     <apx-chart #realTimeFtsoChart @fadeIn *ngIf="!loading" #rewardsHistoryChart class="flex-auto w-full h-full"
+                [chart]="chartOptions.chart" [colors]="chartOptions.colors" [dataLabels]="chartOptions.dataLabels" [annotations]="chartOptions.annotations"
+                [grid]="chartOptions.grid" [fill]="chartOptions.fill" [plotOptions]="chartOptions.plotOptions"
+                [legend]="chartOptions.legend" [responsive]="chartOptions.responsive" [series]="chartOptions.series"
+                [stroke]="chartOptions.stroke" [tooltip]="chartOptions.tooltip" [xaxis]="chartOptions.xaxis"
+                [yaxis]="chartOptions.yaxis"></apx-chart> -->
+        </div>
+    </div>
+</div>

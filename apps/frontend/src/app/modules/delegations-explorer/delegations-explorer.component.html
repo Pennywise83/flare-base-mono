@@ -2,7 +2,7 @@
     <div class="col-span-1 overflow-hidden justify-end">
         <h2
             class="shrink-0 text-2xl md:text-3xl lg:text-4xl font-light tracking-tight leading-7 sm:leading-10 truncate">
-            Delegations Explorer
+            Delegations explorer
         </h2>
     </div>
     <div class="flex col-span-2 justify-end">
@@ -29,30 +29,36 @@
     </div>
 
 </div>
-<div class="grid grid-cols-2 sm:grid-cols-3 gap-4 md:gap-6 w-full min-w-0 pb-6 px-4 md:px-8">
-    <div class="flex flex-col flex-auto  bg-card shadow rounded-lg h-20 sm:h-24  overflow-hidden hidden sm:block">
-        <flare-base-counter [loading]="loadingMap.isLoading('getRewardEpochSettings')" label="Reward epoch"
+<div class="mb-6 px-4 md:px-8">
+    <dl
+        class="grid md:grid-cols-3 grid-cols-2 rounded-lg bg-card overflow-hidden shadow   divide-y divide-gray-200 dark:divide-gray-700 md:divide-y-0 divide-x">
+        <div class="py-0 col-span-1 min-h-16 md:border-none border-t">
+            <flare-base-counter [loading]="loadingMap.isLoading('getRewardEpochSettings')" label="Reward epoch"
             [countdownValue]="selectedRewardEpoch ? rewardEpochSettings.getEndTimeForEpochId(selectedRewardEpoch) : null"
             [counterValue]="selectedRewardEpoch ? selectedRewardEpoch : selectedRewardEpoch+1"></flare-base-counter>
-    </div>
-    <div class="flex flex-col flex-auto  bg-card shadow rounded-lg overflow-hidden h-20 sm:h-24 overflow-hidden">
-        <flare-base-counter [loading]="loadingMap.isLoading('getVotePowerHistory')" label="Delegated vote power"
+        </div>
+
+        <div class="py-0 col-span-2 -order-1 md:order-none md:col-span-1  min-h-16">
+            <flare-base-counter [loading]="loadingMap.isLoading('getVotePowerHistory')" label="Delegated vote power"
             [variationValue]="votePowerChange" [variationLabel]="'from last reward epoch'"
             [counterValue]="(delegatedVotePowerHistory.length > 0 ? delegatedVotePowerHistory[0].amount : null) | number: '1.0-0'"></flare-base-counter>
-    </div>
-    <div class="flex flex-col flex-auto  bg-card shadow rounded-lg h-20 sm:h-24 overflow-hidden">
-        <flare-base-counter [loading]="loadingMap.isLoading('getVotePowerHistory')" label="Number of delegators"
+        </div>
+        <div class="py-0 col-span-1 min-h-16">
+            <flare-base-counter [loading]="loadingMap.isLoading('getVotePowerHistory')" label="Number of delegators"
             [variationValue]="totalDelegatorsChange" [variationLabel]="'from last reward epoch'"
             [counterValue]="(delegatedVotePowerHistory.length > 0 ? delegatedVotePowerHistory[0].delegators : null)|number: '1.0-0'"></flare-base-counter>
-    </div>
+        </div>
+    </dl>
 </div>
+
+
 <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 w-full min-w-0 pb-2 md:pb-6 px-4 md:px-8">
     <div class="col-span-1 lg:col-span-8 p-0  overflow-hidden bg-card shadow rounded-lg">
         <div class="flex flex-col md:flex-row justify-between ">
-            <h3 class="p-6 py-4 text-lg font-medium tracking-tight leading-6 truncate truncate">
+            <h3 class="p-4 py-4 text-lg font-medium tracking-tight leading-6 truncate truncate">
                 Data providers
             </h3>
-            <div class="flex grow md:grow-0 w-full md:w-2/3 py-1 px-6 md:py-4  items-top">
+            <div class="flex grow md:grow-0 w-full md:w-2/3 p-4 items-top">
                 <button class="button-sm button-sm-light px-6 mr-2" mat-stroked-button
                     (click)="exportDataProviderData()" [disabled]="loading">
                     <ng-icon class="text-md text-gray-700 dark:text-gray-300 pt-0.5 mr-2"
@@ -108,7 +114,7 @@
                         only</button>
                 </mat-menu>
 
-                <mat-form-field class="flex w-full max-w-96 ui-mat-dense mb-2 md:mb-0 button-sm text-sm"
+                <mat-form-field class="flex w-full max-w-96 ui-mat-dense mb-2 md:mb-0 text-sm button-sm button-sm-light"
                     subscriptSizing="dynamic"
                     (input)="searchFilter$.next({nameOrAddress:searchFilter.nameOrAddress, whitelisted: searchFilter.whitelisted, listed: searchFilter.listed })">
                     <input [disabled]="loading" name="filter" matInput autocomplete="off" spellcheck="false"
@@ -123,13 +129,14 @@
         <div class="flex flex-col h-full p-0 relative min-h-96">
             <flare-base-data-providers [searchFilter]="searchFilter"
                 [loading]="loadingMap.isLoading('getDataProvidersData')" [dataProvidersData]="dataProvidersData"
+                [dataProvidersTableColumns]="['#', 'name', (isNextRewardEpoch ? 'availability6h' : 'availabilityRewardEpoch'),'numberOfDelegators', 'numberOfDelegatorsChange', 'votePowerChange', 'votePower']"
                 (selectedAddress)="handleSelectedDataProvider($event)"></flare-base-data-providers>
         </div>
     </div>
 
     <div class="col-span-1 lg:col-span-4 overflow-hidden">
         <div class="bg-card shadow rounded-lg overflow-hidden mb-6">
-            <h3 class="shrink-0 p-6 py-4  text-lg font-medium tracking-tight leading-6 truncate truncate">
+            <h3 class="shrink-0 p-4  text-lg font-medium tracking-tight leading-6 truncate truncate">
                 Vote power over delegations
             </h3>
             <div class="flex flex-col flex-auto h-48 overflow-hidden relative">
@@ -139,7 +146,7 @@
             </div>
         </div>
         <div class="bg-card shadow rounded-lg overflow-hidden mb-6">
-            <h3 class="shrink-0 p-6 py-4  text-lg font-medium tracking-tight leading-6 truncate truncate">
+            <h3 class="shrink-0 p-4 py-4  text-lg font-medium tracking-tight leading-6 truncate truncate">
                 Vote power change
             </h3>
             <div class="flex flex-col flex-auto min-h-60  overflow-y-auto overflow-x-auto  relative">
@@ -156,7 +163,7 @@
             </div>
         </div>
         <div class="bg-card shadow rounded-lg overflow-hidden mb-6">
-            <h3 class="shrink-0 p-6 py-4  text-lg font-medium tracking-tight leading-6 truncate truncate">
+            <h3 class="shrink-0 p-4 py-4  text-lg font-medium tracking-tight leading-6 truncate truncate">
                 Delegators change
             </h3>
             <div class="flex flex-col flex-auto min-h-60  overflow-y-auto overflow-x-auto relative">
@@ -173,7 +180,7 @@
             </div>
         </div>
         <div class="p-0 overflow-x-auto overflow-y-auto bg-card shadow rounded-lg test">
-            <h3 class="shrink-0 p-6 py-4  text-lg font-medium tracking-tight leading-6 truncate truncate">
+            <h3 class="shrink-0 p-4 py-4  text-lg font-medium tracking-tight leading-6 truncate truncate">
                 Latest delegations
             </h3>
             <div class="flex flex-col h-full p-0 relative min-h-40">

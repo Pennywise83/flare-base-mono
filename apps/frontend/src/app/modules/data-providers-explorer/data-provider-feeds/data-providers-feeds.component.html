@@ -1,0 +1,121 @@
+<div class="grid grid-cols-12 gap-4 md:gap-6 w-full min-w-0 py-6 px-4 md:px-8 border-t -mt-px">
+    <div class="flex flex-col flex-auto p-0 pb-1 overflow-hidden col-span-12">
+        <form (ngSubmit)="submitForm" name="feedsForm" class="grid grid-cols-2">
+            <div class="flex col-span-2 md:col-span-1">
+                <mat-form-field ngDefaultControl
+                    class="button-sm button-sm-light data-provider-select ui-mat-dense mb-2 md:mb-0 mr-2 w-full md:max-w-52"
+                    subscriptSizing="dynamic">
+                    <mat-select [(ngModel)]="request.symbol" [disabled]="loading" placeholder="Select symbol"
+                        (selectionChange)="handleSymbolChange($event)" name="selectSymbol">
+                        <mat-option [value]="null">
+                            <ngx-mat-select-search ngModel name="selectSymbolFilter"
+                                placeholderLabel="Filter symbols..." (ngModelChange)="filterAvailableSymbols($event)">
+                                <mat-icon ngxMatSelectSearchClear class="icon-size-4"
+                                    [svgIcon]="'heroicons_outline:x-mark'"></mat-icon>
+                            </ngx-mat-select-search>
+                        </mat-option>
+                        <ng-container *ngFor="let symbol of filteredAvailableSymbols">
+                            <mat-option [value]="symbol">
+                                <div class="flex items-center space-x-2">
+                                    <div class="dark:text-white leading-4 text-sm">
+                                        <div>
+                                            <a>{{symbol}}</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </mat-option>
+                        </ng-container>
+                    </mat-select>
+                </mat-form-field>
+            </div>
+            <div class="flex col-span-2 md:col-span-1 justify-center md:justify-end space-x-2">
+                <mat-slide-toggle name="relativeView" class="scale-90 pt-1.5" (change)="toggleRelativeView()"
+                    [disabled]="loading" [ngModel]="isRelativeView" [color]="'primary'">
+                    Relative view
+                </mat-slide-toggle>
+                <ng-date-range-picker dateFormat="YYYY-MM-dd HH:mm:ss" class="max-w-72" [disabled]="loading"
+                    (onDateSelectionChanged)="handleTimeRangeChange($event)" [dateDropDownOptions]="timeRanges"
+                    [enableDefaultOptions]="false" [inputLabel]="null"
+                    [inputDate]="parseSelectedDated(request.startTime,request.endTime)"></ng-date-range-picker>
+            </div>
+        </form>
+
+    </div>
+    <div class="flex flex-col flex-auto p-0 pb-1 col-span-12 md:col-span-9 gap-4 md:gap-6  order-2 md:order-1">
+        <div class="flex flex-col flex-auto p-0 bg-card shadow rounded-lg overflow-hidden max-h-96 zoomable">
+            <div class="flex flex-col h-full p-0 relative min-h-96">
+                <flare-base-data-provider-feeds-chart [availableSymbols]="availableSymbols"
+                    [isRelativeView]="isRelativeView" [dataProvidersInfoMap]="dataProvidersInfoMap"
+                    [loading]="loadingMap.isLoading('getFinalizedPrices') || loadingMap.isLoading('getRevealedPrices') || loadingMap.isLoading('getRewardsDistributed') || loading"
+                    [pricesData]="pricesData"></flare-base-data-provider-feeds-chart>
+            </div>
+        </div>
+
+        <div class="flex flex-col flex-auto p-0 bg-card shadow rounded-lg overflow-hidden" style="max-height:900px">
+            <div class="flex flex-col h-full p-0 relative min-h-96 ">
+                <h3 class="shrink-0 p-4 py-4  text-lg font-medium tracking-tight leading-6 truncate truncate">
+                    Submission statistics
+                </h3>
+                <div class="flex flex-col flex-auto overflow-y-auto overflow-x-auto relative">
+                    <flare-base-data-providers-submission-stats-table [dataProvidersInfoMap]="dataProvidersInfoMap"
+                        [selectedSymbol]="request.symbol" [dataProvidersInfo]="dataProviderInfo"
+                        [availableSymbols]="availableSymbols"
+                        [loading]="loadingMap.isLoading('getDataProviderSubmissionStats')"
+                        [sortOnColumn]="request.addressList.length == 1 ? 'symbol' : 'successRate'"
+                        [sortOrder]="sortOrder.desc"
+                        [tableColumns]="request.addressList.length == 1 ? ['symbol','numberOfCases','outIQR','outPct','borderIQR','borderPct','innerIQR','innerPct','successRateIQR','successRatePct','successRate'] : ['dataProvider','numberOfCases','outIQR','outPct','borderIQR','borderPct','innerIQR','innerPct','successRateIQR','successRatePct','successRate']"
+                        [submissionStats]="submissionStats"></flare-base-data-providers-submission-stats-table>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <div class="flex flex-col flex-auto p-0 pb-1 col-span-12 md:col-span-3 gap-4 md:gap-6  order-2 md:order-1">
+        <div class="grid grid-cols-12 gap-4 md:gap-6">
+            <div class="flex flex-col flex-auto p-0 max-h-96 zoomable col-span-12">
+                <div
+                    class="flex flex-col h-full p-0 relative bg-card shadow rounded-lg overflow-y-auto overflow-x-auto min-h-60  md:min-h-96">
+                    <flare-base-data-provider-submission-stats [pricesData]="pricesData" [network]="network"
+                        [type]="submissionStatsTypes.bar" [dataProvidersInfoMap]="dataProvidersInfoMap"
+                        [loading]="loadingMap.isLoading('getFinalizedPrices') || loadingMap.isLoading('getRevealedPrices') || loadingMap.isLoading('getRewardsDistributed') || loading"
+                        [availableSymbols]="availableSymbols"></flare-base-data-provider-submission-stats>
+
+                </div>
+            </div>
+            <div class="flex flex-col flex-auto p-0 max-h-96 zoomable col-span-12">
+                <div
+                    class="flex flex-col h-full p-0 relative bg-card shadow rounded-lg overflow-hidden min-h-60 md:min-h-96">
+                    <h3 class="shrink-0 p-4 py-4  text-lg font-medium tracking-tight leading-6 truncate truncate">
+                        Success rate by symbols
+                    </h3>
+                    <flare-base-data-provider-submission-stats [pricesData]="pricesData" [network]="network"
+                        [type]="submissionStatsTypes.radar" [dataProvidersInfoMap]="dataProvidersInfoMap"
+                        [loading]="loadingMap.isLoading('getFinalizedPrices') || loadingMap.isLoading('getRevealedPrices') || loadingMap.isLoading('getRewardsDistributed') || loading"
+                        [availableSymbols]="availableSymbols"></flare-base-data-provider-submission-stats>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="flex flex-col flex-auto p-0 pb-1 col-span-12 md:col-span-9 gap-4 md:gap-6  order-2 md:order-1">
+        <div class="flex flex-col flex-auto p-0 bg-card shadow rounded-lg overflow-hidden">
+            <div class="flex flex-col h-full p-0 relative min-h-50 overflow-y-auto overflow-x-auto">
+                <h3 class="shrink-0 p-4 py-4  text-lg font-medium tracking-tight leading-6 truncate truncate">
+                    Distributed rewards
+                </h3>
+                <div class="flex flex-col flex-auto overflow-hidden relative">
+                    <flare-base-data-providers-distributed-rewards-table [dataProvidersInfoMap]="dataProvidersInfoMap"
+                        [network]="network" [dataProvidersInfo]="dataProviderInfo"
+                        [loading]="loadingMap.isLoading('getRewardsDistributed')" [pageSize]="10"
+                        [paginatorPosition]="'right'"
+                        [tableColumns]="request.addressList.length == 1 ? ['timestamp','priceEpochId','symbol','reward','providerReward'] : ['dataProvider','timestamp','priceEpochId','symbol','reward','providerReward']"
+                        [sortOnColumn]="'timestamp'" [sortOrder]="sortOrder.desc"
+                        [distributedRewards]="rewardsDistributed"></flare-base-data-providers-distributed-rewards-table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

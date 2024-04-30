@@ -4,6 +4,32 @@ import { NavigationItem } from "../services/navigation/navigation";
 export const navigationDefinition: { [network: string]: NavigationItem[] } = {
     'flare': [
         {
+            id: 'ftso',
+            title: 'Ftso',
+            link: '/flare/ftso/data-providers',
+            type: 'group',
+            icon: 'heroicons_outline:cube-transparent',
+            color: '#42d9b5',
+            children: [
+                {
+                    id: 'data-providers-explorer',
+                    title: 'Data providers explorer',
+                    type: 'basic',
+                    link: '/flare/ftso/data-providers-explorer',
+                    icon: 'heroicons_outline:cube',
+                    color: '#42d9b5'
+                },
+                {
+                    id: 'ftso-feeds',
+                    title: 'Data Provider Feeds',
+                    type: 'basic',
+                    link: '/flare/ftso/data-providers/feeds',
+                    icon: 'heroicons_outline:cube',
+                    color: '#42d9b5'
+                }
+            ]
+        },
+        {
             id: 'delegations',
             title: 'Delegations',
             link: '/flare/delegations/explorer',
@@ -13,7 +39,7 @@ export const navigationDefinition: { [network: string]: NavigationItem[] } = {
             children: [
                 {
                     id: 'delegations-explorer',
-                    title: 'Delegations Explorer',
+                    title: 'Delegations explorer',
                     type: 'basic',
                     link: '/flare/delegations/explorer',
                     icon: 'heroicons_outline:cube',
@@ -97,6 +123,32 @@ export const navigationDefinition: { [network: string]: NavigationItem[] } = {
     ],
     'songbird': [
         {
+            id: 'ftso',
+            title: 'Ftso',
+            link: '/songbird/ftso/data-providers',
+            type: 'group',
+            icon: 'heroicons_outline:cube-transparent',
+            color: '#42d9b5',
+            children: [
+                {
+                    id: 'data-providers-explorer',
+                    title: 'Data providers explorer',
+                    type: 'basic',
+                    link: '/songbird/ftso/data-providers-explorer',
+                    icon: 'heroicons_outline:cube',
+                    color: '#42d9b5'
+                },
+                {
+                    id: 'ftso-feeds',
+                    title: 'Data Provider Feeds',
+                    type: 'basic',
+                    link: '/songbird/ftso/data-providers/feeds',
+                    icon: 'heroicons_outline:cube',
+                    color: '#42d9b5'
+                }
+            ]
+        },
+        {
             id: 'delegations',
             title: 'Delegations',
             link: '/songbird/delegations/explorer',
@@ -106,7 +158,7 @@ export const navigationDefinition: { [network: string]: NavigationItem[] } = {
             children: [
                 {
                     id: 'delegations-explorer',
-                    title: 'Delegations Explorer',
+                    title: 'Delegations explorer',
                     type: 'basic',
                     link: '/songbird/delegations/explorer',
                     icon: 'heroicons_outline:cube',

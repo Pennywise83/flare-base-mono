@@ -1,0 +1,134 @@
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 min-w-0 py-4 md:py-6 px-4 md:px-8">
+    <div class="col-span-1 overflow-hidden justify-end">
+        <h2
+            class="shrink-0 text-2xl md:text-3xl lg:text-4xl font-light tracking-tight leading-7 sm:leading-10 truncate">
+            Data providers explorer
+        </h2>
+    </div>
+    <div class="flex col-span-2 justify-end">
+        <mat-form-field ngDefaultControl name="selectedRewardEpoch" class="ui-mat-dense w-full lg:w-1/3 mr-3"
+            subscriptSizing="dynamic">
+            <mat-select [ngModel]="selectedRewardEpoch" [disabled]="loading"
+                (selectionChange)="handleRewardEpochChange($event)" class="reward-epochs-select">
+                <ng-container *ngFor="let rewardEpoch of availableRewardEpochs">
+                    <mat-option [value]="rewardEpoch">{{rewardEpoch == rewardEpochSettings.getCurrentEpochId() ?
+                        rewardEpoch+' (current)' : (rewardEpoch == rewardEpochSettings.getNextEpochId() ? rewardEpoch+'
+                        (next)' : rewardEpoch)}}</mat-option>
+                </ng-container>
+            </mat-select>
+            <div class="flex items-center mr-4" matPrefix>
+                <mat-icon class="icon-size-5 mr-2" [svgIcon]="'heroicons_outline:clock'"></mat-icon>
+                <label for="selectedRewardEpoch">Reward epoch</label>
+            </div>
+        </mat-form-field>
+        <button class="ring-1 bg-gray-200 ring-gray-300 dark:ring-gray-600 dark:bg-gray-700" (click)="refreshData()"
+            [disabled]="loading" mat-icon-button>
+            <ng-icon [ngClass]="{'animate-spin':loading}" class="text-lg text-gray-600 dark:text-gray-400"
+                name="featherRefreshCw"></ng-icon>
+        </button>
+    </div>
+
+</div>
+<div class="mb-6 px-4 md:px-8">
+    <dl
+        class="grid md:grid-cols-3 grid-cols-2 rounded-lg bg-card overflow-hidden shadow   divide-y divide-gray-200 dark:divide-gray-700 md:divide-y-0 divide-x">
+        <div class="py-0 col-span-1 min-h-16 md:border-none border-t">
+            <flare-base-counter [loading]="loadingMap.isLoading('getRewardEpochSettings')" label="Reward epoch"
+                [countdownValue]="selectedRewardEpoch ? rewardEpochSettings.getEndTimeForEpochId(selectedRewardEpoch) : null"
+                [counterValue]="selectedRewardEpoch ? selectedRewardEpoch : selectedRewardEpoch+1"></flare-base-counter>
+        </div>
+
+        <div class="py-0 col-span-2 -order-1 md:order-none md:col-span-1  min-h-16">
+            <flare-base-counter [loading]="loadingMap.isLoading('getVotePowerHistory')" label="Delegated vote power"
+                [variationValue]="votePowerChange" [variationLabel]="'from last reward epoch'"
+                [counterValue]="(delegatedVotePowerHistory.length > 0 ? delegatedVotePowerHistory[0].amount : null) | number: '1.0-0'"></flare-base-counter>
+        </div>
+        <div class="py-0 col-span-1 min-h-16">
+            <flare-base-counter [loading]="loadingMap.isLoading('getDataProvidersData')" label="Active Data providers"
+                [counterValue]="activeDataProvidersSum"></flare-base-counter>
+        </div>
+    </dl>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 w-full min-w-0 pb-2 md:pb-6 px-4 md:px-8">
+    <div class="col-span-1 lg:col-span-12 p-0  overflow-hidden bg-card shadow rounded-lg">
+        <div class="flex flex-col md:flex-row justify-between ">
+            <h3 class="p-4 py-4 text-lg font-medium tracking-tight leading-6 truncate truncate">
+                Data providers
+            </h3>
+            <div class="flex grow md:grow-0 w-full md:w-1/2 p-4  items-top">
+                <button class="button-sm button-sm-light px-6 mr-2" mat-stroked-button
+                    (click)="exportDataProviderData()" [disabled]="loading">
+                    <ng-icon class="text-md text-gray-700 dark:text-gray-300 pt-0.5 mr-2"
+                        name="featherDownload"></ng-icon>
+                    <span class="font-medium text-sm">Export</span>
+                </button>
+                <button class="pl-3  justify-start button-sm button-sm-white mr-2  min-w-36" mat-stroked-button
+                    [matMenuTriggerFor]="dataProvidersFilterMenu" color="white" [disabled]="loading">
+                    <span class="font-medium text-sm">
+                        <span *ngIf="!searchFilter.whitelisted && !searchFilter.listed">
+                            <span
+                                class="items-center justify-center w-6 h-6 font-semibold text-gray-800 bg-gray-100 rounded-full dark:bg-gray-400 dark:text-white mb-0.5 mr-2">
+                                <ng-icon class="text-lg pt-1" name="heroCheckBadge"></ng-icon>
+                            </span>
+                            All</span>
+                        <span *ngIf="searchFilter.whitelisted && !searchFilter.listed">
+                            <span
+                                class="items-center justify-center w-6 h-6 font-semibold text-green-800 bg-green-100 rounded-full dark:bg-green-400 dark:text-white mb-0.5 mr-2">
+                                <ng-icon class="text-lg pt-1" name="heroCheckBadge"></ng-icon>
+                            </span>
+                            Whitelisted only
+                        </span>
+                        <span *ngIf="searchFilter.whitelisted && searchFilter.listed">
+                            <span class="items-center justify-center w-6 h-6  font-semibold text-blue-800 bg-blue-100 
+                            rounded-full dark:bg-blue-400 dark:text-white mr-2">
+                                <ng-icon class="text-lg pt-1" name="heroCheckBadge"></ng-icon>
+                            </span>
+                            Listed only
+                        </span>
+                    </span>
+                </button>
+                <mat-menu #dataProvidersFilterMenu="matMenu">
+                    <button mat-menu-item
+                        (click)="searchFilter.whitelisted = false; searchFilter.listed = false; searchFilter$.next({nameOrAddress: searchFilter.nameOrAddress, whitelisted: null, listed: null})">
+                        <span
+                            class="inline-flex items-center justify-center w-5 h-5 font-semibold text-gray-800 bg-gray-100 rounded-full dark:bg-gray-400 dark:text-white mb-0.5 mr-2">
+                            <ng-icon class="text-lg" name="heroCheckBadge"></ng-icon>
+                        </span>
+                        All</button>
+                    <button mat-menu-item
+                        (click)="searchFilter.whitelisted = true; searchFilter.listed = false; searchFilter$.next({nameOrAddress: searchFilter.nameOrAddress, whitelisted: true, listed: null})">
+                        <span
+                            class="inline-flex items-center justify-center w-5 h-5 font-semibold text-green-800 bg-green-100 rounded-full dark:bg-green-400 dark:text-white mb-0.5 mr-2">
+                            <ng-icon class="text-lg" name="heroCheckBadge"></ng-icon>
+                        </span>
+                        Whitelisted only</button>
+                    <button mat-menu-item
+                        (click)="searchFilter.whitelisted = true; searchFilter.listed = true; ; searchFilter$.next({nameOrAddress: searchFilter.nameOrAddress, whitelisted: true, listed: true})">
+                        <span
+                            class="inline-flex items-center justify-center w-5 h-5  font-semibold text-blue-800 bg-blue-100 rounded-full dark:bg-blue-400 dark:text-white mr-2">
+                            <ng-icon class="text-lg" name="heroCheckBadge"></ng-icon>
+                        </span>Listed
+                        only</button>
+                </mat-menu>
+
+                <mat-form-field class="flex w-full  ui-mat-dense mb-2 md:mb-0 text-sm button-sm button-sm-light"
+                    subscriptSizing="dynamic"
+                    (input)="searchFilter$.next({nameOrAddress:searchFilter.nameOrAddress, whitelisted: searchFilter.whitelisted, listed: searchFilter.listed })">
+                    <input [disabled]="loading" name="filter" matInput autocomplete="off" spellcheck="false"
+                        [(ngModel)]="searchFilter.nameOrAddress" placeholder="# Filter results...">
+                    <button [disabled]="loading" mat-icon-button matSuffix>
+                        <ng-icon class="text-lg" strokeWidth="2" name="heroMagnifyingGlass"></ng-icon>
+                    </button>
+                </mat-form-field>
+            </div>
+
+        </div>
+        <div class="flex flex-col h-full p-0 relative min-h-96">
+            <flare-base-data-providers [searchFilter]="searchFilter"
+                [loading]="loadingMap.isLoading('getDataProvidersData')" [dataProvidersData]="dataProvidersData"
+                [dataProvidersTableColumns]="['#', 'name', (isNextRewardEpoch ? 'availability6h' : 'availabilityRewardEpoch'),'successRate','successRateIQR','successRatePct','rewardRate','providerRewards','delegatorsRewards', 'votePower','fee']"
+                (selectedAddress)="handleSelectedDataProvider($event)"></flare-base-data-providers>
+        </div>
+    </div>
+</div>

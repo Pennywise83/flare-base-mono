@@ -3,16 +3,14 @@
     *ngIf="!loading && (claimedRewardsDateHistogramData == null || (claimedRewardsDateHistogramData != null && claimedRewardsDateHistogramData.length == 0))"
     [label]="claimedRewardsDateHistogramData != null ? 'No data found' : null"
     skeletonType="chart"></flare-base-no-data>
-<div class="absolute left-4 top-2 z-10" style="zoom:0.8">
-    <label class="mr-2">Group by</label>
-    <mat-button-toggle-group name="claimedRewardsGroupBy" aria-label="Group by" [(ngModel)]="groupBy">
-        <mat-button-toggle [value]="claimedRewardsGroupByEnum.rewardEpochId"
-            (change)="emitGroupBy(claimedRewardsGroupByEnum.rewardEpochId)">Reward
-            epoch</mat-button-toggle>
-        <mat-button-toggle [value]="claimedRewardsGroupByEnum.timestamp"
-            (change)="emitGroupBy(claimedRewardsGroupByEnum.timestamp)">Claim
-            timestamp</mat-button-toggle>
-    </mat-button-toggle-group>
+<div class="flex absolute right-4 top-4 z-10 justify-start">
+    <div
+    class="pointer-events-auto cursor-pointer flex divide-x divide-slate-400/20 overflow-hidden rounded-md font-medium leading-5  shadow-sm ring-1 ring-slate-700/10 dark:ring-slate-300/10   focus:z-10 focus:ring-2 focus:ring-primary-700 focus:text-primary-700 dark:text-white   dark:focus:text-white">
+        <div [ngClass]="{'bg-slate-200 dark:bg-gray-600': groupBy==claimedRewardsGroupByEnum.rewardEpochId}"
+            (click)="emitGroupBy(claimedRewardsGroupByEnum.rewardEpochId)" class="px-3 py-1 text-xs bg-card hover:bg-gray-100 dark:border-gray-700 hover:text-primary-700 dark:hover:text-white dark:hover:bg-gray-700">Reward epochs</div>
+        <div [ngClass]="{'bg-slate-200 dark:bg-gray-600': groupBy==claimedRewardsGroupByEnum.timestamp}"
+            (click)="emitGroupBy(claimedRewardsGroupByEnum.timestamp)" class="px-3 py-1  text-xs bg-card hover:bg-gray-100 dark:border-gray-700 hover:text-primary-700 dark:hover:text-white dark:hover:bg-gray-700">Claim timestamp</div>
+    </div>
 </div>
 <apx-chart @fadeIn
     *ngIf="claimedRewardsDateHistogramData != null && claimedRewardsDateHistogramData.length > 0 && !loading"

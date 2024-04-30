@@ -1,0 +1,15 @@
+<flare-base-loader [loading]="loading" skeletonType="chart"> </flare-base-loader>
+<flare-base-no-data
+    *ngIf="!loading && (rewardsHistoryData == null || (rewardsHistoryData != null && rewardsHistoryData.length == 0))"
+    [label]="rewardsHistoryData != null ? 'No data found' : null" skeletonType="chart"></flare-base-no-data>
+<div class="flex absolute top-2  right-2 h-8 z-10 space-x-2 justify-end">
+    <button mat-stroked-button class="button-sm button-sm-white text-sm px-1" (click)="fullScreen()">
+        <mat-icon *ngIf="!isFullScreen" class="text-sm" [svgIcon]="'heroicons_outline:arrows-pointing-out'"></mat-icon>
+        <mat-icon *ngIf="isFullScreen" class="text-sm" [svgIcon]="'heroicons_outline:arrows-pointing-in'"></mat-icon>
+    </button>
+</div>
+<apx-chart @fadeIn *ngIf="!loading" #rewardsHistoryChart class="flex-auto w-full h-full" [chart]="chartOptions.chart"
+    [colors]="chartOptions.colors" [dataLabels]="chartOptions.dataLabels" [grid]="chartOptions.grid"
+    [fill]="chartOptions.fill" [plotOptions]="chartOptions.plotOptions" [legend]="chartOptions.legend"
+    [responsive]="chartOptions.responsive" [series]="chartOptions.series" [stroke]="chartOptions.stroke"
+    [tooltip]="chartOptions.tooltip" [xaxis]="chartOptions.xaxis" [yaxis]="chartOptions.yaxis"></apx-chart>

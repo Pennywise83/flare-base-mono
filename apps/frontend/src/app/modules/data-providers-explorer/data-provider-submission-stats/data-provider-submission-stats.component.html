@@ -1,0 +1,313 @@
+<flare-base-loader [loading]="loading" skeletonType="chart" [overlay]="true"></flare-base-loader>
+<flare-base-no-data skeletonType="chart"
+    *ngIf="!loading && (pricesData && pricesData.submissionStats && pricesData.submissionStats.length == 0)"></flare-base-no-data>
+<div *ngIf="!loading  && type == submissionStatsTypes.bar">
+    <div class="flex justify-between px-4 pt-4 pb-0" *ngIf="isCompareMode">
+        <div class="flex flex-row w-full justify-between p-0">
+            <h3 class="shrink-0 text-lg font-medium tracking-tight leading-6 truncate truncate">
+                Success rate
+            </h3>
+            <div
+                class="pointer-events-auto cursor-pointer flex divide-x divide-slate-400/20 overflow-hidden rounded-md font-medium leading-5  shadow-sm ring-1 ring-slate-700/10 dark:ring-slate-300/10   focus:z-10 focus:ring-2 focus:ring-primary-700 focus:text-primary-700 dark:text-white   dark:focus:text-white">
+                <div class="px-3 py-1  text-xs bg-card hover:bg-gray-100 dark:border-gray-700 hover:text-primary-700 dark:hover:text-white dark:hover:bg-gray-700"
+                    [ngClass]="{'bg-slate-200 dark:bg-gray-600': successRateCompareMode == 'global'}"
+                    (click)="successRateCompareMode='global';parseChartData(type)">Global</div>
+                <div class="px-3 py-1  text-xs bg-card hover:bg-gray-100 dark:border-gray-700 hover:text-primary-700 dark:hover:text-white dark:hover:bg-gray-700"
+                    [ngClass]="{'bg-slate-200 dark:bg-gray-600': successRateCompareMode == 'iqr'}"
+                    (click)="successRateCompareMode='iqr'; parseChartData(type)">
+                    IQR</div>
+                <div class="px-3 py-1  text-xs bg-card hover:bg-gray-100 dark:border-gray-700 hover:text-primary-700 dark:hover:text-white dark:hover:bg-gray-700"
+                    [ngClass]="{'bg-slate-200 dark:bg-gray-600': successRateCompareMode == 'pct'}"
+                    (click)="successRateCompareMode='pct';parseChartData(type)">
+                    Pct</div>
+            </div>
+        </div>
+    </div>
+    <div class="flex flex-col px-4 py-0 mt-2" *ngFor="let dp of statsByDataProvider | keyvalue">
+        <ng-container *ngIf="isCompareMode">
+            <span class="flex whitespace-nowrap justify-between">
+                <span class="text-sm">
+                    {{dataProvidersInfoMap[dp.key].name}}</span>
+                <span class="text-sm text-secondary leading-5 ml-2" *ngIf="successRateCompareMode == 'global'">
+                    {{dp.value.global}}%</span>
+                <span class="text-sm text-secondary leading-5 ml-2" *ngIf="successRateCompareMode == 'iqr'">
+                    {{dp.value.iqr}}%</span>
+                <span class="text-sm text-secondary leading-5 ml-2" *ngIf="successRateCompareMode == 'pct'">
+                    {{dp.value.pct}}%</span>
+            </span>
+            <div class="w-full bg-gray-200 rounded-full h-0.5 dark:bg-gray-700"
+                *ngIf="successRateCompareMode == 'global'">
+                <div class="h-0.5 rounded-full "
+                    [ngStyle]="{'width': dp.value.global +'%', 'background-color': dp.value.color}">
+                </div>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-0.5 dark:bg-gray-700" *ngIf="successRateCompareMode == 'iqr'">
+                <div class="h-0.5 rounded-full"
+                    [ngStyle]="{'width': dp.value.iqr +'%', 'background-color': dp.value.color}">
+                </div>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-0.5 dark:bg-gray-700" *ngIf="successRateCompareMode == 'pct'">
+                <div class="h-0.5 rounded-full"
+                    [ngStyle]="{'width': dp.value.pct +'%', 'background-color': dp.value.color}">
+                </div>
+            </div>
+        </ng-container>
+        <ng-container *ngIf="!isCompareMode">
+            <h3 class="shrink-0 mb-2 text-lg font-medium tracking-tight leading-6 truncate truncate">
+                Success rate
+            </h3>
+            <div class="mb-2">
+                <span class="flex whitespace-nowrap justify-between">
+                    <span class="text-sm">
+                        Success rate Global</span>
+                    <span class="text-sm text-secondary leading-5 ml-2">
+                        {{dp.value.global}}%</span>
+                </span>
+                <div class="w-full bg-gray-200 rounded-full h-0.5 dark:bg-gray-700">
+                    <div class="bg-red-500 h-0.5 rounded-full dark:bg-red-400" *ngIf="dp.value.global < 25"
+                        [ngStyle]="{'width': dp.value.global +'%'}">
+                    </div>
+                    <div class="bg-orange-300 h-0.5 rounded-full dark:bg-orange-300"
+                        *ngIf="dp.value.global >= 25 && dp.value.global < 65"
+                        [ngStyle]="{'width': dp.value.global +'%'}">
+                    </div>
+                    <div class="bg-green-400 h-0.5 rounded-full dark:bg-green-300" *ngIf="dp.value.global >= 65"
+                        [ngStyle]="{'width': dp.value.global +'%'}">
+                    </div>
+                </div>
+            </div>
+            <div class="mb-2">
+                <span class="flex whitespace-nowrap justify-between">
+                    <span class="text-sm">
+                        Success rate IQR</span>
+                    <span class="text-sm text-secondary leading-5 ml-2">
+                        {{dp.value.iqr}}%</span>
+                </span>
+                <div class="w-full bg-gray-200 rounded-full h-0.5 dark:bg-gray-700">
+                    <div class="bg-red-500 h-0.5 rounded-full dark:bg-red-400" *ngIf="dp.value.iqr < 25"
+                        [ngStyle]="{'width': dp.value.iqr +'%'}">
+                    </div>
+                    <div class="bg-orange-300 h-0.5 rounded-full dark:bg-orange-300"
+                        *ngIf="dp.value.iqr >= 25 && dp.value.iqr < 65" [ngStyle]="{'width': dp.value.iqr +'%'}">
+                    </div>
+                    <div class="bg-green-400 h-0.5 rounded-full dark:bg-green-300" *ngIf="dp.value.iqr >= 65"
+                        [ngStyle]="{'width': dp.value.iqr +'%'}">
+                    </div>
+                </div>
+            </div>
+            <div class="mb-2">
+                <span class="flex whitespace-nowrap justify-between">
+                    <span class="text-sm">
+                        Success rate Pct</span>
+                    <span class="text-sm text-secondary leading-5 ml-2">
+                        {{dp.value.pct}}%</span>
+                </span>
+                <div class="w-full bg-gray-200 rounded-full h-0.5 dark:bg-gray-700">
+                    <div class="bg-red-500 h-0.5 rounded-full dark:bg-red-400" *ngIf="dp.value.pct < 25"
+                        [ngStyle]="{'width': dp.value.pct +'%'}">
+                    </div>
+                    <div class="bg-orange-300 h-0.5 rounded-full dark:bg-orange-300"
+                        *ngIf="dp.value.pct >= 25 && dp.value.pct < 65" [ngStyle]="{'width': dp.value.pct +'%'}">
+                    </div>
+                    <div class="bg-green-400 h-0.5 rounded-full dark:bg-green-300" *ngIf="dp.value.pct >= 65"
+                        [ngStyle]="{'width': dp.value.pct +'%'}">
+                    </div>
+                </div>
+            </div>
+        </ng-container>
+    </div>
+    <hr class="h-px my-3  border-0 bg-card">
+    <div class="flex flex-row w-full justify-between p-0" *ngIf="isCompareMode">
+        <h3 class="shrink-0  px-4 p-0 text-lg font-medium tracking-tight leading-6 truncate truncate">
+            Availability
+        </h3>
+    </div>
+    <div class="flex flex-col px-4 py-0 mt-2" *ngFor="let dp of statsByDataProvider | keyvalue">
+        <ng-container *ngIf="isCompareMode">
+            <span class="flex whitespace-nowrap justify-between">
+                <span class="text-sm">
+                    {{dataProvidersInfoMap[dp.key].name}}</span>
+                <span class="text-sm text-secondary leading-5 ml-2">
+                    {{dp.value.availability}}%</span>
+            </span>
+            <div class="w-full bg-gray-200 rounded-full h-0.5 dark:bg-gray-700">
+                <div class="h-0.5 rounded-full "
+                    [ngStyle]="{'width': dp.value.availability +'%', 'background-color': dp.value.color}">
+                </div>
+            </div>
+        </ng-container>
+        <ng-container *ngIf="!isCompareMode">
+            <h3 class="shrink-0 mb-2 text-lg font-medium tracking-tight leading-6 truncate truncate">
+                Availability
+            </h3>
+            <div class="mb-2">
+                <span class="flex whitespace-nowrap justify-between">
+                    <span class="text-sm">
+                        Availabilty</span>
+                    <span class="text-sm text-secondary leading-5 ml-2">
+                        {{dp.value.availability}}%</span>
+                </span>
+                <div class="w-full bg-gray-200 rounded-full h-0.5 dark:bg-gray-700">
+                    <div class="bg-red-500 h-0.5 rounded-full dark:bg-red-400" *ngIf="dp.value.availability < 25"
+                        [ngStyle]="{'width': dp.value.availability +'%'}">
+                    </div>
+                    <div class="bg-orange-300 h-0.5 rounded-full dark:bg-orange-300"
+                        *ngIf="dp.value.availability >= 25 && dp.value.availability < 65"
+                        [ngStyle]="{'width': dp.value.availability +'%'}">
+                    </div>
+                    <div class="bg-green-400 h-0.5 rounded-full dark:bg-green-300" *ngIf="dp.value.availability >= 65"
+                        [ngStyle]="{'width': dp.value.availability +'%'}">
+                    </div>
+                </div>
+            </div>
+        </ng-container>
+    </div>
+    <hr class="h-px my-3  border-0 bg-card">
+    <div class="flex justify-between px-4 p-0 pb-0" *ngIf="isCompareMode">
+        <h3 class="shrink-0 text-lg font-medium tracking-tight leading-6 truncate truncate">
+            Rewards
+        </h3>
+        <div
+            class="pointer-events-auto cursor-pointer flex divide-x divide-slate-400/20 overflow-hidden rounded-md font-medium leading-5  shadow-sm ring-1 ring-slate-700/10 dark:ring-slate-300/10   focus:z-10 focus:ring-2 focus:ring-primary-700 focus:text-primary-700 dark:text-white   dark:focus:text-white">
+            <div class="px-3 py-1  text-xs bg-card hover:bg-gray-100 dark:border-gray-700 hover:text-primary-700 dark:hover:text-white dark:hover:bg-gray-700"
+                [ngClass]="{'bg-slate-200 dark:bg-gray-600': rewardsCompareMode == 'rate'}"
+                (click)="rewardsCompareMode='rate';parseChartData(type)">Rate</div>
+            <div class="px-3 py-1  text-xs bg-card hover:bg-gray-100 dark:border-gray-700 hover:text-primary-700 dark:hover:text-white dark:hover:bg-gray-700"
+                [ngClass]="{'bg-slate-200 dark:bg-gray-600': rewardsCompareMode == 'delegators'}"
+                (click)="rewardsCompareMode='delegators'; parseChartData(type)">
+                Delegators</div>
+            <div class="px-3 py-1  text-xs bg-card hover:bg-gray-100 dark:border-gray-700 hover:text-primary-700 dark:hover:text-white dark:hover:bg-gray-700"
+                [ngClass]="{'bg-slate-200 dark:bg-gray-600': rewardsCompareMode == 'provider'}"
+                (click)="rewardsCompareMode='provider';parseChartData(type)">
+                Providers</div>
+        </div>
+    </div>
+    <div [ngClass]="{'mb-3': isCompareMode}">
+        <div class="flex flex-col px-4 py-0 mt-2" *ngFor="let dp of statsByDataProvider | keyvalue">
+            <ng-container *ngIf="isCompareMode">
+                <span class="flex whitespace-nowrap justify-between">
+                    <span class="text-sm">
+                        {{dataProvidersInfoMap[dp.key].name}}</span>
+                    <span class="text-sm text-secondary leading-5 ml-2" *ngIf="rewardsCompareMode == 'rate'">
+                        {{dp.value.rewardRate}} %
+                    </span>
+                    <span class="text-sm text-secondary leading-5 ml-2" *ngIf="rewardsCompareMode == 'delegators'">
+                        {{(dp.value.delegatorRewards | number).split('.')[0]}}<span
+                            class="text-xs text-secondary">.{{dp.value.delegatorRewards.toFixed(2).split('.')[1]
+                            }}</span><span class="text-xs ml-1">{{symbol}}</span></span>
+                    <span class="text-sm text-secondary leading-5 ml-2" *ngIf="rewardsCompareMode == 'provider'">
+                        {{(dp.value.providerRewards | number).split('.')[0]}}<span
+                            class="text-xs text-secondary">.{{dp.value.providerRewards.toFixed(2).split('.')[1]
+                            }}</span><span class="text-xs ml-1">{{symbol}}</span></span>
+                </span>
+                <div class="w-full bg-gray-200 rounded-full h-0.5 dark:bg-gray-700">
+                    <div class="h-0.5 rounded-full "
+                        [ngStyle]="{'width': dp.value.rewardRate+'%', 'background-color': dp.value.color}">
+                    </div>
+                </div>
+            </ng-container>
+            <ng-container *ngIf="!isCompareMode">
+                <h3 class="shrink-0 mb-2 text-lg font-medium tracking-tight leading-6 truncate truncate">
+                    Rewards
+                </h3>
+                <div class="mb-2">
+                    <span class="flex whitespace-nowrap justify-between">
+                        <span class="text-sm">
+                            Reward rate</span>
+                        <span class="text-sm text-secondary leading-5 ml-2">
+                            {{dp.value.rewardRate| number:'1.2-2'}} %
+                        </span>
+                    </span>
+                    <div class="w-full bg-gray-200 rounded-full h-0.5 dark:bg-gray-700">
+                        <div class="bg-red-500 h-0.5 rounded-full dark:bg-red-400" *ngIf="dp.value.rewardRate < 25"
+                            [ngStyle]="{'width': dp.value.rewardRate +'%'}">
+                        </div>
+                        <div class="bg-orange-300 h-0.5 rounded-full dark:bg-orange-300"
+                            *ngIf="dp.value.rewardRate >= 25 && dp.value.rewardRate < 65"
+                            [ngStyle]="{'width': dp.value.rewardRate +'%'}">
+                        </div>
+                        <div class="bg-green-400 h-0.5 rounded-full dark:bg-green-300" *ngIf="dp.value.rewardRate >= 65"
+                            [ngStyle]="{'width': dp.value.rewardRate +'%'}">
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <span class="flex whitespace-nowrap justify-between">
+                        <span class="text-sm">
+                            Delegator rewards</span>
+                        <span class="text-sm text-secondary leading-5 ml-2">
+                            {{(dp.value.delegatorRewards | number).split('.')[0]}}<span
+                                class="text-xs text-secondary">.{{dp.value.delegatorRewards.toFixed(2).split('.')[1]
+                                }}</span><span class="text-xs ml-1">{{symbol}}</span>
+                        </span>
+                    </span>
+                    <div class="w-full bg-gray-200 rounded-full h-0.5 dark:bg-gray-700">
+                        <div class="bg-red-500 h-0.5 rounded-full dark:bg-red-400" *ngIf="dp.value.rewardRate < 25"
+                            [ngStyle]="{'width': dp.value.rewardRate +'%'}">
+                        </div>
+                        <div class="bg-orange-300 h-0.5 rounded-full dark:bg-orange-300"
+                            *ngIf="dp.value.rewardRate >= 25 && dp.value.rewardRate < 65"
+                            [ngStyle]="{'width': dp.value.rewardRate +'%'}">
+                        </div>
+                        <div class="bg-green-400 h-0.5 rounded-full dark:bg-green-300" *ngIf="dp.value.rewardRate >= 65"
+                            [ngStyle]="{'width': dp.value.rewardRate +'%'}">
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <span class="flex whitespace-nowrap justify-between">
+                        <span class="text-sm">
+                            Provider rewards</span>
+                        <span class="text-sm text-secondary leading-5 ml-2">
+                            {{(dp.value.providerRewards | number).split('.')[0]}}<span
+                                class="text-xs text-secondary">.{{dp.value.providerRewards.toFixed(2).split('.')[1]
+                                }}</span><span class="text-xs ml-1">{{symbol}}</span>
+                        </span>
+                    </span>
+                    <div class="w-full bg-gray-200 rounded-full h-0.5 dark:bg-gray-700">
+                        <div class="bg-red-500 h-0.5 rounded-full dark:bg-red-400" *ngIf="dp.value.rewardRate < 25"
+                            [ngStyle]="{'width': dp.value.rewardRate +'%'}">
+                        </div>
+                        <div class="bg-orange-300 h-0.5 rounded-full dark:bg-orange-300"
+                            *ngIf="dp.value.rewardRate >= 25 && dp.value.rewardRate < 65"
+                            [ngStyle]="{'width': dp.value.rewardRate +'%'}">
+                        </div>
+                        <div class="bg-green-400 h-0.5 rounded-full dark:bg-green-300" *ngIf="dp.value.rewardRate >= 65"
+                            [ngStyle]="{'width': dp.value.rewardRate +'%'}">
+                        </div>
+                    </div>
+                </div>
+            </ng-container>
+        </div>
+    </div>
+</div>
+
+<div class="flex absolute top-2  right-2 h-8 z-10 space-x-2 justify-end" *ngIf="type == submissionStatsTypes.radar">
+    <button mat-stroked-button class="button-sm button-sm-white text-sm px-1" (click)="fullScreen()">
+        <mat-icon *ngIf="!isFullScreen" class="text-sm" [svgIcon]="'heroicons_outline:arrows-pointing-out'"></mat-icon>
+        <mat-icon *ngIf="isFullScreen" class="text-sm" [svgIcon]="'heroicons_outline:arrows-pointing-in'"></mat-icon>
+    </button>
+</div>
+<div class="flex justify-end px-4 py-0 " *ngIf="isCompareMode && type == submissionStatsTypes.radar">
+    <div
+        class="pointer-events-auto cursor-pointer flex divide-x divide-slate-400/20 overflow-hidden rounded-md font-medium leading-5  shadow-sm ring-1 ring-slate-700/10 dark:ring-slate-300/10   focus:z-10 focus:ring-2 focus:ring-primary-700 focus:text-primary-700 dark:text-white   dark:focus:text-white">
+        <div class="px-3 py-1  text-xs bg-card hover:bg-gray-100 dark:border-gray-700 hover:text-primary-700 dark:hover:text-white dark:hover:bg-gray-700"
+            [ngClass]="{'bg-slate-200 dark:bg-gray-600': successRateCompareMode == 'global'}"
+            (click)="successRateCompareMode='global';parseChartData(type)">Global</div>
+        <div class="px-3 py-1  text-xs bg-card hover:bg-gray-100 dark:border-gray-700 hover:text-primary-700 dark:hover:text-white dark:hover:bg-gray-700"
+            [ngClass]="{'bg-slate-200 dark:bg-gray-600': successRateCompareMode == 'iqr'}"
+            (click)="successRateCompareMode='iqr'; parseChartData(type)">
+            IQR</div>
+        <div class="px-3 py-1  text-xs bg-card hover:bg-gray-100 dark:border-gray-700 hover:text-primary-700 dark:hover:text-white dark:hover:bg-gray-700"
+            [ngClass]="{'bg-slate-200 dark:bg-gray-600': successRateCompareMode == 'pct'}"
+            (click)="successRateCompareMode='pct';parseChartData(type)">
+            Pct</div>
+    </div>
+</div>
+<apx-chart #dpStatsChart
+    *ngIf="!loading && type == submissionStatsTypes.radar &&  chartOptions && pricesData && pricesData.submissionStats && pricesData.submissionStats.length > 0 && chartOptions.series.length > 0"
+    class="flex-auto w-full h-full overflow-hidden" [series]="chartOptions.series" [chart]="chartOptions.chart"
+    [xaxis]="chartOptions.xaxis" [stroke]="chartOptions.stroke" [colors]="chartOptions.colors"
+    [legend]="chartOptions.legend" [dataLabels]="chartOptions.dataLabels" [tooltip]="chartOptions.tooltip"
+    [labels]="chartOptions.labels" [plotOptions]="chartOptions.plotOptions" [markers]="chartOptions.markers"
+    [yaxis]="chartOptions.yaxis" [fill]="chartOptions.fill" [title]="chartOptions.title"></apx-chart>

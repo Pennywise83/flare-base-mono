@@ -49,6 +49,7 @@ export class ClaimedRewardsChartComponent implements OnInit, OnChanges {
 
     }
     emitGroupBy(groupBy: string) {
+        this.groupBy = ClaimedRewardsGroupByEnum[groupBy];
         this.groupByEvent.emit(ClaimedRewardsGroupByEnum[groupBy]);
     }
     ngOnChanges(changes: SimpleChanges): void {

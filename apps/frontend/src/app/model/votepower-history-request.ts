@@ -9,7 +9,7 @@ export class VotePowerHistoryRequest extends PaginatedRequest {
     sortOrder: SortOrderEnum;
     constructor(address: string, startTime: number, endTime: number) {
         super();
-        this.address = address;
+        this.address = (address && address!=null) ? address.split(',')[0] : address;
         this.startTime = startTime;
         this.endTime = endTime;
         this.sortField = VotePowerSortEnum.timestamp;

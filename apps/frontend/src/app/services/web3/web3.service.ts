@@ -330,6 +330,7 @@ export class Web3Service {
         return this._delegatesOf;
     }
 
+
     public delegate(delegateRequest: DelegatesOfRequest): Observable<Web3ClientMessage> {
         return new Observable<Web3ClientMessage>(observer => {
             let txMessage: Web3ClientMessage = new Web3ClientMessage();

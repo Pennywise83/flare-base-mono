@@ -1,0 +1,280 @@
+<div class="bg-card">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 gap-y-4 md:gap-y-0 min-w-0 pt-4 md:pt-6 pb-0 px-4 md:px-8">
+        <div class="col-span-2 md:col-span-1 relative min-h-8 md:min-h-14 overflow-hidden">
+            <flare-base-loader skeletonType="text" [loading]="loading">
+            </flare-base-loader>
+            <ng-container *ngIf="selectedProviders[0] != null">
+                <div class="flex flex-auto justify-start gap-4" @slideInBottom>
+                    <img class="w-10 h-10 p-1 md:w-12 md:h-12 md:p-1 bg-white rounded-full ring-2 ring-gray-300 dark:ring-gray-500 bg:gray-200 dark:bg-gray-100 mt-1 ml-1"
+                        [src]="selectedProviders[0].icon" [alt]="selectedProviders[0].name+' icon'">
+                    <div class="overflow-hidden">
+                        <h3 class="text-xl md:text-2xl lg:text-3xl font-medium tracking-tight leading-7 truncate">
+                            {{selectedProviders[0].name}}
+                        </h3>
+                        <div class="text-md text-gray-500 dark:text-gray-400 truncate">
+                            {{selectedProviders[0].address}}</div>
+                    </div>
+                </div>
+            </ng-container>
+            <ng-container *ngIf="!selectedProviders[0] || selectedProviders[0] == null">
+                <div class="flex flex-auto justify-start gap-4" @slideInBottom>
+                    <img class="w-10 h-10 p-1 md:w-12 md:h-12 md:p-1 bg-white rounded-full ring-2 ring-gray-300 dark:ring-gray-500 bg:gray-200 dark:bg-gray-100 mt-1 ml-1"
+                        src="assets/images/unknown.png">
+                    <div class="overflow-hidden">
+                        <h3 class="text-xl md:text-2xl lg:text-3xl font-medium tracking-tight leading-7 truncate">
+                            Unknown data provider
+                        </h3>
+                    </div>
+                </div>
+            </ng-container>
+        </div>
+        <div class="flex flex-col col-span-2 md:col-span-1">
+            <div class="flex justify-end space-x-4">
+                <mat-form-field ngDefaultControl *ngIf="!loading" class="button-sm button-sm-light ui-mat-dense w-full"
+                    subscriptSizing="dynamic">
+                    <mat-select [ngModel]="feedsRequest.addressList[0]" [disabled]="loading"
+                        placeholder="Select data provider" class="pb-2" [disabled]="loading"
+                        (selectionChange)="handleDataProviderChange($event)" name="selectDataProvider">
+                        <mat-option [value]="null">
+                            <ngx-mat-select-search ngModel name="selectDataProviderFilter"
+                                noEntriesFoundLabel="No matching data provider found"
+                                placeholderLabel="Filter data providers..."
+                                (ngModelChange)="filterDataProvider($event)">
+                                <mat-icon ngxMatSelectSearchClear class="icon-size-4"
+                                    [svgIcon]="'heroicons_outline:x-mark'"></mat-icon>
+                            </ngx-mat-select-search>
+                        </mat-option>
+                        <ng-container *ngFor="let dpInfo of filteredDataProvidersInfo">
+                            <mat-option [value]="dpInfo.address">
+                                <div class="flex items-center space-x-2">
+                                    <img class="w-8 h-8 p-1 rounded-full ring-icon" [src]="dpInfo.icon"
+                                        [alt]="dpInfo.name+' icon'">
+                                    <div class="dark:text-white leading-4 text-sm">
+                                        <div>
+                                            <a>{{dpInfo.name}}</a>
+                                        </div>
+                                        <div class="text-xs text-gray-500 dark:text-gray-400">
+                                            {{dpInfo.address|addressTrim:9}}</div>
+
+                                    </div>
+                                </div>
+                            </mat-option>
+                        </ng-container>
+                        <mat-select-trigger>
+                            <div class="flex items-center p-1" *ngIf="getDataProviderInfo(feedsRequest.addressList[0])">
+                                <img class="w-6 h-6 p-1 mr-2 rounded-full ring-1 ring-gray-300 dark:ring-gray-500 bg:gray-200 dark:bg-gray-100"
+                                    [src]="getDataProviderInfo(feedsRequest.addressList[0]).icon"
+                                    [alt]="getDataProviderInfo(feedsRequest.addressList[0]).name+' icon'">
+                                <div class="dark:text-white leading-4 text-sm">
+                                    <div>
+                                        <a>{{getDataProviderInfo(feedsRequest.addressList[0]).name}}</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </mat-select-trigger>
+                    </mat-select>
+                </mat-form-field>
+                <button class="ring-1 bg-gray-200 ring-gray-300 dark:ring-gray-600 dark:bg-gray-700"
+                    [disabled]="loading" mat-icon-button (click)="refreshData()">
+                    <ng-icon [ngClass]="{'animate-spin':loading}" class="text-lg text-gray-600 dark:text-gray-400"
+                        name="featherRefreshCw"></ng-icon>
+                </button>
+            </div>
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-1 mt-3 ">
+                <button (click)="openDataProvidersDialog(1)" *ngIf="!selectedProviders[1]"
+                    class="flex w-full py-1 px-3 mr-3 bg-gray-100 hover:bg-primary-200 dark:bg-gray-700 dark:hover:bg-gray-900 border-gray-300 dark:border-gray-600 border border-dashed rounded-xl min-h-8 hover:cursor-pointer opacity-60 hover:opacity-100 text-sm">
+                    <div class="flex overflow-hidden text-center justify-between items-center mx-auto">
+                        <mat-icon class="text-gray-600 dark:text-gray-400"
+                            svgIcon="heroicons_outline:plus-circle"></mat-icon>
+                        <p>Compare with</p>
+                    </div>
+                </button>
+                <button (click)="removeDataProviderFromComparison(1)" *ngIf="selectedProviders[1]"
+                    class="group flex w-full py-1 px-3 mr-3 bg-gray-100 hover:bg-primary-200 dark:bg-gray-700 dark:hover:bg-gray-900 border-gray-300 dark:border-gray-600 border border-dashed rounded-xl min-h-8 hover:cursor-pointer opacity-100 hover:opacity-60 text-sm">
+                    <div class="flex overflow-hidden text-center justify-between items-center mx-auto">
+                        <img class="group-hover:hidden  w-6 h-6 p-0.5 mx-1 bg-card rounded-full ring-0.5 ring-icon "
+                            [src]="selectedProviders[1].icon" [alt]="selectedProviders[1].name+' icon'">
+                        <mat-icon class="hidden group-hover:block mx-1 text-gray-600 dark:text-gray-400"
+                            svgIcon="heroicons_outline:minus-circle"></mat-icon>
+                        <p class="leading-none">
+                            {{selectedProviders[1].name}}
+                        </p>
+                    </div>
+                </button>
+
+                <button (click)="openDataProvidersDialog(2)" *ngIf="!selectedProviders[2]"
+                    class="flex w-full py-1 px-3 mr-3 bg-gray-100 hover:bg-primary-200 dark:bg-gray-700 dark:hover:bg-gray-900 border-gray-300 dark:border-gray-600 border border-dashed rounded-xl min-h-8 hover:cursor-pointer opacity-60 hover:opacity-100 text-sm">
+                    <div class="flex overflow-hidden text-center justify-between items-center mx-auto">
+                        <mat-icon class="text-gray-600 dark:text-gray-400"
+                            svgIcon="heroicons_outline:plus-circle"></mat-icon>
+                        <p>Compare with</p>
+                    </div>
+                </button>
+                <button (click)="removeDataProviderFromComparison(2)" *ngIf="selectedProviders[2]"
+                    class="group flex w-full py-1 px-3 mr-3 bg-gray-100 hover:bg-primary-200 dark:bg-gray-700 dark:hover:bg-gray-900 border-gray-300 dark:border-gray-600 border border-dashed rounded-xl min-h-8 hover:cursor-pointer opacity-100 hover:opacity-60 text-sm">
+                    <div class="flex overflow-hidden text-center justify-between items-center mx-auto">
+                        <img class="group-hover:hidden  w-6 h-6 p-0.5 mx-1 bg-card rounded-full ring-0.5 ring-icon "
+                            [src]="selectedProviders[2].icon" [alt]="selectedProviders[2].name+' icon'">
+                        <mat-icon class="hidden group-hover:block mx-1 text-gray-600 dark:text-gray-400"
+                            svgIcon="heroicons_outline:minus-circle"></mat-icon>
+                        <p class="leading-none">
+                            {{selectedProviders[2].name}}
+                        </p>
+                    </div>
+                </button>
+
+                <button (click)="openDataProvidersDialog(3)" *ngIf="!selectedProviders[3]"
+                    class="flex w-full py-1 px-3 mr-3 bg-gray-100 hover:bg-primary-200 dark:bg-gray-700 dark:hover:bg-gray-900 border-gray-300 dark:border-gray-600 border border-dashed rounded-xl min-h-8 hover:cursor-pointer opacity-60 hover:opacity-100 text-sm">
+                    <div class="flex overflow-hidden text-center justify-between items-center mx-auto">
+                        <mat-icon class="text-gray-600 dark:text-gray-400"
+                            svgIcon="heroicons_outline:plus-circle"></mat-icon>
+                        <p>Compare with</p>
+                    </div>
+                </button>
+                <button (click)="removeDataProviderFromComparison(3)" *ngIf="selectedProviders[3]"
+                    class="group flex w-full py-1 px-3 mr-3 bg-gray-100 hover:bg-primary-200 dark:bg-gray-700 dark:hover:bg-gray-900 border-gray-300 dark:border-gray-600 border border-dashed rounded-xl min-h-8 hover:cursor-pointer opacity-100 hover:opacity-60 text-sm">
+                    <div class="flex overflow-hidden text-center justify-between items-center mx-auto">
+                        <img class="group-hover:hidden  w-6 h-6 p-0.5 mx-1 bg-card rounded-full ring-0.5 ring-icon "
+                            [src]="selectedProviders[3].icon" [alt]="selectedProviders[3].name+' icon'">
+                        <mat-icon class="hidden group-hover:block mx-1 text-gray-600 dark:text-gray-400"
+                            svgIcon="heroicons_outline:minus-circle"></mat-icon>
+                        <p class="leading-none">
+                            {{selectedProviders[3].name}}
+                        </p>
+                    </div>
+                </button>
+
+
+                <button (click)="openDataProvidersDialog(4)" *ngIf="!selectedProviders[4]"
+                    class="flex w-full py-1 px-3 mr-3 bg-gray-100 hover:bg-primary-200 dark:bg-gray-700 dark:hover:bg-gray-900 border-gray-300 dark:border-gray-600 border border-dashed rounded-xl min-h-8 hover:cursor-pointer opacity-60 hover:opacity-100 text-sm">
+                    <div class="flex overflow-hidden text-center justify-between items-center mx-auto">
+                        <mat-icon class="text-gray-600 dark:text-gray-400"
+                            svgIcon="heroicons_outline:plus-circle"></mat-icon>
+                        <p>Compare with</p>
+                    </div>
+                </button>
+                <button (click)="removeDataProviderFromComparison(4)" *ngIf="selectedProviders[4]"
+                    class="group flex w-full py-1 px-3 mr-3 bg-gray-100 hover:bg-primary-200 dark:bg-gray-700 dark:hover:bg-gray-900 border-gray-300 dark:border-gray-600 border border-dashed rounded-xl min-h-8 hover:cursor-pointer opacity-100 hover:opacity-60 text-sm">
+                    <div class="flex overflow-hidden text-center justify-between items-center mx-auto">
+                        <img class="group-hover:hidden  w-6 h-6 p-0.5 mx-1 bg-card rounded-full ring-0.5 ring-icon "
+                            [src]="selectedProviders[4].icon" [alt]="selectedProviders[4].name+' icon'">
+                        <mat-icon class="hidden group-hover:block mx-1 text-gray-600 dark:text-gray-400"
+                            svgIcon="heroicons_outline:minus-circle"></mat-icon>
+                        <p class="leading-none">
+                            {{selectedProviders[4].name}}
+                        </p>
+                    </div>
+                </button>
+            </div>
+        </div>
+        <div class="flex flex-row col-span-1 md:col-span-2 justify-start">
+            <div [ngClass]="{'cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800': selectedProviders[0] != null, 'opacity-30': (!selectedProviders[0] || selectedProviders[0] == null), 'opacity-50': selectedProviders[0] != null && section != sections.feeds}"
+                (click)="navigateTo(sections.feeds)"
+                class="relative flex self-start text-sm pt-1 pb-1 pl-4 md:pl-5 pr-4 overflow-hidden rounded-t-xl border border-b-0 bg-default mr-1">
+                <div class="flex items-center">
+                    <div class="overflow-hidden">
+                        <div class="md:font-medium font-sm leading-6 truncate">Feeds</div>
+                    </div>
+                </div>
+            </div>
+            <div [ngClass]="{'cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800': selectedProviders[0] != null, 'opacity-30': (!selectedProviders[0] || selectedProviders[0] == null), 'opacity-50': selectedProviders[0] != null && section != sections.rewards}"
+                (click)="navigateTo(sections.rewards)"
+                class="relative flex self-start text-sm pt-1 pb-1 pl-4 md:pl-5 pr-4 overflow-hidden rounded-t-xl border border-b-0 bg-default mr-1">
+                <div class="flex items-center">
+                    <div class="overflow-hidden">
+                        <div class="md:font-medium font-sm leading-6 truncate">Rewards</div>
+                    </div>
+                </div>
+            </div>
+            <div [ngClass]="{'cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800': selectedProviders[0] != null, 'opacity-30': (!selectedProviders[0] || selectedProviders[0] == null), 'opacity-50': selectedProviders[0] != null && section != sections.delegations}"
+                (click)="navigateTo(sections.delegations)"
+                class="relative flex self-start text-sm pt-1 pb-1 pl-4 md:pl-5 pr-4 overflow-hidden rounded-t-xl border border-b-0 bg-default mr-1">
+                <div class="flex items-center">
+                    <div class="overflow-hidden">
+                        <div class="md:font-medium font-sm leading-6 truncate">Delegations</div>
+                    </div>
+                </div>
+            </div>
+            <div [ngClass]="{'cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800': selectedProviders[0] != null, 'opacity-30': (!selectedProviders[0] || selectedProviders[0] == null), 'opacity-50': selectedProviders[0] != null && section != sections.votepower}"
+                (click)="navigateTo(sections.votepower)"
+                class="relative flex self-start text-sm pt-1 pb-1 pl-4 md:pl-5 pr-4 overflow-hidden rounded-t-xl border border-b-0 bg-default mr-1">
+                <div class="flex items-center">
+                    <div class="overflow-hidden">
+                        <div class="md:font-medium font-sm leading-6 truncate">Vote power</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+<ng-container *ngIf="!selectedProviders[0] || selectedProviders[0] == null">
+    <div class="p-6">No data found for the given address</div>
+</ng-container>
+<ng-container *ngIf="selectedProviders[0] != null">
+    <flare-base-data-provider-feeds *ngIf="section == sections.feeds" [network]="network"
+        [priceEpochSettings]="priceEpochSettings" (requestUpdate)="feedsRequest=$event"
+        [rewardEpochSettings]="rewardEpochSettings" [refreshTimestamp]="refreshTimestamp" [request]="feedsRequest">
+    </flare-base-data-provider-feeds>
+    <flare-base-rewards-history *ngIf="section == sections.rewards" [rewardEpochSettings]="rewardEpochSettings"
+        [dataProvidersInfo]="dataProviderInfo" [network]="network" [request]="rewardsHistoryRequest"
+        [refreshTimestamp]="refreshTimestamp"></flare-base-rewards-history>
+    <flare-base-data-provider-delegations *ngIf="section == sections.delegations" [request]="delegatorsRequest"
+        [showRewardEpochInfo]="true" [rewardEpochSettings]="rewardEpochSettings"
+        [dataProviderInfo]="selectedProviders[0]" [refreshTimestamp]="refreshTimestamp"
+        [network]="network"></flare-base-data-provider-delegations>
+    <flare-base-votepower-history *ngIf="section == sections.votepower" [rewardEpochSettings]="rewardEpochSettings"
+        [network]="network" [request]="votePowerRequest"
+        [refreshTimestamp]="refreshTimestamp"></flare-base-votepower-history>
+
+
+</ng-container>
+
+<ng-template #dialogTemplate let-dialogRef="dialogRef">
+    <h3 class="modal-title" id="modal-basic-title">Select a Data Provider for comparison</h3>
+    <mat-dialog-content class="relative min-h-32">
+        <div class="flex justify-between items-center mb-4">
+            <mat-form-field class="flex w-full max-w-96 ui-mat-dense" subscriptSizing="dynamic"
+                (input)="searchFilter$.next($event.target)">
+                <input [disabled]="loading" name="filter" matInput autocomplete="off" spellcheck="false"
+                    [(ngModel)]="searchFilter" placeholder="Filter data providers...">
+                <button [disabled]="loading" mat-icon-button matSuffix>
+                    <ng-icon class="text-lg" strokeWidth="2" name="heroMagnifyingGlass"></ng-icon>
+                </button>
+            </mat-form-field>
+        </div>
+        <div class="flex flex-col sm:flex-row items-top max-h-80 overflow-y-auto border rounded-md">
+            <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                <tbody>
+                    <ng-container *ngFor="let ftsoInfo of filteredDataProvidersData">
+                        <tr class="border-b dark:border-gray-700 hover:bg-primary-100 hover:dark:bg-gray-700 hover:cursor-pointer"
+                            (click)="dialogRef.close(ftsoInfo);"
+                            [ngClass]="{'bg-primary text-on-primary hover:bg-primary-800 hover:dark:bg-primary-900' :false}">
+                            <td scope="row" class="px-6 py-1 font-medium whitespace-nowrap">
+                                <span class="whitespace-nowrap">
+                                    <div class="flex items-center space-x-2">
+                                        <img class="w-9 h-9 p-1 rounded-full ring-icon" [src]="ftsoInfo.icon"
+                                            [alt]="ftsoInfo.name+' icon'">
+                                        <div class="leading-4">
+                                            <div>
+                                                <a>{{ftsoInfo.name}}</a>
+                                            </div>
+                                            <div class="text-xs">
+                                                {{ftsoInfo.address}}</div>
+
+                                        </div>
+                                    </div>
+                                </span>
+
+                            </td>
+                        </tr>
+                    </ng-container>
+                </tbody>
+            </table>
+        </div>
+    </mat-dialog-content>
+    <mat-dialog-actions class="flex justify-between">
+
+    </mat-dialog-actions>
+</ng-template>

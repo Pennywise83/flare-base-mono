@@ -6,6 +6,7 @@ import { LoaderComponent } from "app/commons/loader/loader.component";
 import { NoDataComponent } from "app/commons/no-data/no-data.component";
 import { ApexAxisChartSeries, ApexOptions, ChartComponent, NgApexchartsModule } from "ng-apexcharts";
 import { NetworkEnum, RewardEpochSettings, VotePowerDTO } from "../../../../../../../../libs/commons/src";
+import { Utils } from "app/commons/utils";
 
 @Component({
     selector: 'flare-base-vote-power-over-delegations-chart',
@@ -46,6 +47,7 @@ export class VotePowerOverDelegationsChartComponent implements OnInit, OnDestroy
         if (this.votePowerHistory.length > 0) {
             let votePowerChartSeries: ApexAxisChartSeries = [{ name: 'Vote power', data: [] }];
             let totalDelegatorsChartSeries: ApexAxisChartSeries = [{ name: 'Total delegators', data: [] }];
+            let colors: string[] = Utils.getColors();
             this.votePowerHistory.map(r => {
                 votePowerChartSeries[0].data.push({ x: this.rewardEpochSettings.getEndTimeForEpochId(r.rewardEpochId), y: Math.round(r.amount), rewardEpoch: r.rewardEpochId } as any);
                 totalDelegatorsChartSeries[0].data.push({ x: this.rewardEpochSettings.getEndTimeForEpochId(r.rewardEpochId), y: r.delegators, rewardEpoch: r.rewardEpochId } as any);
@@ -60,7 +62,27 @@ export class VotePowerOverDelegationsChartComponent implements OnInit, OnDestroy
             tdMin < 10 ? tdMin = tdMin - 1 : tdMin;
             tdMin > 10 && tdMin < 20 ? tdMin = tdMin - 2 : tdMin;
 
-            this.chartOptions.yaxis[0].min = vpMin - ((vpMax - vpMin) / 4.5);
+            this.chartOptions.colors = colors;
+            this.chartOptions.fill.colors = colors;
+            this.chartOptions.yaxis = [{
+                labels: {
+                    style: {
+                        fontFamily: 'inherit'
+                    },
+                    formatter: (value) => {
+                        return this._decimalPipe.transform(value, '1.0-0');
+                    }
+                },
+                show: false
+            }, {
+                labels: {
+                    formatter: (value) => {
+                        return this._decimalPipe.transform(value, '1.0-0');
+                    }
+                },
+                show: false
+            }],
+                this.chartOptions.yaxis[0].min = vpMin - ((vpMax - vpMin) / 4.5);
             this.chartOptions.yaxis[0].max = vpMax;
             this.chartOptions.yaxis[1].min = tdMin - ((tdMax - tdMin) / 4.5);
             this.chartOptions.yaxis[1].max = tdMax;
@@ -74,8 +96,6 @@ export class VotePowerOverDelegationsChartComponent implements OnInit, OnDestroy
                 this._cdr.detectChanges();
             }
             this._cdr.detectChanges();
-        } else {
-            this._initializeChart();
         }
     }
     _initializeChart(): void {
@@ -98,12 +118,10 @@ export class VotePowerOverDelegationsChartComponent implements OnInit, OnDestroy
                     enabled: false,
                 },
             },
-            colors: ['#00c4e8', '#41d8b4'],
             dataLabels: {
-                enabled: false,
+                enabled: false
             },
             fill: {
-                colors: ['#00c4e8', '#41d8b4'],
                 type: 'gradient',
                 gradient: {
                     shadeIntensity: 1,
@@ -149,6 +167,7 @@ export class VotePowerOverDelegationsChartComponent implements OnInit, OnDestroy
                 labels: {
                     offsetY: -20,
                     style: {
+                        fontFamily: 'inherit',
                         colors: 'rgba(var(--ui-text-secondary-rgb), var(--tw-text-opacity))',
                     },
                 },
@@ -158,22 +177,8 @@ export class VotePowerOverDelegationsChartComponent implements OnInit, OnDestroy
                     enabled: false,
                 }
 
-            },
-            yaxis: [{
-                labels: {
-                    formatter: (value) => {
-                        return this._decimalPipe.transform(value, '1.0-0');
-                    }
-                },
-                show: false
-            }, {
-                labels: {
-                    formatter: (value) => {
-                        return this._decimalPipe.transform(value, '1.0-0');
-                    }
-                },
-                show: false
-            }],
+            }
+
         }
     }
     ngOnInit(): void {

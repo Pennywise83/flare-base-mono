@@ -1,0 +1,19 @@
+<div
+    class="flex flex-col flex-auto p-0 pb-1 col-span-12 md:col-span-12 gap-4 md:gap-6 w-full min-w-0 py-6 px-4 md:px-8 border-t md:-mt-px">
+    <div class="flex flex-col flex-auto p-0 bg-card shadow rounded-lg overflow-hidden max-h-96 zoomable">
+        <div class="flex flex-col h-full p-0 relative min-h-96">
+            <flare-base-rewards-history-chart [loading]="loading" [rewardsHistoryData]="rewardHistory"
+                [dataProvidersInfo]="dataProvidersInfo">
+            </flare-base-rewards-history-chart>
+        </div>
+    </div>
+    <div class="bg-card shadow rounded-lg overflow-hidden mb-6">
+        <div class="flex flex-col flex-auto min-h-60  overflow-y-auto overflow-x-auto  relative">
+            <flare-base-rewards-history-table [dataProvidersInfo]="dataProvidersInfo"
+                [tableColumns]="['rewardEpoch','rewardEpochStartTime','providerRewards','providerRewardsChange','delegatorRewards','delegatorRewardsChange','rewardRate','rewardRateChange']"
+                [rewardsHistoryChange]="rewardsHistoryChange" [loading]="loading" [pageSize]="25"
+                [sortOnColumn]="'rewardEpoch'" [sortOnColumn]="sortOrder.desc"></flare-base-rewards-history-table>
+
+        </div>
+    </div>
+</div>

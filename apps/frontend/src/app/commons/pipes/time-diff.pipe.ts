@@ -44,7 +44,7 @@ export class TimeDiffPipe implements PipeTransform {
             if (counter > 0) {
                 result += this.calculateTime(counter, interval, formatHtml);
 
-                if (interval === displayUnit) {
+                if (interval >= displayUnit) {
                     break;
                 }
 

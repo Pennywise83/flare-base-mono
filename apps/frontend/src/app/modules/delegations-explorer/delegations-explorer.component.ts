@@ -9,6 +9,7 @@ import { MatSelectChange, MatSelectModule } from "@angular/material/select";
 import { Title } from "@angular/platform-browser";
 import { ActivatedRoute, Router, RouterModule } from "@angular/router";
 import { CountdownComponent } from "app/commons/countdown/countdown.component";
+import { DataProviderSearchFilter } from "app/model/data-provider-search-filter";
 import { VotePowerHistoryRequest } from "app/model/votepower-history-request";
 import { VotePowerService } from "app/services/votepower.service";
 import { isEmpty } from "class-validator";
@@ -78,6 +79,7 @@ export class DelegationsExplorerComponent implements OnInit {
     refreshLatestDelegationsTable: boolean;
     votePowerHistoryChange: VotePowerDelegatorsChange[];
     dataProvidersInfo: DataProviderInfo[];
+    isNextRewardEpoch: boolean = false;
 
 
 
@@ -113,7 +115,7 @@ export class DelegationsExplorerComponent implements OnInit {
                     let oldNetwork: NetworkEnum = this._network;
                     this._network = NetworkEnum[this._parentParams['network']];
                     await this._getRewardEpochSettings();
-                    Commons.setPageTitle(`Flare base - ${this._network.charAt(0).toUpperCase() + this._network.slice(1)} - Delegations explorer - Reward epoch: ${this.selectedRewardEpoch}`, this._titleService,this._matomoTracker)
+                    Commons.setPageTitle(`Flare base - ${this._network.charAt(0).toUpperCase() + this._network.slice(1)} - Delegations explorer - Reward epoch: ${this.selectedRewardEpoch}`, this._titleService, this._matomoTracker)
                     await this.refreshData();
                     if (this._network != oldNetwork || !this.initialized) {
                         this.latestDelegations = null;
@@ -151,17 +153,15 @@ export class DelegationsExplorerComponent implements OnInit {
                 this.availableRewardEpochs.unshift(this.rewardEpochSettings.getNextEpochId());
                 if (this._parentParams['rewardEpoch'] == 'current') {
                     this.selectedRewardEpoch = this.rewardEpochSettings.getCurrentEpochId();
+                } else if (this._parentParams['rewardEpoch'] == 'next') {
+                    this.selectedRewardEpoch = this.rewardEpochSettings.getNextEpochId();
                 } else if (parseInt(this._parentParams['rewardEpoch']) > this.rewardEpochSettings.getNextEpochId()) {
                     this.selectedRewardEpoch = this.rewardEpochSettings.getNextEpochId();
+                    this.isNextRewardEpoch = true;
                 } else {
                     this.selectedRewardEpoch = parseInt(this._parentParams['rewardEpoch']);
                 }
-                if (this.selectedRewardEpoch != parseInt(this._parentParams['rewardEpoch'])) {
-                    this._router.navigate([this._network, 'delegations', 'explorer', this.rewardEpochSettings.getCurrentEpochId()]);
-                    resolve(false);
-                } else {
-                    resolve(true);
-                }
+
             }, err => {
                 this._uiNotificationsService.error(`Unable to initialize component`, err);
                 reject(err);
@@ -331,8 +331,3 @@ export class DelegationsExplorerComponent implements OnInit {
 
 }
 
-export class DataProviderSearchFilter {
-    nameOrAddress: string;
-    whitelisted: boolean;
-    listed: boolean;
-}

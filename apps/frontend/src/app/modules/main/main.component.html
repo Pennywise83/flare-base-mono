@@ -16,7 +16,6 @@
             </ng-container>
         </vertical-navigation>
     </ng-container>
-
     <!-- Wrapper -->
     <div
         class="z-10 flex flex-col items-center flex-auto min-w-0 max-w-360 sm:rounded-xl shadow-2xl  overflow-hidden dark:border dark:border-gray-800">
@@ -123,7 +122,7 @@
         <!-- Content -->
         <div class="flex flex-col flex-auto w-full bg-default relative ">
             <div class="absolute inset-0 flex flex-col min-w-0 overflow-y-auto" cdkScrollable>
-                <nav class="flex px-5 py-3 text-gray-700 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hidden sm:block"
+                <nav class="flex px-5 pt-2 pb-1 text-gray-700 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hidden sm:block"
                     aria-label="Breadcrumb">
                     <xng-breadcrumb class="inline-flex items-center space-x-2 rtl:space-x-reverse"
                         [separator]="iconTemplate">
@@ -153,14 +152,24 @@
             <span class="font-medium text-secondary">Flare Base {{currentYear}}</span>
 
             <div class="flex flex-row items-center">
-                <a class="flex items-center text-secondary hover:text-primary mr-3" target="_blank"
-                    href="https://github.com/Pennywise83/flare-base-mono/" title="Flare Base - Github Repository">
-                    <mat-icon class="mr-2 text-secondary icon-size-4" svgIcon="feather:github"></mat-icon>
-                    <span>Github</span></a>
+                <div class="flex items-center gap-3 sm:gap-x-5">
+                    <button class="bg-white dark:bg-gray-900 dark:border-gray-700 dark:hover:bg-gray-800 rounded-lg hover:bg-gray-100 duration-300 transition-colors border px-4 py-1">
+                        <a class="flex items-center text-secondary hover:text-primary" target="_blank"
+                        href="https://github.com/Pennywise83/flare-base-mono/" title="Flare Base - Github Repository">
+                        <mat-icon class="mr-2 text-secondary icon-size-4" svgIcon="feather:github"></mat-icon>
+                        <span>Github</span></a>
+                    </button>
+                
+                    <button class="bg-white dark:bg-gray-900 dark:border-gray-700 dark:hover:bg-gray-800 rounded-lg hover:bg-gray-100 duration-300 transition-colors border px-4 py-1">
+                      
                 <a class="flex items-center text-secondary hover:text-primary" target="_blank"
-                    href="https://twitter.com/ACDTftso" title="ACDTftso - X">
-                    <img class="w-4 h-4 mr-2" src="assets/icons/x-social-media-round-icon.webp">
-                    <span>X</span></a>
+                href="https://twitter.com/ACDTftso" title="ACDTftso - X">
+                <img class="w-4 h-4 mr-2" src="assets/icons/x-social-media-round-icon.webp">
+                <span>X</span></a>
+                    </button>
+                </div>
+
+               
             </div>
             <div class="flex flex-row items-center">
                 <small class="text-secondary mr-1">Brought to you by</small>

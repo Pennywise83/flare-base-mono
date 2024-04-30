@@ -1,0 +1,111 @@
+<flare-base-loader [loading]="loading" skeletonType="table" [overlay]="true"></flare-base-loader>
+<flare-base-no-data skeletonType="table"
+    *ngIf="!loading && (!distributedRewards || distributedRewards.length == 0)"></flare-base-no-data>
+<table @fadeIn fuse class=" transition-opacity ease-in-out duration-300 " mat-table matSort #tableSort="matSort"
+    [matSortActive]="sortOnColumn" [matSortDirection]="sortOrder"
+    *ngIf="distributedRewards && distributedRewards != null && distributedRewards.length>0" [dataSource]="dataSource">
+    <ng-container matColumnDef="symbol">
+        <th mat-header-cell mat-sort-header *matHeaderCellDef>
+            Symbol
+        </th>
+        <td mat-cell 
+            *matCellDef="let distributedReward;">
+            <span class="flex pr-6 whitespace-nowrap ">
+                {{distributedReward.symbol || 'All'}}
+            </span>
+        </td>
+    </ng-container>
+    <ng-container matColumnDef="priceEpochId">
+        <th mat-header-cell mat-sort-header *matHeaderCellDef>
+            Epoch Id
+        </th>
+        <td mat-cell 
+            *matCellDef="let distributedReward;">
+            <span class="flex pr-6 whitespace-nowrap ">
+                {{distributedReward.priceEpochId}}
+            </span>
+        </td>
+    </ng-container>
+    <ng-container matColumnDef="reward">
+        <th mat-header-cell mat-sort-header *matHeaderCellDef>
+            Delegators reward
+        </th>
+        <td mat-cell 
+            *matCellDef="let distributedReward">
+            <span class="flex pr-6 whitespace-nowrap ">
+                <span class="flex pr-6 whitespace-nowrap ">
+                    <span class="flex pr-6 whitespace-nowrap "
+                        matTooltip="{{distributedReward.reward| number: '1.0-18'}}" [matTooltipPosition]="'above'">
+                        {{(distributedReward.reward | number).split('.')[0]}}<span
+                            class="text-xs text-secondary">.{{distributedReward.reward.toFixed(2).split('.')[1]
+                            }}</span><span class="text-xs ml-1">{{symbol}}</span>
+                    </span>
+                </span>
+            </span>
+        </td>
+    </ng-container>
+    <ng-container matColumnDef="providerReward">
+        <th mat-header-cell mat-sort-header *matHeaderCellDef>
+            Provider reward
+        </th>
+        <td mat-cell 
+            *matCellDef="let distributedReward">
+            <span class="flex pr-6 whitespace-nowrap ">
+                <span class="flex pr-6 whitespace-nowrap "
+                    matTooltip="{{distributedReward.providerReward| number: '1.0-18'}}" [matTooltipPosition]="'above'">
+                    {{(distributedReward.providerReward | number).split('.')[0]}}<span
+                        class="text-xs text-secondary">.{{distributedReward.providerReward.toFixed(2).split('.')[1]
+                        }}</span><span class="text-xs ml-1">{{symbol}}</span>
+                </span>
+            </span>
+        </td>
+    </ng-container>
+    <ng-container matColumnDef="timestamp">
+        <th mat-header-cell mat-sort-header *matHeaderCellDef>
+            Date
+        </th>
+        <td mat-cell 
+            *matCellDef="let distributedReward">
+            <span class="flex flex-col items-start leading-4 pr-6 whitespace-nowrap">
+                <span>{{distributedReward.timestamp | date:'MMM dd, y'}}</span>
+                <span class="text-xs text-secondary">{{distributedReward.timestamp |
+                    date:'HH:mm:ss'}}</span>
+            </span>
+        </td>
+    </ng-container>
+    <ng-container matColumnDef="dataProvider">
+        <th mat-header-cell mat-sort-header *matHeaderCellDef>
+            Data provider
+        </th>
+        <td mat-cell 
+            *matCellDef="let distributedReward">
+            <span class="flex pr-6 whitespace-nowrap ">
+                <div class="flex items-center space-x-4">
+                    <img class="w-8 h-8 p-1 rounded-full ring-icon"
+                        [src]="dataProvidersInfoMap[distributedReward.dataProvider].icon"
+                        [alt]="dataProvidersInfoMap[distributedReward.dataProvider].name+' icon'">
+                    <div class="dark:text-white leading-4 hover:underline cursor-pointer">
+                        <div>{{dataProvidersInfoMap[distributedReward.dataProvider].name}}
+                        </div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400"
+                            [matTooltip]="dataProvidersInfoMap[distributedReward.dataProvider].address"
+                            [matTooltipPosition]="'below'">
+                            {{dataProvidersInfoMap[distributedReward.dataProvider].address|addressTrim:8}}</div>
+
+                    </div>
+                </div>
+            </span>
+        </td>
+    </ng-container>
+    <tr class="border-t h-11 py-2 px-4 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 leading-4"
+        mat-header-row *matHeaderRowDef="tableColumns;sticky: false;"></tr>
+    <tr class="text-sm order-row h-10" mat-row @fadeIn *matRowDef="let row; columns: tableColumns;">
+    </tr>
+</table>
+<mat-paginator class="flex items-start"
+    *ngIf="distributedRewards && distributedRewards != null && distributedRewards.length > 0" #tablePaginatior
+    [disabled]="loading||dataSource.data == null || (dataSource.data != null && dataSource.data.length == 0)"
+    [pageSize]="pageSize ? pageSize : distributedRewards.length" [hidePageSize]="hidePageSize" [pageIndex]=" request.page - 1"
+    [length]="distributedRewards.length" [pageSizeOptions]="[10, 25, 50, 100, 250]"
+    [ngClass]="{'justify-start':(paginatorPosition == 'left'|| !paginatorPosition), 'justify-end': paginatorPosition == 'right'}"
+    showFirstLastButtons></mat-paginator>

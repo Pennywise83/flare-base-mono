@@ -1,0 +1,79 @@
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 min-w-0 py-4 md:py-6 px-4 md:px-8">
+    <div class="col-span-1 overflow-hidden justify-end">
+        <h2
+            class="shrink-0 text-2xl md:text-3xl lg:text-4xl font-light tracking-tight leading-7 sm:leading-10 truncate">
+            Vote power history
+        </h2>
+    </div>
+    <form (ngSubmit)="submitForm" name="votePowerHistoryForm"
+        class="flex flex-col md:flex-row md:col-span-2 justify-end items-center">
+        <mat-form-field ngDefaultControl
+            class="button-sm button-sm-light data-provider-select ui-mat-dense mb-2 md:mb-0 md:mr-2 w-full md:max-w-52"
+            subscriptSizing="dynamic">
+            <mat-select [(ngModel)]="request.address" [disabled]="loading" placeholder="Select data provider"
+                class="pb-2" (selectionChange)="handleDataProviderChange($event)" name="selectDataProvider">
+                <mat-option [value]="null">
+                    <ngx-mat-select-search ngModel name="selectDataProviderFilter"
+                        noEntriesFoundLabel="No matching data provider found"
+                        placeholderLabel="Filter data providers..." (ngModelChange)="filterDataProvider($event)">
+                        <mat-icon ngxMatSelectSearchClear class="icon-size-4"
+                            [svgIcon]="'heroicons_outline:x-mark'"></mat-icon>
+                    </ngx-mat-select-search>
+                </mat-option>
+                <mat-option [value]="null">All </mat-option>
+                <ng-container *ngFor="let dpInfo of filteredDataProvidersInfo">
+                    <mat-option [value]="dpInfo.address">
+                        <div class="flex items-center space-x-2">
+                            <img class="w-8 h-8 p-1 rounded-full ring-icon" [src]="dpInfo.icon"
+                                [alt]="dpInfo.name+' icon'">
+                            <div class="dark:text-white leading-4 text-sm">
+                                <div>
+                                    <a>{{dpInfo.name}}</a>
+                                </div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400">
+                                    {{dpInfo.address|addressTrim:9}}</div>
+
+                            </div>
+                        </div>
+                    </mat-option>
+                </ng-container>
+                <mat-select-trigger>
+                    <div class="flex items-center p-1" *ngIf="this.dataProviderInfo && dataProviderInfo.address">
+                        <img class="w-6 h-6 p-1 mr-2 rounded-full ring-1 ring-gray-300 dark:ring-gray-500 bg:gray-200 dark:bg-gray-100"
+                            [src]="this.dataProviderInfo.icon" [alt]="this.dataProviderInfo.name+' icon'">
+                        <div class="dark:text-white leading-4 text-sm">
+                            <div>
+                                <a>{{this.dataProviderInfo.name}}</a>
+                            </div>
+                        </div>
+                    </div>
+                </mat-select-trigger>
+            </mat-select>
+        </mat-form-field>
+        <div class="flex flex-row justify-end items-end md:items-center">
+            <button type="button" name="timeRangeMenu"
+                class="justify-center button-sm button-sm-white mr-2 rounded-md min-w-32" mat-stroked-button
+                [disabled]="loading" [matMenuTriggerFor]="timeRangeMenu">
+                <ng-icon class="text-md text-gray-700 dark:text-gray-300 pt-0.5 mr-2" name="featherClock"></ng-icon>
+                <span class="font-medium text-sm">{{selectedTimeRangeDefinition.label}}</span>
+            </button>
+            <mat-menu #timeRangeMenu="matMenu">
+                <button (click)="setTimeRange(timeRange)" *ngFor="let timeRange of timeRanges"
+                    mat-menu-item>{{timeRange.label}}</button>
+                <button mat-menu-item>Custom range</button>
+            </mat-menu>
+            <button name="exportButton" class="button-sm button-sm-light mr-2" mat-stroked-button (click)="exportCsv()"
+                [disabled]="loading">
+                <ng-icon class="text-md pt-0.5 mr-2" name="featherDownload"></ng-icon>
+                <span class="font-medium text-sm">Export</span>
+            </button>
+            <button type="submit" class="button-sm button-sm-primary  mr-0 " mat-flat-button [color]="'primary'"
+                (click)="submitForm()" [disabled]="loading">
+                <ng-icon class="text-md pt-0.5" name="heroMagnifyingGlass"></ng-icon>
+                <span class="ml-1">Refresh</span>
+            </button>
+        </div>
+    </form>
+</div>
+<flare-base-votepower-history [rewardEpochSettings]="rewardEpochSettings" [network]="network" [request]="request"
+    [refreshTimestamp]="refreshTimestamp" [exportCsvTimestamp]="exportCsvTimestamp"></flare-base-votepower-history>

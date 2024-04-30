@@ -2,6 +2,7 @@ export class TimeRangeDefinition {
     id: string;
     label: string;
     timeDiff: number;
+    isSelected: boolean; 
     constructor(id: string, label: string, timeDiff: number ) {
         this.id = id;
         this.label = label;

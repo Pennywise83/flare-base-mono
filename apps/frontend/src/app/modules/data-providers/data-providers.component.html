@@ -1,6 +1,6 @@
 <flare-base-loader [loading]="loading" skeletonType="table" [progress]="progress"></flare-base-loader>
 <div class="flex flex-col flex-auto  overflow-x-auto overflow-y-auto w-full" *ngIf="dataProvidersData != null">
-    <table @fadeIn fuse class=" transition-opacity ease-in-out duration-300 " mat-table matSort
+    <table @fadeIn class=" transition-opacity ease-in-out duration-300 " mat-table matSort
         [matSortActive]="dataProvidersSort.active" [matSortDirection]="dataProvidersSort.direction"
         #dataProvidersSort="matSort" *ngIf="dataProvidersData && dataProvidersData.length > 0"
         [dataSource]="dataProvidersDataSource" [trackBy]="trackByFn" #dataProvidersTable>
@@ -9,22 +9,21 @@
             <th mat-header-cell *matHeaderCellDef>
                 #
             </th>
-            <td class="pr-0 bg-white dark:bg-gray-800" mat-cell
-                *matCellDef="let ftsoInfo; let i = index;">
+            <td class="pr-0 bg-white dark:bg-gray-800" mat-cell *matCellDef="let ftsoInfo; let i = index;">
                 <div class="flex flex-row justify-between">
                     <span class="flex whitespace-nowrap items-center">{{i+1}}</span>
                     <div class="flex flex-col ">
                         <span
-                            class="inline-flex items-center justify-center w-5 h-5 font-semibold text-green-800 bg-green-100 rounded-full dark:bg-green-400 dark:text-white mb-0.5"
+                            class="inline-flex items-center justify-center w-4 h-4 text-green-800 bg-green-100 rounded-full dark:bg-green-400 dark:text-white mb-0.5"
                             matTooltip="Whitelisted" [matTooltipPosition]="'above'" *ngIf="ftsoInfo.whitelisted">
                             <ng-icon class="text-lg" name="heroCheckBadge"></ng-icon>
                         </span>
                         <span
-                            class="inline-flex items-center justify-center w-5 h-5 font-semibold text-red-600 bg-red-100 rounded-full dark:bg-red-300 dark:text-white mb-0.5"
+                            class="inline-flex items-center justify-center w-4 h-4 text-red-600 bg-red-100 rounded-full dark:bg-red-300 dark:text-white mb-0.5"
                             matTooltip="Not whitelisted" [matTooltipPosition]="'above'" *ngIf="!ftsoInfo.whitelisted">
                             <ng-icon class="text-lg" name="heroCheckBadge"></ng-icon>
                         </span>
-                        <span class="inline-flex items-center justify-center w-5 h-5  font-semibold text-blue-800 bg-blue-100 
+                        <span class="inline-flex items-center justify-center w-4 h-4  font-semibold text-blue-800 bg-blue-100 
             rounded-full dark:bg-blue-400 dark:text-white" matTooltip="Listed provider" [matTooltipPosition]="'above'"
                             *ngIf="ftsoInfo.listed">
                             <ng-icon class="text-lg" name="heroCheckBadge"></ng-icon>
@@ -62,10 +61,8 @@
             <td mat-cell *matCellDef="let ftsoInfo">
                 <span class="flex whitespace-nowrap justify-between">
                     <span>
-                        {{(ftsoInfo.votePower | number).split('.')[0]}}<span
-                            class="text-xs text-secondary">.{{ftsoInfo.votePower.toFixed(2).split('.')[1]
-                            }}</span></span>
-                    <span class="text-xs text-secondary">
+                        {{(ftsoInfo.votePower | number:'1.0-0')}}</span>
+                    <span class="text-xs text-secondary ml-2">
                         {{ftsoInfo.votePowerPercentage| number:'1.2-2'}}%</span>
                 </span>
                 <div class="w-full bg-gray-200 rounded-full h-0.5 dark:bg-gray-700">
@@ -86,7 +83,7 @@
         </ng-container>
         <ng-container matColumnDef="votePowerPercentage">
             <th mat-header-cell mat-sort-header *matHeaderCellDef class="max-w-40">
-                V.P. Percentage
+                Votepower Percentage
             </th>
             <td mat-cell *matCellDef="let ftsoInfo">
                 <div class="flex text-md text-secondary">
@@ -111,7 +108,7 @@
         </ng-container>
         <ng-container matColumnDef="votePowerChange">
             <th mat-header-cell mat-sort-header *matHeaderCellDef>
-                V.p. change
+                Vote power change
             </th>
             <td mat-cell *matCellDef="let ftsoInfo">
                 <span class="flex whitespace-nowrap ">
@@ -143,7 +140,7 @@
         </ng-container>
         <ng-container matColumnDef="numberOfDelegatorsChange">
             <th mat-header-cell mat-sort-header *matHeaderCellDef>
-                D. change
+                Delegators change
             </th>
             <td mat-cell *matCellDef="let ftsoInfo">
                 <span class="flex whitespace-nowrap ">
@@ -163,9 +160,177 @@
                 </span>
             </td>
         </ng-container>
+        <ng-container matColumnDef="rewardRate">
+            <th mat-header-cell mat-sort-header *matHeaderCellDef class="max-w-40">
+                Reward rate
+                <mat-icon class="small-icon text-gray-500" [svgIcon]="'heroicons_outline:information-circle'"
+                    matTooltip="Reward rate in token for every 100 tokens delegated."
+                    [matTooltipPosition]="'above'"></mat-icon>
+            </th>
+            <td mat-cell *matCellDef="let ftsoInfo">
+                <div class="h-4 text-sm">
+                    {{ftsoInfo.rewardRate| number:'1.3-3'}}
+                </div>
+                <div class="text-xs text-secondary">
+                    {{ftsoInfo.previousRewardRate| number:'1.3-3'}}
+                </div>
+            </td>
+        </ng-container>
 
-        <tr class="h-8 text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400" mat-header-row
-            *matHeaderRowDef="dataProvidersTableColumns;"></tr>
-        <tr class="text-sm order-row h-14" mat-row *matRowDef="let row; columns: dataProvidersTableColumns;"></tr>
+        <ng-container matColumnDef="successRate">
+            <th mat-header-cell mat-sort-header *matHeaderCellDef class="max-w-40">
+                Success rate
+                <mat-icon class="small-icon text-gray-500" [svgIcon]="'heroicons_outline:information-circle'"
+                    matTooltip="The success rate of the data provider. The value is  represented as a percentage and calculated by the formula `(successRateIQR + successRatePct) / 2`"
+                    [matTooltipPosition]="'above'"></mat-icon>
+            </th>
+            <td mat-cell *matCellDef="let ftsoInfo">
+                <span class="flex items-center">
+                    <span>
+                        <span class="flex items-end w-0.5 h-4  rounded overflow-hidden" [ngClass]="[round(ftsoInfo.successRate,16) < 2 ? 'bg-red-300' : '',
+                    round(ftsoInfo.successRate,16) >= 2 && round(ftsoInfo.successRate,16) < 4 ? 'bg-orange-200' : '',
+                    round(ftsoInfo.successRate,16) >= 4  ? 'bg-green-200' : '',]">
+                            <span [ngClass]="[(round(ftsoInfo.successRate,16) == 6 ? 'h-full' : 'h-'+round(ftsoInfo.successRate,16)+'/6'),
+                            round(ftsoInfo.successRate,16) < 2 ? 'bg-red-600' : '',
+                            round(ftsoInfo.successRate,16) >= 2 && round(ftsoInfo.successRate,16) < 4 ? 'bg-orange-300' : '',
+                            round(ftsoInfo.successRate,16) >= 4  ? 'bg-green-400' : '',
+                        ]" class="flex w-full"></span>
+                        </span>
+                    </span>
+                    <div class="text-sm ml-2 leading-4">
+                        {{ftsoInfo.successRate| number:'1.2-2'}}
+                        <span class="text-secondary">%</span>
+                    </div>
+                </span>
+            </td>
+        </ng-container>
+
+        <ng-container matColumnDef="successRateIQR">
+            <th mat-header-cell mat-sort-header *matHeaderCellDef class="max-w-40">
+                Success rate IQR
+                <mat-icon class="small-icon text-gray-500" [svgIcon]="'heroicons_outline:information-circle'"
+                    matTooltip="The success rate of the data provider relative to the primary (interquartile) reward bands. The value is  represented as a percentage and calculated by the formula `innerPct + (borderPct/2)`"
+                    [matTooltipPosition]="'above'"></mat-icon>
+            </th>
+            <td mat-cell *matCellDef="let ftsoInfo">
+                <span class="flex items-center">
+                    <span>
+                        <span class="flex items-end w-0.5 h-4  rounded overflow-hidden" [ngClass]="[round(ftsoInfo.successRateIQR,16) < 2 ? 'bg-red-300' : '',
+                    round(ftsoInfo.successRateIQR,16) >= 2 && round(ftsoInfo.successRateIQR,16) < 4 ? 'bg-orange-200' : '',
+                    round(ftsoInfo.successRateIQR,16) >= 4  ? 'bg-green-200' : '',]">
+                            <span [ngClass]="[(round(ftsoInfo.successRateIQR,16) == 6 ? 'h-full' : 'h-'+round(ftsoInfo.successRateIQR,16)+'/6'),
+                            round(ftsoInfo.successRateIQR,16) < 2 ? 'bg-red-600' : '',
+                            round(ftsoInfo.successRateIQR,16) >= 2 && round(ftsoInfo.successRateIQR,16) < 4 ? 'bg-orange-300' : '',
+                            round(ftsoInfo.successRateIQR,16) >= 4  ? 'bg-green-400' : '',
+                        ]" class="flex w-full"></span>
+                        </span>
+                    </span>
+                    <div class="text-sm ml-2 leading-4">
+                        {{ftsoInfo.successRateIQR| number:'1.2-2'}}<span class="text-secondary">%</span>
+                    </div>
+                </span>
+            </td>
+        </ng-container>
+
+        <ng-container matColumnDef="successRatePct">
+            <th mat-header-cell mat-sort-header *matHeaderCellDef class="max-w-40">
+                Success rate Pct
+                <mat-icon class="small-icon text-gray-500" [svgIcon]="'heroicons_outline:information-circle'"
+                    matTooltip="The success rate of the data provider relative to the secondary (elastic) reward bands. The value is  represented as a percentage and calculated by the formula `innerPct + (borderPct/2)`"
+                    [matTooltipPosition]="'above'"></mat-icon>
+            </th>
+            <td mat-cell *matCellDef="let ftsoInfo">
+                <span class="flex items-center">
+                    <span>
+                        <span class="flex items-end w-0.5 h-4  rounded overflow-hidden" [ngClass]="[round(ftsoInfo.successRatePct,16) < 2 ? 'bg-red-300' : '',
+                    round(ftsoInfo.successRatePct,16) >= 2 && round(ftsoInfo.successRatePct,16) < 4 ? 'bg-orange-200' : '',
+                    round(ftsoInfo.successRatePct,16) >= 4  ? 'bg-green-200' : '',]">
+                            <span [ngClass]="[(round(ftsoInfo.successRatePct,16) == 6 ? 'h-full' : 'h-'+round(ftsoInfo.successRatePct,16)+'/6'),
+                            round(ftsoInfo.successRatePct,16) < 2 ? 'bg-red-600' : '',
+                            round(ftsoInfo.successRatePct,16) >= 2 && round(ftsoInfo.successRatePct,16) < 4 ? 'bg-orange-300' : '',
+                            round(ftsoInfo.successRatePct,16) >= 4  ? 'bg-green-400' : '',
+                        ]" class="flex w-full"></span>
+                        </span>
+                    </span>
+                    <div class="text-sm ml-2 leading-4">
+                        {{ftsoInfo.successRatePct| number:'1.2-2'}}<span class="text-secondary">%</span>
+                    </div>
+                </span>
+            </td>
+        </ng-container>
+
+        <ng-container matColumnDef="providerRewards">
+            <th mat-header-cell mat-sort-header *matHeaderCellDef class="max-w-40">
+                Provider rewards
+            </th>
+            <td mat-cell *matCellDef="let ftsoInfo">
+                <div class="justify-end">
+                    <div class="text-sm">
+                        {{ftsoInfo.providerRewards| number:'1.0-0'}} <span
+                            class="text-secondary text-xs">{{getSymbol()}}</span>
+                    </div>
+                </div>
+            </td>
+        </ng-container>
+        <ng-container matColumnDef="delegatorsRewards">
+            <th mat-header-cell mat-sort-header *matHeaderCellDef class="max-w-40">
+                Delegators rewards
+            </th>
+            <td mat-cell *matCellDef="let ftsoInfo">
+                <div class="justify-end">
+                    <div class="text-sm">
+                        {{ftsoInfo.delegatorsRewards| number:'1.0-0'}} <span
+                            class="text-secondary text-xs">{{getSymbol()}}</span>
+                    </div>
+                </div>
+            </td>
+        </ng-container>
+
+        <ng-container matColumnDef="availabilityRewardEpoch">
+            <th mat-header-cell mat-sort-header *matHeaderCellDef class="max-w-40">
+                Availability
+            </th>
+            <td mat-cell *matCellDef="let ftsoInfo">
+                <span class="flex items-center">
+                    <span>
+                        <span class="flex items-end w-0.5 h-4  rounded overflow-hidden" [ngClass]="[round(ftsoInfo.availabilityRewardEpoch,16) < 2 ? 'bg-red-300' : '',
+                        round(ftsoInfo.availabilityRewardEpoch,16) >= 2 && round(ftsoInfo.availabilityRewardEpoch,16) < 4 ? 'bg-orange-200' : '',
+                        round(ftsoInfo.availabilityRewardEpoch,16) >= 4  ? 'bg-green-200' : '',]">
+                            <span [ngClass]="[(round(ftsoInfo.availabilityRewardEpoch,16) == 6 ? 'h-full' : 'h-'+round(ftsoInfo.availabilityRewardEpoch,16)+'/6'),
+                                round(ftsoInfo.availabilityRewardEpoch,16) < 2 ? 'bg-red-600' : '',
+                                round(ftsoInfo.availabilityRewardEpoch,16) >= 2 && round(ftsoInfo.availabilityRewardEpoch,16) < 4 ? 'bg-orange-300' : '',
+                                round(ftsoInfo.availabilityRewardEpoch,16) >= 4  ? 'bg-green-400' : '',
+                            ]" class="flex w-full"></span>
+                        </span>
+                    </span>
+                    <span class="text-sm ml-2 leading-4">{{ftsoInfo.availabilityRewardEpoch|number: '1.1-1'}}<span
+                            class="text-secondary">%</span></span>
+                </span>
+            </td>
+        </ng-container>
+        <ng-container matColumnDef="availability6h">
+            <th mat-header-cell mat-sort-header *matHeaderCellDef class="max-w-40">
+                Availability (6h)
+            </th>
+            <td mat-cell *matCellDef="let ftsoInfo">
+                <div class="text-sm">
+                    {{ftsoInfo.availability6h| number:'1.1-1'}}<span class="text-secondary">%</span>
+                </div>
+            </td>
+        </ng-container>
+        <ng-container matColumnDef="fee">
+            <th mat-header-cell mat-sort-header *matHeaderCellDef class="max-w-40">
+                Fee
+            </th>
+            <td mat-cell *matCellDef="let ftsoInfo">
+                <div class="text-sm">
+                    {{ftsoInfo.fee| number:'1.0-1'}}<span class="text-secondary">%</span>
+                </div>
+            </td>
+        </ng-container>
+
+        <tr class="border-t h-11 py-2 px-4 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 leading-4"
+            mat-header-row *matHeaderRowDef="dataProvidersTableColumns;"></tr>
+        <tr class="text-sm order-row h-12" mat-row *matRowDef="let row; columns: dataProvidersTableColumns;"></tr>
     </table>
 </div>

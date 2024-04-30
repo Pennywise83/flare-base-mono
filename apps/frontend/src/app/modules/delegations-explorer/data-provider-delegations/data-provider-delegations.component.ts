@@ -1,5 +1,5 @@
 import { DecimalPipe } from "@angular/common";
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, ViewEncapsulation } from "@angular/core";
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewEncapsulation } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { MatButtonModule } from "@angular/material/button";
 import { MatOptionModule } from "@angular/material/core";
@@ -9,14 +9,12 @@ import { MatSelectChange, MatSelectModule } from "@angular/material/select";
 import { MatSortModule } from "@angular/material/sort";
 import { MatTableModule } from "@angular/material/table";
 import { MatTooltipModule } from "@angular/material/tooltip";
-import { Title } from "@angular/platform-browser";
 import { ActivatedRoute, Router, RouterLink, RouterLinkActive } from "@angular/router";
 import { AppModule } from "app/app.module";
 import { animations } from "app/commons/animations";
 import { LoaderComponent } from "app/commons/loader/loader.component";
 import { NoDataComponent } from "app/commons/no-data/no-data.component";
 import { UiNotificationsService } from "app/commons/ui-notifications/ui-notifications.service";
-import { Utils } from "app/commons/utils";
 import { DelegationsRequest } from "app/model/delegations-request";
 import { DelegatorsRequest } from "app/model/delegators-request";
 import { LoadingMap } from "app/model/loading-map";
@@ -25,14 +23,10 @@ import { ChartCounterSparklineComponent } from "app/modules/chart-counter-sparkl
 import { CounterComponent } from "app/modules/counter/counter.component";
 import { DelegationsTableComponent } from "app/modules/delegations-table/delegations-table.component";
 import { DelegatotionService } from "app/services/delegations.service";
-import { EpochsService } from "app/services/epochs.service";
-import { FtsoService } from "app/services/ftso.service";
 import { VotePowerService } from "app/services/votepower.service";
-import { isDefined, isEmpty } from "class-validator";
-import { MatomoTracker } from 'ngx-matomo';
-import { Socket } from "ngx-socket-io";
-import { Observable, Subject, forkJoin, takeUntil } from "rxjs";
-import { Commons, DataProviderInfo, DelegationDTO, DelegationsSortEnum, NetworkEnum, PaginatedResult, RewardEpochSettings, SortOrderEnum, VotePowerDTO } from "../../../../../../../libs/commons/src";
+import { isDefined } from "class-validator";
+import { Observable, Subject, forkJoin } from "rxjs";
+import { DataProviderInfo, DelegationDTO, DelegationsSortEnum, NetworkEnum, PaginatedResult, RewardEpochSettings, SortOrderEnum, VotePowerDTO } from "../../../../../../../libs/commons/src";
 import { VotePowerDelegationsChangeTableComponent } from "./vote-power-delegations-table/vote-power-delegations-table.component";
 import { VotePowerOverDelegationsChartComponent } from "./vote-power-over-delegations-chart/vote-power-over-delegations-chart.component";
 
@@ -51,19 +45,15 @@ import { VotePowerOverDelegationsChartComponent } from "./vote-power-over-delega
     changeDetection: ChangeDetectionStrategy.OnPush,
     animations: animations
 })
-export class DataProviderDelegationsComponent implements OnInit, OnDestroy {
-    private _parentParams: { [param: string]: string };
-    private _network: NetworkEnum;
+export class DataProviderDelegationsComponent implements OnInit, OnDestroy, OnChanges {
     private _unsubscribeAll: Subject<any> = new Subject<any>();
-
-    address: string;
-    rewardEpochSettings: RewardEpochSettings;
-    dataProviderInfo: DataProviderInfo = null;
-    availableRewardEpochs: number[] = [];
+    @Input() network: NetworkEnum;
+    @Input() rewardEpochSettings: RewardEpochSettings;
+    @Input() dataProviderInfo: DataProviderInfo = null;
+    @Input() request: DelegatorsRequest;
+    @Input() refreshTimestamp: number;
+    @Input() showRewardEpochInfo: boolean;
     loadingMap: LoadingMap;
-    request: DelegatorsRequest = new DelegatorsRequest(null, null);
-    progress: number = 0;
-    selectedRewardEpoch: number;
     delegatedVotePower: VotePowerDTO = null;
     votePowerChange: number = 0;
     totalDelegatorsChange: number = 0;
@@ -73,63 +63,28 @@ export class DataProviderDelegationsComponent implements OnInit, OnDestroy {
     latestDelegations: PaginatedResult<DelegationDTO[]> = null;
     latestDelegationsTableColumns: string[] = ['timestamp', 'amount', 'from'];
     loading: boolean = false;
+    
+
     constructor(
         private _cdr: ChangeDetectorRef,
         private _route: ActivatedRoute,
         private _router: Router,
         private _uiNotificationsService: UiNotificationsService,
-        private _socket: Socket,
         private _delegationsService: DelegatotionService,
         private _votePowerService: VotePowerService,
-        private _epochsService: EpochsService,
-        private _titleService: Title,
-        private _dataProvidersService: FtsoService,
-        private _matomoTracker: MatomoTracker
     ) {
         this.loadingMap = new LoadingMap(this._cdr);
     }
 
     ngOnInit(): void {
-        Utils.getParentParams(this._route).pipe(takeUntil(this._unsubscribeAll)).subscribe(params => {
-            this._parentParams = { ...this._parentParams, ...params };
-            if (isEmpty(this._parentParams['network']) || isEmpty(this._parentParams['rewardEpoch'])) {
-                this._uiNotificationsService.error(`Unable to initialize component`, `Invalid parameters`);
-                return;
-            }
-            if (this._parentParams['network'] != this._network || this._parentParams['address'] != this.address || parseInt(this._parentParams['rewardEpoch']) != this.selectedRewardEpoch) {
-                this._network = NetworkEnum[this._parentParams['network']];
-                this.address = this._parentParams['address'];
-                this._epochsService.getRewardEpochSettings(this._network).subscribe(rewardEpochSettingsRes => {
-                    this.rewardEpochSettings = rewardEpochSettingsRes;
-                    this.availableRewardEpochs = [...this.rewardEpochSettings.getEpochIdsFromTimeRange(0, new Date().getTime())].sort((a, b) => b - a);
-                    this.availableRewardEpochs.splice(this.availableRewardEpochs.indexOf(0), 1);
-                    this.availableRewardEpochs.unshift(this.rewardEpochSettings.getNextEpochId());
-                    if (this._parentParams['rewardEpoch'] == 'current') {
-                        this.selectedRewardEpoch = this.rewardEpochSettings.getCurrentEpochId();
-                    } else if (parseInt(this._parentParams['rewardEpoch']) > this.rewardEpochSettings.getNextEpochId()) {
-                        this.selectedRewardEpoch = this.rewardEpochSettings.getNextEpochId();
-                    } else {
-                        this.selectedRewardEpoch = parseInt(this._parentParams['rewardEpoch']);
-                    }
-                    if (this.selectedRewardEpoch != parseInt(this._parentParams['rewardEpoch'])) {
-                        this._router.navigate([this._network, 'delegations', 'explorer', this.rewardEpochSettings.getCurrentEpochId(), this.address]);
-                    }
-                    this.request = new DelegatorsRequest(this.address, this.selectedRewardEpoch);
-                    this._parseQueryParams();
-                }, rewardEpochSettingsErr => {
-                    this._uiNotificationsService.error(`Unable to initialize component`, rewardEpochSettingsErr);
-                    return;
-                }).add(() => {
-                    this.refreshData(this.request);
-                });
-            }
-        });
+        this._parseQueryParams();
+        this.refreshData(this.request);
     }
     selectDelegator(delegator: { value: string, targetRoute: string[] }): void {
         if (delegator.targetRoute.includes('delegations')) {
-            this._router.navigate([this._network, ...delegator.targetRoute], { queryParams: { from: delegator.value } });
+            this._router.navigate([this.network, ...delegator.targetRoute], { queryParams: { from: delegator.value } });
         } else if (delegator.targetRoute.includes('rewards')) {
-            this._router.navigate([this._network, ...delegator.targetRoute], { queryParams: { whoClaimed: delegator.value } });
+            this._router.navigate([this.network, ...delegator.targetRoute], { queryParams: { whoClaimed: delegator.value } });
         }
     }
 
@@ -138,11 +93,8 @@ export class DataProviderDelegationsComponent implements OnInit, OnDestroy {
         this._unsubscribeAll.complete();
     }
 
-
-
-
     handleRewardEpochChange(rewardEpoch: MatSelectChange): void {
-        this._router.navigate([this._network, 'delegations', 'explorer', rewardEpoch.value == 0 ? 'live' : rewardEpoch.value, this.address], {
+        this._router.navigate([this.network, 'delegations', 'explorer', rewardEpoch.value == 0 ? 'live' : rewardEpoch.value, this.request.address], {
             queryParams: {
                 page: this.request.page,
                 pageSize: this.request.pageSize,
@@ -163,7 +115,7 @@ export class DataProviderDelegationsComponent implements OnInit, OnDestroy {
     private _getDelegatorsAt(request: DelegatorsRequest): Observable<PaginatedResult<DelegationDTO[]>> {
         return new Observable<PaginatedResult<DelegationDTO[]>>(observer => {
             this.loadingMap.setLoading('getDelegatorsAt', true);
-            this._delegationsService.getDelegators(this._network, request).subscribe(delegatorsRes => {
+            this._delegationsService.getDelegators(this.network, request).subscribe(delegatorsRes => {
                 this._updateQueryParams(request.page, request.pageSize, request.sortField, request.sortOrder);
                 this.delegationsData = delegatorsRes;
                 observer.next(delegatorsRes);
@@ -178,28 +130,14 @@ export class DataProviderDelegationsComponent implements OnInit, OnDestroy {
         });
     }
 
-    private _getDataProvidersInfo(address: string): Observable<DataProviderInfo> {
-        return new Observable<DataProviderInfo>(observer => {
-            this.loadingMap.setLoading('getDataProviderInfo', true);
-            this._dataProvidersService.getDataProviderInfoByAddress(this._network, address).subscribe(res => {
-                this.dataProviderInfo = res;
-                observer.next(res);
-            }, err => {
-                this._uiNotificationsService.error('Unable to get data provider info', err);
-                observer.error(err);
-            }).add(() => {
-                this.loadingMap.setLoading('getDataProviderInfo', false);
-                observer.complete();
-            });
-        });
-    }
+
     private _getLatestDelegations(address: string, startTime: number, endTime: number, size: number): Observable<PaginatedResult<DelegationDTO[]>> {
         return new Observable<PaginatedResult<DelegationDTO[]>>(observer => {
             this.loadingMap.setLoading('getLatestDelegations', true);
             const request: DelegationsRequest = new DelegationsRequest(null, address, startTime, endTime);
             request.pageSize = size;
             this.latestDelegations = null;
-            this._delegationsService.getDelegations(this._network, request).subscribe(latestDelegations => {
+            this._delegationsService.getDelegations(this.network, request).subscribe(latestDelegations => {
                 this.latestDelegations = latestDelegations;
                 this._cdr.detectChanges();
                 observer.next(latestDelegations);
@@ -213,17 +151,15 @@ export class DataProviderDelegationsComponent implements OnInit, OnDestroy {
         });
     }
     refreshData(request: DelegatorsRequest): void {
-        const startTime: number = this.rewardEpochSettings.getStartTimeForEpochId(this.selectedRewardEpoch - 60);
-        const endTime: number = this.rewardEpochSettings.getEndTimeForEpochId(this.selectedRewardEpoch);
+        const startTime: number = this.rewardEpochSettings.getStartTimeForEpochId(this.request.epochId - 60);
+        const endTime: number = this.rewardEpochSettings.getEndTimeForEpochId(this.request.epochId);
         this.loading = true;
         const calls: Observable<PaginatedResult<DelegationDTO[]> | DataProviderInfo | VotePowerDTO[] | PaginatedResult<DelegationDTO[]>>[] = [
             this._getDelegatorsAt(request),
-            this._getDataProvidersInfo(this.address),
             this._getDelegatedVotePowerHistory(startTime, endTime),
-            this._getLatestDelegations(this.address, startTime, endTime, 250)
+            this._getLatestDelegations(this.request.address, startTime, endTime, 250)
         ];
         forkJoin(calls).subscribe(res => {
-            Commons.setPageTitle(`Flare base - ${this._network.charAt(0).toUpperCase() + this._network.slice(1)} - Delegations explorer - ${this.dataProviderInfo.name} (${this.selectedRewardEpoch})`, this._titleService,this._matomoTracker)
         }).add(() => {
             this.loading = false;
             this._cdr.detectChanges();
@@ -253,7 +189,7 @@ export class DataProviderDelegationsComponent implements OnInit, OnDestroy {
         this.votePowerChange = null;
         this.totalDelegatorsChange = null;
         if (this.delegatedVotePowerHistory.length > 0) {
-            this.delegatedVotePower = this.delegatedVotePowerHistory.filter(ds => ds.rewardEpochId == this.selectedRewardEpoch)[0];
+            this.delegatedVotePower = this.delegatedVotePowerHistory.filter(ds => ds.rewardEpochId == this.request.epochId)[0];
             this.votePowerChange = (((this.delegatedVotePower.amount * 100) / this.delegatedVotePowerHistory[1].amount) - 100);
             this.totalDelegatorsChange = (((this.delegatedVotePower.delegators * 100) / this.delegatedVotePowerHistory[1].delegators) - 100);
         }
@@ -262,9 +198,9 @@ export class DataProviderDelegationsComponent implements OnInit, OnDestroy {
     private _getDelegatedVotePowerHistory(startTime: number, endTime: number): Observable<VotePowerDTO[]> {
         return new Observable<VotePowerDTO[]>(observer => {
             this.loadingMap.setLoading('getDelegatedVotePowerHistory', true);
-            let request: VotePowerHistoryRequest = new VotePowerHistoryRequest(this.address, startTime, endTime);
+            let request: VotePowerHistoryRequest = new VotePowerHistoryRequest(this.request.address, startTime, endTime);
             request.pageSize = 60;
-            this._votePowerService.getDelegatedVotePowerHistory(this._network, request).subscribe(votePowerHistory => {
+            this._votePowerService.getDelegatedVotePowerHistory(this.network, request).subscribe(votePowerHistory => {
                 if (votePowerHistory.results.length > 0) {
                     this.delegatedVotePowerHistory = votePowerHistory.results;
                     this.votePowerHistoryChange = DataProviderDelegationsComponent.getVotePowerAndDelegatorsChange(votePowerHistory.results, votePowerHistory.results.length - 1, this.rewardEpochSettings);
@@ -290,7 +226,6 @@ export class DataProviderDelegationsComponent implements OnInit, OnDestroy {
         this.request.pageSize = isNaN(parseInt(this._route.snapshot.queryParamMap.get('pageSize'))) ? 25 : parseInt(this._route.snapshot.queryParamMap.get('pageSize'));
         this.request.sortField = (isDefined(this._route.snapshot.queryParamMap.get('sortField')) && isDefined(DelegationsSortEnum[this._route.snapshot.queryParamMap.get('sortField')])) ? DelegationsSortEnum[this._route.snapshot.queryParamMap.get('sortField')] : DelegationsSortEnum.timestamp;
         this.request.sortOrder = (isDefined(this._route.snapshot.queryParamMap.get('sortOrder')) && isDefined(SortOrderEnum[this._route.snapshot.queryParamMap.get('sortOrder')])) ? SortOrderEnum[this._route.snapshot.queryParamMap.get('sortOrder')] : SortOrderEnum.desc;
-        //this._updateQueryParams(this.request.page, this.request.pageSize, this.request.sortField, this.request.sortOrder);
     }
 
 
@@ -311,10 +246,15 @@ export class DataProviderDelegationsComponent implements OnInit, OnDestroy {
         });
     }
     showVotePowerHistory(): void {
-        this._router.navigate([this._network, 'delegations', 'votepower-history'], { queryParams: { address: this.address } });
+        this._router.navigate([this.network, 'delegations', 'votepower-history'], { queryParams: { address: this.request.address } });
     }
     showDelegations(): void {
-        this._router.navigate([this._network, 'delegations', 'search'], { queryParams: { to: this.address } });
+        this._router.navigate([this.network, 'delegations', 'search'], { queryParams: { to: this.request.address } });
+    }
+    ngOnChanges(changes: SimpleChanges): void {
+        if ((changes.refreshTimestamp && !changes.refreshTimestamp.isFirstChange() && changes.refreshTimestamp.currentValue != changes.refreshTimestamp.previousValue)) {
+            this.refreshData(this.request);
+        }
     }
 }
 

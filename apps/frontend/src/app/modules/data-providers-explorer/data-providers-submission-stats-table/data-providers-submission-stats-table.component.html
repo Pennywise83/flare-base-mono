@@ -1,0 +1,287 @@
+<flare-base-loader [loading]="loading" skeletonType="table" [overlay]="true"></flare-base-loader>
+<flare-base-no-data skeletonType="table"
+    *ngIf="!loading && (!submissionStats || submissionStats.length == 0)"></flare-base-no-data>
+<table @fadeIn fuse class=" transition-opacity ease-in-out duration-300 " mat-table matSort #tableSort="matSort"
+    [matSortActive]="sortOnColumn" [matSortDirection]="sortOrder"
+    *ngIf="submissionStats && submissionStats != null && submissionStats.length>0" [dataSource]="dataSource">
+    <ng-container matColumnDef="symbol">
+        <th mat-header-cell mat-sort-header *matHeaderCellDef>
+            Symbol
+        </th>
+        <td mat-cell [ngClass]="{'bg-gray-50 dark:bg-gray-700':(availableSymbols.indexOf(submissionStat.symbol)) % 2 == 0}" *matCellDef="let submissionStat;"> 
+            <span class="flex pr-6 whitespace-nowrap ">
+                {{submissionStat.symbol || 'All'}}
+            </span>
+        </td>
+    </ng-container>
+    <ng-container matColumnDef="numberOfCases">
+        <th mat-header-cell mat-sort-header *matHeaderCellDef>
+            Number of cases
+        </th>
+        <td mat-cell [ngClass]="{'bg-gray-50 dark:bg-gray-700':(availableSymbols.indexOf(submissionStat.symbol)) % 2 == 0}" *matCellDef="let submissionStat">
+            <span class="flex pr-6 whitespace-nowrap ">
+                {{submissionStat.numberOfCases}}
+            </span>
+        </td>
+    </ng-container>
+    <ng-container matColumnDef="outIQR">
+        <th mat-header-cell mat-sort-header *matHeaderCellDef>
+            Out IQR
+        </th>
+        <td mat-cell [ngClass]="{'bg-gray-50 dark:bg-gray-700':(availableSymbols.indexOf(submissionStat.symbol)) % 2 == 0}" *matCellDef="let submissionStat">
+            <span class="flex whitespace-nowrap justify-between">
+                <span>
+                    {{(submissionStat.outIQRCases | number:'1.0-0')}}</span>
+                <span class="text-xs text-secondary ml-2">
+                    {{submissionStat.outIQR| number:'1.1-1'}}%</span>
+            </span>
+            <div class="w-full bg-gray-200 rounded-full h-0.5 dark:bg-gray-700">
+                <div class="bg-red-500 h-0.5 rounded-full dark:bg-red-400" *ngIf="submissionStat.outIQR < 25"
+                    [ngStyle]="{'width': submissionStat.outIQR +'%'}">
+                </div>
+                <div class="bg-orange-300 h-0.5 rounded-full dark:bg-orange-300"
+                    *ngIf="submissionStat.outIQR >= 25 && submissionStat.outIQR < 65"
+                    [ngStyle]="{'width': submissionStat.outIQR +'%'}">
+                </div>
+                <div class="bg-green-400 h-0.5 rounded-full dark:bg-green-300" *ngIf="submissionStat.outIQR >= 65"
+                    [ngStyle]="{'width': submissionStat.outIQR +'%'}">
+                </div>
+
+            </div>
+        </td>
+    </ng-container>
+    <ng-container matColumnDef="outPct">
+        <th mat-header-cell mat-sort-header *matHeaderCellDef>
+            Out Pct
+        </th>
+        <td mat-cell [ngClass]="{'bg-gray-50 dark:bg-gray-700':(availableSymbols.indexOf(submissionStat.symbol)) % 2 == 0}" *matCellDef="let submissionStat">
+            <span class="flex whitespace-nowrap justify-between">
+                <span>
+                    {{(submissionStat.outPctCases | number:'1.0-0')}}</span>
+                <span class="text-xs text-secondary ml-2">
+                    {{submissionStat.outPct| number:'1.1-1'}}%</span>
+            </span>
+            <div class="w-full bg-gray-200 rounded-full h-0.5 dark:bg-gray-700">
+                <div class="bg-red-500 h-0.5 rounded-full dark:bg-red-400" *ngIf="submissionStat.outPct < 25"
+                    [ngStyle]="{'width': submissionStat.outPct +'%'}">
+                </div>
+                <div class="bg-orange-300 h-0.5 rounded-full dark:bg-orange-300"
+                    *ngIf="submissionStat.outPct >= 25 && submissionStat.outPct < 65"
+                    [ngStyle]="{'width': submissionStat.outPct +'%'}">
+                </div>
+                <div class="bg-green-400 h-0.5 rounded-full dark:bg-green-300" *ngIf="submissionStat.outPct >= 65"
+                    [ngStyle]="{'width': submissionStat.outPct +'%'}">
+                </div>
+
+            </div>
+        </td>
+    </ng-container>
+    <ng-container matColumnDef="borderIQR">
+        <th mat-header-cell mat-sort-header *matHeaderCellDef>
+            Border IQR
+        </th>
+        <td mat-cell [ngClass]="{'bg-gray-50 dark:bg-gray-700':(availableSymbols.indexOf(submissionStat.symbol)) % 2 == 0}" *matCellDef="let submissionStat">
+            <span class="flex whitespace-nowrap justify-between">
+                <span>
+                    {{(submissionStat.borderIQRCases | number:'1.0-0')}}</span>
+                <span class="text-xs text-secondary ml-2">
+                    {{submissionStat.borderIQR| number:'1.1-1'}}%</span>
+            </span>
+            <div class="w-full bg-gray-200 rounded-full h-0.5 dark:bg-gray-700">
+                <div class="bg-red-500 h-0.5 rounded-full dark:bg-red-400" *ngIf="submissionStat.borderIQR < 25"
+                    [ngStyle]="{'width': submissionStat.borderIQR +'%'}">
+                </div>
+                <div class="bg-orange-300 h-0.5 rounded-full dark:bg-orange-300"
+                    *ngIf="submissionStat.borderIQR >= 25 && submissionStat.borderIQR < 65"
+                    [ngStyle]="{'width': submissionStat.borderIQR +'%'}">
+                </div>
+                <div class="bg-green-400 h-0.5 rounded-full dark:bg-green-300" *ngIf="submissionStat.borderIQR >= 65"
+                    [ngStyle]="{'width': submissionStat.borderIQR +'%'}">
+                </div>
+            </div>
+        </td>
+    </ng-container>
+    <ng-container matColumnDef="borderPct">
+        <th mat-header-cell mat-sort-header *matHeaderCellDef>
+            Border Pct
+        </th>
+        <td mat-cell [ngClass]="{'bg-gray-50 dark:bg-gray-700':(availableSymbols.indexOf(submissionStat.symbol)) % 2 == 0}" *matCellDef="let submissionStat">
+            <span class="flex whitespace-nowrap justify-between">
+                <span>
+                    {{(submissionStat.borderPctCases | number:'1.0-0')}}</span>
+                <span class="text-xs text-secondary ml-2">
+                    {{submissionStat.borderPct| number:'1.1-1'}}%</span>
+            </span>
+            <div class="w-full bg-gray-200 rounded-full h-0.5 dark:bg-gray-700">
+                <div class="bg-red-500 h-0.5 rounded-full dark:bg-red-400" *ngIf="submissionStat.Pct < 25"
+                    [ngStyle]="{'width': submissionStat.borderPct +'%'}">
+                </div>
+                <div class="bg-orange-300 h-0.5 rounded-full dark:bg-orange-300"
+                    *ngIf="submissionStat.borderPct >= 25 && submissionStat.borderPct < 65"
+                    [ngStyle]="{'width': submissionStat.borderPct +'%'}">
+                </div>
+                <div class="bg-green-400 h-0.5 rounded-full dark:bg-green-300" *ngIf="submissionStat.borderPct >= 65"
+                    [ngStyle]="{'width': submissionStat.borderPct +'%'}">
+                </div>
+
+            </div>
+        </td>
+    </ng-container>
+    <ng-container matColumnDef="innerIQR">
+        <th mat-header-cell mat-sort-header *matHeaderCellDef>
+            Inner IQR
+        </th>
+        <td mat-cell [ngClass]="{'bg-gray-50 dark:bg-gray-700':(availableSymbols.indexOf(submissionStat.symbol)) % 2 == 0}" *matCellDef="let submissionStat">
+            <span class="flex whitespace-nowrap justify-between">
+                <span>
+                    {{(submissionStat.innerIQRCases | number:'1.0-0')}}</span>
+                <span class="text-xs text-secondary ml-2">
+                    {{submissionStat.innerIQR| number:'1.1-1'}}%</span>
+            </span>
+            <div class="w-full bg-gray-200 rounded-full h-0.5 dark:bg-gray-700">
+                <div class="bg-red-500 h-0.5 rounded-full dark:bg-red-400" *ngIf="submissionStat.innerIQR < 25"
+                    [ngStyle]="{'width': submissionStat.innerIQR +'%'}">
+                </div>
+                <div class="bg-orange-300 h-0.5 rounded-full dark:bg-orange-300"
+                    *ngIf="submissionStat.innerIQR >= 25 && submissionStat.innerIQR < 65"
+                    [ngStyle]="{'width': submissionStat.innerIQR +'%'}">
+                </div>
+                <div class="bg-green-400 h-0.5 rounded-full dark:bg-green-300" *ngIf="submissionStat.innerIQR >= 65"
+                    [ngStyle]="{'width': submissionStat.innerIQR +'%'}">
+                </div>
+
+            </div>
+        </td>
+    </ng-container>
+    <ng-container matColumnDef="innerPct">
+        <th mat-header-cell mat-sort-header *matHeaderCellDef>
+            Inner Pct
+        </th>
+        <td mat-cell [ngClass]="{'bg-gray-50 dark:bg-gray-700':(availableSymbols.indexOf(submissionStat.symbol)) % 2 == 0}" *matCellDef="let submissionStat">
+            <span class="flex whitespace-nowrap justify-between">
+                <span>
+                    {{(submissionStat.innerPctCases | number:'1.0-0')}}</span>
+                <span class="text-xs text-secondary ml-2">
+                    {{submissionStat.innerPct| number:'1.1-1'}}%</span>
+            </span>
+            <div class="w-full bg-gray-200 rounded-full h-0.5 dark:bg-gray-700">
+                <div class="bg-red-500 h-0.5 rounded-full dark:bg-red-400" *ngIf="submissionStat.innerPct < 25"
+                    [ngStyle]="{'width': submissionStat.innerPct +'%'}">
+                </div>
+                <div class="bg-orange-300 h-0.5 rounded-full dark:bg-orange-300"
+                    *ngIf="submissionStat.innerPct >= 25 && submissionStat.innerPct < 65"
+                    [ngStyle]="{'width': submissionStat.innerPct +'%'}">
+                </div>
+                <div class="bg-green-400 h-0.5 rounded-full dark:bg-green-300" *ngIf="submissionStat.innerPct >= 65"
+                    [ngStyle]="{'width': submissionStat.innerPct +'%'}">
+                </div>
+
+            </div>
+        </td>
+    </ng-container>
+    <ng-container matColumnDef="successRateIQR">
+        <th mat-header-cell mat-sort-header *matHeaderCellDef>
+            Success rate IQR
+        </th>
+        <td mat-cell [ngClass]="{'bg-gray-50 dark:bg-gray-700':(availableSymbols.indexOf(submissionStat.symbol)) % 2 == 0}" *matCellDef="let submissionStat">
+            <span class="flex whitespace-nowrap justify-between">
+                <span>
+                    {{(submissionStat.successRateIQRCases | number:'1.0-0')}}</span>
+                <span class="text-xs text-secondary ml-2">
+                    {{submissionStat.successRateIQR| number:'1.1-1'}}%</span>
+            </span>
+            <div class="w-full bg-gray-200 rounded-full h-0.5 dark:bg-gray-700">
+                <div class="bg-red-500 h-0.5 rounded-full dark:bg-red-400" *ngIf="submissionStat.successRateIQR < 25"
+                    [ngStyle]="{'width': submissionStat.successRateIQR +'%'}">
+                </div>
+                <div class="bg-orange-300 h-0.5 rounded-full dark:bg-orange-300"
+                    *ngIf="submissionStat.successRateIQR >= 25 && submissionStat.successRateIQR < 65"
+                    [ngStyle]="{'width': submissionStat.successRateIQR +'%'}">
+                </div>
+                <div class="bg-green-400 h-0.5 rounded-full dark:bg-green-300" *ngIf="submissionStat.successRateIQR >= 65"
+                    [ngStyle]="{'width': submissionStat.successRateIQR +'%'}">
+                </div>
+
+            </div>
+        </td>
+    </ng-container>
+    <ng-container matColumnDef="successRatePct">
+        <th mat-header-cell mat-sort-header *matHeaderCellDef>
+            Success rate Pct
+        </th>
+        <td mat-cell [ngClass]="{'bg-gray-50 dark:bg-gray-700':(availableSymbols.indexOf(submissionStat.symbol)) % 2 == 0}" *matCellDef="let submissionStat">
+            <span class="flex whitespace-nowrap justify-between">
+                <span>
+                    {{(submissionStat.successRatePctCases | number:'1.0-0')}}</span>
+                <span class="text-xs text-secondary ml-2">
+                    {{submissionStat.successRatePct| number:'1.1-1'}}%</span>
+            </span>
+            <div class="w-full bg-gray-200 rounded-full h-0.5 dark:bg-gray-700">
+                <div class="bg-red-500 h-0.5 rounded-full dark:bg-red-400" *ngIf="submissionStat.successRatePct < 25"
+                    [ngStyle]="{'width': submissionStat.successRatePct +'%'}">
+                </div>
+                <div class="bg-orange-300 h-0.5 rounded-full dark:bg-orange-300"
+                    *ngIf="submissionStat.successRatePct >= 25 && submissionStat.successRatePct < 65"
+                    [ngStyle]="{'width': submissionStat.successRatePct +'%'}">
+                </div>
+                <div class="bg-green-400 h-0.5 rounded-full dark:bg-green-300" *ngIf="submissionStat.successRatePct >= 65"
+                    [ngStyle]="{'width': submissionStat.successRatePct +'%'}">
+                </div>
+
+            </div>
+        </td>
+    </ng-container>
+    <ng-container matColumnDef="successRate">
+        <th mat-header-cell mat-sort-header *matHeaderCellDef>
+            Success rate
+        </th>
+        <td mat-cell [ngClass]="{'bg-gray-50 dark:bg-gray-700':(availableSymbols.indexOf(submissionStat.symbol)) % 2 == 0}" *matCellDef="let submissionStat">
+            <span class="flex whitespace-nowrap justify-between">
+                <span>
+                    {{(submissionStat.successRateCases | number:'1.0-0')}}</span>
+                <span class="text-xs text-secondary ml-2">
+                    {{submissionStat.successRate| number:'1.1-1'}}%</span>
+            </span>
+            <div class="w-full bg-gray-200 rounded-full h-0.5 dark:bg-gray-700">
+                <div class="bg-red-500 h-0.5 rounded-full dark:bg-red-400" *ngIf="submissionStat.successRate < 25"
+                    [ngStyle]="{'width': submissionStat.successRate +'%'}">
+                </div>
+                <div class="bg-orange-300 h-0.5 rounded-full dark:bg-orange-300"
+                    *ngIf="submissionStat.successRate >= 25 && submissionStat.successRate < 65"
+                    [ngStyle]="{'width': submissionStat.successRate +'%'}">
+                </div>
+                <div class="bg-green-400 h-0.5 rounded-full dark:bg-green-300" *ngIf="submissionStat.successRate >= 65"
+                    [ngStyle]="{'width': submissionStat.successRate +'%'}">
+                </div>
+
+            </div>
+        </td>
+    </ng-container>
+    <ng-container matColumnDef="dataProvider">
+        <th mat-header-cell mat-sort-header *matHeaderCellDef>
+            Data provider
+        </th>
+        <td mat-cell [ngClass]="{'bg-gray-50 dark:bg-gray-700':(availableSymbols.indexOf(submissionStat.symbol)) % 2 == 0}" *matCellDef="let submissionStat">
+            <span class="flex pr-6 whitespace-nowrap ">
+                <div class="flex items-center space-x-4">
+                    <img class="w-8 h-8 p-1 rounded-full ring-icon"
+                        [src]="dataProvidersInfoMap[submissionStat.dataProvider].icon"
+                        [alt]="dataProvidersInfoMap[submissionStat.dataProvider].name+' icon'">
+                    <div class="dark:text-white leading-4 hover:underline cursor-pointer">
+                        <div>{{dataProvidersInfoMap[submissionStat.dataProvider].name}}
+                        </div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400"
+                            [matTooltip]="dataProvidersInfoMap[submissionStat.dataProvider].address"
+                            [matTooltipPosition]="'below'">
+                            {{dataProvidersInfoMap[submissionStat.dataProvider].address|addressTrim:8}}</div>
+
+                    </div>
+                </div>
+            </span>
+        </td>
+    </ng-container>
+    <tr class="border-t h-11 py-2 px-4 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 leading-4"
+        mat-header-row *matHeaderRowDef="tableColumns;sticky: false;"></tr>
+    <tr class="text-sm order-row h-10" mat-row @fadeIn *matRowDef="let row; columns: tableColumns;">
+    </tr>
+</table>

@@ -1,0 +1,17 @@
+<flare-base-loader [loading]="loading" skeletonType="chart" [overlay]="true"></flare-base-loader>
+<flare-base-no-data skeletonType="chart"
+    *ngIf="!loading && (pricesData && pricesData.revealedPrices && pricesData.finalizedPrices && pricesData.finalizedPrices.length == 0 )"></flare-base-no-data>
+<div class="flex absolute top-2  right-2 h-8 z-10 space-x-2 justify-end">
+    <button mat-stroked-button class="button-sm button-sm-white text-sm px-2" (click)="resetZoom()" *ngIf="isZoomed">
+        <mat-icon class="text-sm" [svgIcon]="'heroicons_outline:magnifying-glass-minus'"></mat-icon> Reset zoom
+    </button>
+    <button mat-stroked-button class="button-sm button-sm-white text-sm px-1" (click)="fullScreen()">
+        <mat-icon *ngIf="!isFullScreen" class="text-sm" [svgIcon]="'heroicons_outline:arrows-pointing-out'"></mat-icon>
+        <mat-icon *ngIf="isFullScreen" class="text-sm" [svgIcon]="'heroicons_outline:arrows-pointing-in'"></mat-icon>
+    </button>
+</div>
+<apx-chart #dpFeedsChart *ngIf="!loading" class="flex-auto w-full h-full overflow-hidden" [chart]="chartOptions.chart"
+    [colors]="chartOptions.colors" [dataLabels]="chartOptions.dataLabels" [grid]="chartOptions.grid"
+    [legend]="chartOptions.legend" [series]="chartOptions.series" [tooltip]="chartOptions.tooltip"
+    [stroke]="chartOptions.stroke" [annotations]="chartOptions.annotations" [fill]="chartOptions.fill"
+    [markers]="chartOptions.markers" [xaxis]="chartOptions.xaxis" [yaxis]="chartOptions.yaxis"></apx-chart>

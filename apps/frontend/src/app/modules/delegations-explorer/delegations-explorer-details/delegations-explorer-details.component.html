@@ -1,0 +1,52 @@
+<div class="bg-card">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 min-w-0 py-4 md:py-6 px-4 md:px-8">
+        <div class="col-span-2 relative md:min-h-22 overflow-hidden">
+            <flare-base-loader skeletonType="text" [loading]="loadingMap.isLoading('getDataProviderInfo')">
+            </flare-base-loader>
+            <ng-container *ngIf="dataProviderInfo != null">
+                <div class="flex flex-auto justify-start gap-4" @slideInBottom>
+                    <img class="w-12 h-12 p-1 md:w-16 md:h-16 md:p-2 bg-white rounded-full ring-2 ring-gray-300 dark:ring-gray-500 bg:gray-200 dark:bg-gray-100 mt-1 ml-1"
+                        [src]="dataProviderInfo.icon" [alt]="dataProviderInfo.name+' icon'">
+                    <div class="overflow-hidden">
+                        <h3 class="text-2xl md:text-3xl lg:text-4xl font-medium tracking-tight leading-7 truncate">
+                            {{dataProviderInfo.name}}
+                        </h3>
+                        <div class="text-normal text-gray-500 dark:text-gray-400 truncate">
+                            {{dataProviderInfo.address}}</div>
+                        <div class="text-normal text-gray-700 dark:text-gray-200 mt-2 hidden md:block"
+                            *ngIf="dataProviderInfo.description && dataProviderInfo.description != null && dataProviderInfo.description.trim() != ''">
+                            {{dataProviderInfo.description}}</div>
+                    </div>
+                </div>
+            </ng-container>
+        </div>
+        <div class="flex flex-row col-span-1 justify-end">
+            <div class="justify-end">
+                <mat-form-field ngDefaultControl name="selectedRewardEpoch" class="ui-mat-dense mr-3"
+                    subscriptSizing="dynamic">
+                    <mat-select [ngModel]="request.epochId" [disabled]="loading"
+                        (selectionChange)="handleRewardEpochChange($event)" class="reward-epochs-select">
+                        <ng-container *ngFor="let rewardEpoch of availableRewardEpochs">
+                            <mat-option [value]="rewardEpoch">{{rewardEpoch == rewardEpochSettings.getCurrentEpochId() ?
+                                rewardEpoch+' (current)' : (rewardEpoch == rewardEpochSettings.getNextEpochId() ?
+                                rewardEpoch+'
+                                (next)' : rewardEpoch)}}</mat-option>
+                        </ng-container>
+                    </mat-select>
+                    <div class="flex items-center mr-4" matPrefix>
+                        <mat-icon class="icon-size-5 mr-2" [svgIcon]="'heroicons_outline:clock'"></mat-icon>
+                        <label for="selectedRewardEpoch">Reward epoch</label>
+                    </div>
+                </mat-form-field>
+                <button [disabled]="loading" mat-icon-button (click)="refreshData()"
+                    class="ring-1 bg-gray-200 ring-gray-300 dark:ring-gray-600 dark:bg-gray-700" mat-icon-button>
+                    <mat-icon [ngClass]="{'animate-spin':loading}"
+                        [svgIcon]="'heroicons_outline:arrow-path'"></mat-icon>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<flare-base-data-provider-delegations [request]="request" [rewardEpochSettings]="rewardEpochSettings"
+    [refreshTimestamp]="refreshTimestamp" [dataProviderInfo]="dataProviderInfo"
+    [network]="network"></flare-base-data-provider-delegations>

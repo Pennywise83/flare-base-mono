@@ -1,42 +1,29 @@
-<div class="relative h-full w-full  py-2 px-4 overflow-hidden">
+<div class="relative h-full w-full  py-2 px-2.5 md:px-4 overflow-hidden">
     <flare-base-loader [loading]="loading" skeletonType="text" [overlay]="false"> </flare-base-loader>
     <flare-base-no-data skeletonType="text"
         *ngIf="!loading && (counterValue == null || counterValue =='0')"></flare-base-no-data>
     <div @slideInBottom *ngIf="counterValue != null && counterValue !='0'  && !loading">
-        <div class="flex flex-col  overflow-hidden">
-            <h3 *ngIf="label != null" class="shrink-0 p-0 text-lg  font-normal tracking-tight leading-6 truncate">
-                {{label}}
-            </h3>
+        <dt *ngIf="label != null" class="shrink-0 p-0 text-md md:text-lg  font-normal leading-6 truncate">{{label}}</dt>
+        <dd class="mt-1 flex justify-between items-baseline md:block lg:flex">
             <div
-                class="text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tighter leading-tight text-gray-700 dark:text-gray-300 truncate">
-                {{counterValue}} </div>
-
+                class="items-baseline text-xl sm:text-2xl md:text-3xl font-semibold tracking-tighter leading-tight text-gray-700 dark:text-gray-300 truncate">
+                {{counterValue}}
+            </div>
             <ng-container *ngIf="variationValue != null">
-                <div class="flex ">
-                    <mat-icon class="icon-size-5 text-red-500" *ngIf="variationValue < 0"
-                        [svgIcon]="'heroicons_mini:arrow-trending-down'"></mat-icon>
-                    <mat-icon class="icon-size-5 text-green-500" *ngIf="variationValue > 0"
-                        [svgIcon]="'heroicons_mini:arrow-trending-up'"></mat-icon>
+                <div class="inline-flex items-baseline px-1.5 md:px-2.5 py-0.5 rounded-full text-sm md:text-sm font-medium md:mt-2 lg:mt-0"
+                    [matTooltip]="variationLabel? variationLabel: null" [matTooltipPosition]="'above'"
+                    [ngClass]="{'text-red-500 bg-red-100':variationValue < 0,'text-green-800 bg-green-100':variationValue > 0,'text-gray-700 bg-gray-200':variationValue == 0}">
 
-                    <div
-                        class="flex items-center text-md leading-none whitespace-nowrap text-secondary overflow-hidden">
-                        <span class="font-medium" matTooltip="{{variationValue| number: '1.0-18'}}%"
-                            [matTooltipPosition]="'above'"
-                            [ngClass]="{'text-red-500':variationValue < 0,'text-green-500':variationValue > 0,'text-gray-500':variationValue == 0}">{{variationValue
-                            > 0 ? '+'+(variationValue|number: '1.0-3') : (variationValue|number: '1.0-3')}}%</span>
-                        <span *ngIf="variationLabel != null" class="ml-1 truncate">{{variationLabel}}</span>
-                    </div>
+                    <span class="sr-only"> Increased by </span>
+                    {{variationValue
+                    > 0 ? '+'+(variationValue|number: '1.0-3') : (variationValue|number: '1.0-3')}}%
                 </div>
             </ng-container>
-            <ng-container *ngIf="variationValue == null && countdownValue != null">
-                <div class="flex ">
-                    <div
-                        class="flex items-center  lg:ml-0 lg:mt-0.5 text-md leading-none whitespace-nowrap overflow-hidden">
-                        <flare-base-countdown [inputTimestamp]="countdownValue"
-                            [displayUnits]="3"></flare-base-countdown>
-                    </div>
+            <ng-container *ngIf="countdownValue != null">
+                <div
+                    class="inline-flex items-baseline px-2.5 py-0.5 rounded-full text-sm font-medium md:mt-2 lg:mt-0 text-gray-700 bg-gray-200">
+
+                    <flare-base-countdown [inputTimestamp]="countdownValue" [displayUnits]="3"></flare-base-countdown>
                 </div>
             </ng-container>
-        </div>
-    </div>
-</div>
+        </dd>
