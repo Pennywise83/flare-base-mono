@@ -7,24 +7,12 @@
     "start": "nx run-many --target=serve --projects=backend,frontend;",
     "backend": "nx serve backend ",
     "frontend": "nx serve frontend  --host=127.0.0.1",
-     "build-frontend": "sed -i \"s|matomoScriptUrl: '.*',|matomoScriptUrl: '//analytics.acdtftso.it/matomo.js',|; s|matomoTrackerUrl: '.*',|matomoTrackerUrl: 'https://analytics.acdtftso.it/matomo.php',|; s|matomoSiteId: .*,|matomoSiteId: 1,|\" ./apps/frontend/src/environment.ts && nx run frontend:build:production && sed -i \"s|matomoScriptUrl: '.*',|matomoScriptUrl: '',|; s|matomoTrackerUrl: '.*',|matomoTrackerUrl: '',|; s|matomoSiteId: .*,|matomoSiteId: 0,|\" apps/frontend/src/environment.ts",
+    "build-frontend": "nx run frontend:build:production",
+    "build-backend": "nx run backend:build:production",
     "typechain-ethers-flr": "typechain --target=ethers-v6  --out-dir libs/commons/src/contracts/types/flr/ \"libs/commons/src/contracts/abi/flr/+([a-zA-Z0-9_]).json\" 1> null",
-    "typechain-ethers-sgb": "typechain --target=ethers-v6  --out-dir libs/commons/src/contracts/types/sgb/ \"libs/commons/src/contracts/abi/sgb/+([a-zA-Z0-9_]).json\" 1> null",
-    "build-pkg": "nx run backend:build:production; pkg . --options \"expose-gc,max_old_space_size=8240,stack-size=7092\";"
+    "typechain-ethers-sgb": "typechain --target=ethers-v6  --out-dir libs/commons/src/contracts/types/sgb/ \"libs/commons/src/contracts/abi/sgb/+([a-zA-Z0-9_]).json\" 1> null"
   },
-
-  "pkg": {
-    "scripts": "dist/**/*.js",
-    "targets": [
-      "latest-linux-x64"
-    ],
-    "assets": [
-      "./node_modules/axios/dist/node/axios.cjs",
-      "./node_modules/bull/lib/"
-    ],
-    "options": []
-  },
-   "dependencies": {
+  "dependencies": {
     "@angular/animations": "~16.2.0",
     "@angular/cdk": "16.2.3",
     "@angular/common": "~16.2.0",
@@ -77,7 +65,6 @@
     "nestjs-redis": "^1.3.3",
     "ng-apexcharts": "1.8.0",
     "ng-event-bus": "^5.2.0",
-    "ng-material-date-range-picker": "^1.2.0",
     "ng-qrcode": "^16.0.0",
     "ngx-jazzicon": "^1.0.2",
     "ngx-mat-select-search": "^7.0.5",
