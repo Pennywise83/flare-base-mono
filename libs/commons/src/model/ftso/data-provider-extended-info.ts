@@ -1,13 +1,16 @@
 import { isNotEmpty } from "class-validator";
 import { VotePower } from "../votepower";
 import { DataProviderInfo } from "./data-provider-info";
-import { FtsoRewardStats } from "./ftso-reward-stats";
+import { DataProviderRewardStats } from "./data-provider-reward-stats";
+import { DataProviderSubmissionStats } from "./data-provider-submission-stats";
+import { FtsoFee } from "./ftso-fee";
 
 export class DataProviderExtendedInfo {
     address: string;
     name: string;
     listed: boolean;
     icon: string;
+    nextVotePower: number;
     votePower: number;
     previousVotePower: number;
     votePowerChange: number = 0;
@@ -20,21 +23,35 @@ export class DataProviderExtendedInfo {
     previousNumberOfDelegations: number;
     numberOfDelegationsChange: number = 0;
     whitelisted: boolean = false;
-    providerReward: number = 0;
-    delegatorsReward: number = 0;
+    providerRewards: number = 0;
+    delegatorsRewards: number = 0;
     rewardRate: number = 0;
     previousRewardRate: number = 0;
+    availability6h: number = 0;
+    availabilityRewardEpoch: number = 0;
+    successRate: number = 0;
+    successRateIQR: number = 0;
+    successRatePct: number = 0;
+    successRate6h: number = 0;
+    successRateIQR6h: number = 0;
+    successRatePct6h: number = 0;
+    fee: number = 0;
+
 
     constructor(
-        votePower: VotePower, 
-        previousVotePower: VotePower, 
-        dataProvidersInfo: DataProviderInfo[], 
-        totalVotePower: VotePower, 
-        previousTotalVotePower: VotePower, 
+        votePower: VotePower,
+        previousVotePower: VotePower,
+        dataProvidersInfo: DataProviderInfo[],
+        totalVotePower: VotePower,
+        previousTotalVotePower: VotePower,
         whitelistedAddresses: string[],
-        ftsoRewardStat: FtsoRewardStats,
-        previousFtsoRewardStat: FtsoRewardStats
-        ) {
+        ftsoRewardStats: DataProviderRewardStats,
+        previousFtsoRewardStats: DataProviderRewardStats,
+        ftsoSubmissionStats: DataProviderSubmissionStats,
+        ftsoFee: FtsoFee,
+        ftsoSubmissionStats6h?: DataProviderSubmissionStats
+
+    ) {
         this.address = votePower.address;
         let dataProviderInfo: DataProviderInfo = dataProvidersInfo.find(dpInfo => dpInfo.address == votePower.address)
         if (isNotEmpty(dataProviderInfo)) {
@@ -67,14 +84,34 @@ export class DataProviderExtendedInfo {
                 this.previousVotePowerPercentage = (previousVotePower.amount * 100) / previousTotalVotePower.amount
             }
         }
-        if (isNotEmpty(ftsoRewardStat)) {
-            this.providerReward = ftsoRewardStat.providerReward;
-            this.delegatorsReward = ftsoRewardStat.delegatorsReward;
-            this.rewardRate = ftsoRewardStat.rewardRate;
-            
+        if (isNotEmpty(ftsoRewardStats)) {
+            this.providerRewards = ftsoRewardStats.providerReward;
+            this.delegatorsRewards = ftsoRewardStats.delegatorsReward;
+            this.rewardRate = ftsoRewardStats.rewardRate;
+
         }
-        if (isNotEmpty(previousFtsoRewardStat)) {
-            this.previousRewardRate = previousFtsoRewardStat.rewardRate;
+        if (isNotEmpty(previousFtsoRewardStats)) {
+            this.previousRewardRate = previousFtsoRewardStats.rewardRate;
+        }
+        if (isNotEmpty(ftsoFee)) {
+            this.fee = ftsoFee.value;
+        }
+        if (isNotEmpty(ftsoSubmissionStats)) {
+            this.successRate = ftsoSubmissionStats.successRate;
+            this.successRateIQR = ftsoSubmissionStats.successRateIQR;
+            this.successRatePct = ftsoSubmissionStats.successRatePct;
+            this.availabilityRewardEpoch = ftsoSubmissionStats.availability;
+        }
+        if (isNotEmpty(ftsoSubmissionStats6h)) {
+            this.availability6h = ftsoSubmissionStats6h.availability;
+            this.successRate = ftsoSubmissionStats6h.successRate;
+            this.successRateIQR = ftsoSubmissionStats6h.successRateIQR;
+            this.successRatePct = ftsoSubmissionStats6h.successRatePct;
+        } else {
+            delete this.availability6h;
+            delete this.successRate6h;
+            delete this.successRateIQR6h;
+            delete this.successRatePct6h;
         }
     }
 }

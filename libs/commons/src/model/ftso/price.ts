@@ -7,5 +7,5 @@ export class Price extends BlockInfo {
     @ApiProperty({ description: 'The FTSO symbol to which the price refers.' })
     symbol: string;
     @ApiProperty({ description: 'The asset\'s price for that epoch.' })
-    price: number;
+    value: number;
 }
