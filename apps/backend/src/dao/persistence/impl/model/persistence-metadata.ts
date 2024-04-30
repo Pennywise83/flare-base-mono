@@ -64,4 +64,5 @@ export enum PersistenceMetadataType {
     RevealedPrice = "RevealedPrice",
     FtsoFee = "FtsoFee",
     RewardDistributed = "RewardDistributed",
+    HashSubmitted = "HashSubmitted",
 }

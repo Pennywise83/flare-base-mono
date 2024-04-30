@@ -6,9 +6,9 @@ import { WinstonModule } from 'nest-winston';
 import os from "os";
 import { LoggerOptions, format, transports } from 'winston';
 import { MainModule } from './main.module';
-import { ServerSettings } from './model/app-config/server-settings';
 import { LoggerConfig } from './model/app-config/logger-config';
 import { loggerFormat } from './model/app-config/logger-format';
+import { ServerSettings } from './model/app-config/server-settings';
 require('winston-daily-rotate-file');
 
 async function bootstrap() {

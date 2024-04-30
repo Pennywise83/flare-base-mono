@@ -1,6 +1,7 @@
-import { DataProviderExtendedInfo, DelegationDTO, DelegationSnapshot, FtsoFee, FtsoRewardStats, PriceEpoch, RewardEpoch, VotePowerDTO, WrappedBalance } from "@flare-base/commons";
+import { DataProviderExtendedInfo, DataProviderInfo, DataProviderRewardStats, FtsoFee, PriceEpoch, RealTimeFtsoData, RewardEpoch, VotePowerDTO, WrappedBalance } from "@flare-base/commons";
 import { Logger } from "@nestjs/common";
 import * as Redis from 'ioredis';
+import { DataProviderSubmissionStats } from "libs/commons/src/model/ftso/data-provider-submission-stats";
 import { CacheDaoConfig } from "../../model/app-config/cache-dao-config";
 import { ServiceStatusEnum } from "../../service/network-dao-dispatcher/model/service-status.enum";
 
@@ -33,9 +34,11 @@ export interface ICacheDao {
     setDataProvidersData(rewardEpochId: number, results: DataProviderExtendedInfo[], endTime?: number): Promise<void>;
     getFtsoFee(rewardEpochId: number): Promise<FtsoFee[]>;
     setFtsoFee(rewardEpochId: number, daoData: FtsoFee[], endTime?: number): Promise<void>;
-    setFtsoRewardStatsByRewardEpoch(rewardEpochId: number, ftsoRewardStats: FtsoRewardStats[], endTime?:number): Promise<void>;
-    getFtsoRewardStatsByRewardEpoch(rewardEpochId: number): Promise<FtsoRewardStats[]>;
+    setDataProviderRewardStatsByRewardEpoch(rewardEpochId: number, DataProviderRewardStats: DataProviderRewardStats[], endTime?: number): Promise<void>;
+    getDataProviderRewardStatsByRewardEpoch(rewardEpochId: number): Promise<DataProviderRewardStats[]>;
 
+    getRealTimeFtsoData(): Promise<RealTimeFtsoData>;
+    pushRealTimeFtsoData(data: any): Promise<void>;
 
 
     // Balances
@@ -66,4 +69,10 @@ export interface ICacheDao {
 
     getTotalVotePowerByRewardEpoch(rewardEpochId: number): Promise<VotePowerDTO>;
     setTotalVotePowerByRewardEpoch(rewardEpochId: number, result: VotePowerDTO, endTime?: number): Promise<void>;
+
+    getDataProvideSubmissionStatsByRewardEpoch(rewardEpochId: number): Promise<DataProviderSubmissionStats[]>;
+    setDataProvideSubmissionStatsByRewardEpoch(rewardEpochId: number, submissionStats: DataProviderSubmissionStats[], endTime?: number): Promise<void>;
+
+    getDataProvidersInfo(rewardEpochId: number): Promise<DataProviderInfo[]>;
+    setDataProvidersInfo(rewardEpochId: number, data: DataProviderInfo[], endTime?: number): Promise<void>;
 }

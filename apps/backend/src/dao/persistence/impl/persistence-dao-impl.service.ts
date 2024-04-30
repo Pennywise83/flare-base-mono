@@ -1,5 +1,5 @@
 import { Client } from "@elastic/elasticsearch";
-import { Balance, BalanceSortEnum, ClaimedRewardHistogramElement, ClaimedRewardsGroupByEnum, ClaimedRewardsSortEnum, Commons, DataProviderInfo, Delegation, DelegationSnapshot, DelegationsSortEnum, FtsoFee, FtsoFeeSortEnum, FtsoRewardStats, FtsoRewardStatsGroupByEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, PriceFinalized, PriceFinalizedSortEnum, PriceRevealed, PriceRevealedSortEnum, Reward, RewardDistributed, RewardDistributedSortEnum, RewardEpoch, RewardEpochSettings, VotePower, VoterWhitelist, WrappedBalance } from "@flare-base/commons";
+import { Balance, BalanceSortEnum, ClaimedRewardHistogramElement, ClaimedRewardsGroupByEnum, ClaimedRewardsSortEnum, Commons, DataProviderInfo, DataProviderRewardStats, DataProviderRewardStatsGroupByEnum, Delegation, DelegationSnapshot, DelegationsSortEnum, FtsoFee, FtsoFeeSortEnum, HashSubmitted, PaginatedResult, PriceEpoch, PriceEpochSettings, PriceFinalized, PriceFinalizedSortEnum, PriceRevealed, PriceRevealedSortEnum, Reward, RewardDistributed, RewardDistributedSortEnum, RewardEpoch, RewardEpochSettings, VotePower, VoterWhitelist, WrappedBalance } from "@flare-base/commons";
 import { Process } from '@nestjs/bull';
 import { Logger } from "@nestjs/common";
 import { PersistenceDaoConfig } from "apps/backend/src/model/app-config/persistence-dao-config";
@@ -8,23 +8,25 @@ import { Job, Queue } from 'bull';
 import { plainToClass } from "class-transformer";
 import { isEmpty, isNotEmpty } from "class-validator";
 import { EpochSortEnum } from "libs/commons/src/model/epochs/price-epoch";
+import { DataProviderSubmissionStats } from "libs/commons/src/model/ftso/data-provider-submission-stats";
 import { SortOrderEnum } from "libs/commons/src/model/paginated-result";
 import { interval } from "rxjs";
 import { ICacheDao } from "../../cache/i-cache-dao.service";
 import { IPersistenceDao } from "../i-persistence-dao.service";
 import { EpochStats } from "./model/epoch-stats";
 import { PersistenceConstants } from "./model/persistence-constants";
+import { PersistenceIndexMapping, PersistenceRollIntervalEnum } from "./model/persistence-index-mapping";
 import { PersistenceMetadata, PersistenceMetadataType } from "./model/persistence-metadata";
-import { SortFieldRewardDistributedDTO } from "apps/backend/src/controller/model/sort-field-reward-distributed-dto";
 
 export abstract class PersistenceDaoImpl implements IPersistenceDao {
+
     logger: Logger;
     _persistenceDaoQueue: Queue;
     _cacheDao: ICacheDao;
     status: ServiceStatusEnum;
     config: PersistenceDaoConfig;
     elasticsearchClient: Client;
-    indicesMapping: { [indexName: string]: any } = {};
+    indicesMapping: { [indexName: string]: PersistenceIndexMapping } = {};
     indicesList: { [indexType: string]: Array<string> } = {};
     rewardEpochSettings: RewardEpochSettings;
     priceEpochSettings: PriceEpochSettings;
@@ -36,9 +38,6 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
 
     private maxResultsLimit: number;
 
-
-
-
     initialize(): Promise<void> {
         return new Promise<void>(async (resolve, reject) => {
             let members: Array<string> = this.config.members;
@@ -48,8 +47,8 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
             this.elasticsearchClient.nodes.info().then(res => {
                 this.logger.log(`All Persistence DAO members are available`);
                 this.initializeIndicesMappings();
-                this._initializeIndices().then(async () => {
-                    await this._getIndicesList();
+                this._initializeIndices().then(async res => {
+                    await this._getIndicesList()
                     this.maxResultsLimit = await this.getResultsLimit();
                     this.status = ServiceStatusEnum.STARTED;
                     await this.persistenceMetadataCleaner();
@@ -62,8 +61,86 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
             });
         });
     }
+    private _initializeIndices(): Promise<void> {
+        return new Promise<void>((resolve, reject) => {
+            let calls: Array<Promise<boolean>> = [];
+            Object.keys(this.indicesMapping).map((indexPrefix, idx) => {
+                let persistenceIndexMapping: PersistenceIndexMapping = this.indicesMapping[indexPrefix];
+                if (isEmpty(persistenceIndexMapping.rollInterval)) {
+                    calls.push(this._indexExists(`${indexPrefix}_*`));
+                }
+            });
+            try {
+                Promise.all(calls).then(indexExistsResponses => {
+                    let createCalls: Array<Promise<string>> = [];
+                    indexExistsResponses.map((indexExists, idx) => {
+                        if (!indexExists) {
+                            let indexPrefix: string = Object.keys(this.indicesMapping)[idx];
+                            let indexMapping: PersistenceIndexMapping = this.indicesMapping[indexPrefix];
+                            let indexName: string = this.getIndexName(indexMapping.type, new Date().getTime());
+                       //     createCalls.push(this._createIndex(indexName, indexMapping.mapping));
+                        }
+                    });
+                    if (createCalls.length > 0) {
+                        Promise.all(createCalls).then(createResponses => {
+                            resolve();
+                        }).catch(createErr => {
+                            reject(new Error(`Unable to create Persistence index: ${createErr.message}`));
+                        })
+                    } else {
+                        resolve();
+                    }
+                });
+            } catch (err) {
+                reject(new Error(`Unable to initialize Persistence indices: ${err.message}`));
+            }
+        });
 
+    }
+    protected abstract getIndexMapping(indexType: string): PersistenceIndexMapping;
 
+    protected getIndexName(indexType: string, objectTimestamp?: number): string {
+        if (isNotEmpty(objectTimestamp) && isNotEmpty(this.getIndexMapping(indexType).rollInterval)) {
+            let indexName: string = null;
+            const date = new Date(objectTimestamp);
+            date.setUTCHours(0);
+            date.setUTCMinutes(0);
+            date.setUTCSeconds(0);
+            date.setUTCMilliseconds(0);
+            let month = date.getMonth();
+            switch (this.getIndexMapping(indexType).rollInterval) {
+                case PersistenceRollIntervalEnum.MONTHLY:
+                    date.setDate(1); // Set to first day of the month
+                    indexName = `${this._network}_${this.config.prefix}_${indexType}_${date.getTime()}`;
+                    break;
+
+                case PersistenceRollIntervalEnum.QUARTERLY:
+                    const quarter = Math.floor(month / 3); // Determine the quarter
+                    month = quarter * 3 + 1; // Set to first month of the quarter
+                    date.setMonth(month - 1); // Adjust for zero-based month index
+                    date.setDate(1); // Set to first day of the month
+                    indexName = `${this._network}_${this.config.prefix}_${indexType}_${date.getTime()}`;
+                    break;
+
+                case PersistenceRollIntervalEnum.HALF_YEARLY:
+                    month = Math.floor(month / 6) * 6; // Set to first month of the half-year
+                    date.setMonth(month); // Set to the determined month
+                    date.setDate(1); // Set to first day of the month
+                    indexName = `${this._network}_${this.config.prefix}_${indexType}_${date.getTime()}`;
+                    break;
+
+                case PersistenceRollIntervalEnum.YEARLY:
+                    date.setMonth(0); // Set to January
+                    date.setDate(1); // Set to first day of the month
+
+                    indexName = `${this._network}_${this.config.prefix}_${indexType}_${date.getTime()}`;
+                    break;
+            }
+            return indexName
+        } else {
+            return `${this._network}_${this.config.prefix}_${indexType}_0`
+        }
+    }
     private _startPersistenceMetadataCleaner(): void {
         interval(this.config.persistenceMetadataCleanTimeMinutes * 60 * 1000).subscribe(async () => {
             await this.persistenceMetadataCleaner();
@@ -97,46 +174,12 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
             const response = await this.elasticsearchClient.indices.delete({
                 index: '*' + this.config.prefix + '*',
             });
-            await this._initializeIndices();
             return true;
         } catch (e) {
-            await this._initializeIndices();
             return true;
         }
     }
-    private _initializeIndices(): Promise<void> {
-        return new Promise<void>((resolve, reject) => {
-            let calls: Array<Promise<boolean>> = [];
-            Object.keys(this.indicesMapping).map((indexPrefix, idx) => {
-                calls.push(this._indexExists(`${indexPrefix}_*`));
-            });
-            try {
-                Promise.all(calls).then(indexExistsResponses => {
-                    let createCalls: Array<Promise<string>> = [];
-                    indexExistsResponses.map((indexExists, idx) => {
-                        if (!indexExists) {
-                            let indexPrefix: string = Object.keys(this.indicesMapping)[idx];
-                            let indexMapping: any = this.indicesMapping[indexPrefix];
-                            let indexName: string = `${indexPrefix}_${new Date().getTime()}`;
-                            createCalls.push(this._createIndex(indexName, indexMapping));
-                        }
-                    });
-                    if (createCalls.length > 0) {
-                        Promise.all(createCalls).then(createResponses => {
-                            resolve();
-                        }).catch(createErr => {
-                            reject(new Error(`Unable to create Persistence index: ${createErr.message}`));
-                        })
-                    } else {
-                        resolve();
-                    }
-                });
-            } catch (err) {
-                reject(new Error(`Unable to initialize Persistence indices: ${err.message}`));
-            }
-        });
 
-    }
     private async _indexExists(indexName: string): Promise<boolean> {
         return new Promise<boolean>(async (resolve, reject) => {
             try {
@@ -202,7 +245,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
         Object.keys(this.indicesMapping).map(indexPrefix => {
             listIndicesCalls.push(this._listIndices(indexPrefix));
         });
-        Promise.all(listIndicesCalls).then((listIndicesResponses) => {
+        return Promise.all(listIndicesCalls).then((listIndicesResponses) => {
             listIndicesResponses.map((indicesList, idx) => {
                 this.indicesList[Object.keys(this.indicesMapping)[idx]] = indicesList;
             });
@@ -238,29 +281,32 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
             }
         })
     }
-    private async _bulkLoad<T>(dataset: Array<T>, indexName: string): Promise<number> {
+    private async _bulkLoad<T>(dataset: Array<T>, indexType: string): Promise<number> {
         return new Promise<number>(async (resolve, reject) => {
             let start: number = new Date().getTime();
-            this.logger.verbose(`Indexing ${dataset.length} elements into ${indexName} index...`);
+            this.logger.verbose(`Indexing ${dataset.length} elements into ${indexType} index...`);
             if (dataset.length > 0) {
                 const chunks: Array<Array<T>> = Commons.chunkIt<T>(dataset, 10000);
                 let failedCount: number = 0;
                 let successCount: number = 0;
-
+                const persistenceIndexMapping: PersistenceIndexMapping = this.getIndexMapping(indexType);
                 for (let chunkIdx = 0; chunkIdx < chunks.length; chunkIdx++) {
                     const chunk = chunks[chunkIdx];
-                    let objs = {};
-                    let objs2 = [];
-                    const body = chunk.flatMap(doc => {
+                    const bodyPromise = Promise.all(chunk.flatMap(async doc => {
                         const objId = (doc as any).objId;
-                        objs2.push(objId);
-                        objs[objId] = objId;
                         delete (doc as any).objId;
-                        return [{ index: { _index: indexName, _id: objId } }, doc];
-                    });
+                        return [{ index: { _index: this.getIndexName(indexType, (doc as any).timestamp), _id: objId } }, doc];
+                    }));
+                    const body = (await bodyPromise).flat();
+                    const indexes: string[] = [... new Set(body.map(item => (item as any).index ? (item as any).index._index : null).filter(item => item != null))];
+                    for (let index of indexes) {
+                        if (!(await this._indexExists(index))) {
+                            await this._createIndex(index, persistenceIndexMapping.mapping);
+                            await this._getIndicesList();
+                        }
+                    }
                     try {
                         const res = await this.elasticsearchClient.bulk({ refresh: chunkIdx < (chunks.length - 1) ? false : 'wait_for', body });
-
                         if (res.body.errors) {
                             res.body.items.forEach(singleItem => {
                                 if (typeof singleItem.index.error !== 'undefined' && singleItem.index.error !== null) {
@@ -279,12 +325,11 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
                             });
                         }
                     } catch (err) {
-                        this.logger.error(`Error loading elements into ${indexName} index: ` + err);
-                        reject(new Error(`Error loading elements into ${indexName} index: ` + err));
+                        this.logger.error(`Error loading elements into ${indexType} index: ` + err);
+                        reject(new Error(`Error loading elements into ${indexType} index: ` + err));
                         return;
                     }
                 }
-
                 this.logger.verbose(`Indexed ${successCount}/${dataset.length} elements (${parseFloat(((successCount * 100) / (dataset.length)).toString()).toFixed(1)}%). Failed: ${failedCount}/${dataset.length} (${parseFloat(((failedCount * 100) / (dataset.length)).toString()).toFixed(1)}%) - Duration: ${(new Date().getTime() - start) / 1000}s`);
                 resolve(successCount);
             } else {
@@ -292,6 +337,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
             }
         });
     }
+
 
     private async _countDocuments(indexName: string, query: string): Promise<number> {
         return new Promise<number>((resolve, reject) => {
@@ -338,9 +384,13 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
             const from = (page - 1) * pageSize;
             if (page * pageSize > this.maxResultsLimit) {
                 const count: number = await this._countDocuments(index, queryString);
-                const job = await this._persistenceDaoQueue.add('fullScanProcessor', { index, queryString });
-                const results: T[] = await job.finished() as T[];
-                resolve(Commons.parsePaginatedResults(results, page, pageSize, (isNotEmpty(sort) ? sort.split(':')[0] : null), (isNotEmpty(sort) ? sort.split(':')[1] : null)));
+                if (count >= this.maxResultsLimit) {
+                    const job = await this._persistenceDaoQueue.add('fullScanProcessor', { index, queryString });
+                    const results: T[] = await job.finished() as T[];
+                    resolve(Commons.parsePaginatedResults(results, page, pageSize, (isNotEmpty(sort) ? sort.split(':')[0] : null), (isNotEmpty(sort) ? sort.split(':')[1] : null)));
+                } else {
+                    resolve(this._paginatedSearch(index, queryString, page, count, sort));
+                }
             } else {
                 this.elasticsearchClient.search({
                     index: index,
@@ -389,8 +439,6 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
                 resolve(cacheData);
                 return;
             }
-
-
             this.elasticsearchClient.search({
                 index: indexName,
                 scroll: '10s', // Imposta la scorrimento per ottenere tutti i risultati
@@ -407,22 +455,28 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
                         });
                     }
                     const scrollResponse = await this.elasticsearchClient.scroll({
-                        scroll_id: scrollId,
-                        scroll: '10s',
+                        method: 'POST',
+                        body: {
+                            scroll_id: scrollId,
+                            scroll: '10s'
+                        }
                     });
                     if (scrollResponse.body.hits.hits.length === 0) {
                         await this.elasticsearchClient.clearScroll({
-                            scroll_id: scrollId // Passa lo scrollId per rimuovere lo scroll corrispondente
+                            method: 'POST',
+                            body: {
+                                scroll_id: scrollId
+                            }
                         });
                         break;
                     }
                     response = scrollResponse;
                 }
                 result.map((r) => delete r.objId);
-                await this._cacheDao.setFullScanCache(indexName, query, result, new Date().getTime() + (60 * 10 * 1000));
+                //  await this._cacheDao.setFullScanCache(indexName, query, result, new Date().getTime() + (60 * 10 * 1000));
                 resolve(result);
             }).catch((err) => {
-                reject(new Error(`Search error: ` + err.message));
+                reject(new Error(`Search error on index '${indexName}': ` + err.message));
             });
         });
     }
@@ -521,7 +575,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
             blockchainData.forEach(rewardEpoch => {
                 (rewardEpoch as any).objId = rewardEpoch.id;
             });
-            let storedObjectCount: number = await this._bulkLoad<RewardEpoch>(blockchainData, this.getIndex(PersistenceConstants.REWARD_EPOCHS_INDEX));
+            let storedObjectCount: number = await this._bulkLoad<RewardEpoch>(blockchainData, PersistenceConstants.REWARD_EPOCHS_INDEX);
             resolve(storedObjectCount);
         });
     }
@@ -540,7 +594,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
                 (priceEpoch as any).objId = priceEpoch.id;
             });
 
-            let storedObjectCount: number = await this._bulkLoad<PriceEpoch>(blockchainData, this.getIndex(PersistenceConstants.PRICE_EPOCHS_INDEX));
+            let storedObjectCount: number = await this._bulkLoad<PriceEpoch>(blockchainData, PersistenceConstants.PRICE_EPOCHS_INDEX);
             resolve(storedObjectCount);
         });
     }
@@ -552,7 +606,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
         return new Promise<number>(async (resolve, reject) => {
             let obj: RewardEpochSettings = Commons.clone(blockchainData);
             (obj as any).objId = 'RewardEpochSettings';
-            let storedObjectCount: number = await this._bulkLoad<RewardEpochSettings>([obj], this.getIndex(PersistenceConstants.CONSTANTS_INDEX));
+            let storedObjectCount: number = await this._bulkLoad<RewardEpochSettings>([obj], PersistenceConstants.CONSTANTS_INDEX);
             resolve(storedObjectCount);
         });
     }
@@ -582,7 +636,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
         return new Promise<number>(async (resolve, reject) => {
             let obj: PriceEpochSettings = Commons.clone(blockchainData);
             (obj as any).objId = 'PriceEpochSettings';
-            let storedObjectCount: number = await this._bulkLoad<PriceEpochSettings>([obj], this.getIndex(PersistenceConstants.CONSTANTS_INDEX));
+            let storedObjectCount: number = await this._bulkLoad<PriceEpochSettings>([obj], PersistenceConstants.CONSTANTS_INDEX);
             resolve(storedObjectCount);
         });
     }
@@ -801,7 +855,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
                 claimedReward.dataProvider = claimedReward.dataProvider.toLowerCase();
                 (claimedReward as any).objId = `${claimedReward.rewardEpochId}_${claimedReward.whoClaimed}_${isNotEmpty(claimedReward.dataProvider) ? claimedReward.dataProvider : ''}`;
             });
-            let storedObjectCount: number = await this._bulkLoad<Reward>(blockchainData, this.getIndex(PersistenceConstants.CLAIMED_REWARDS_INDEX));
+            let storedObjectCount: number = await this._bulkLoad<Reward>(blockchainData, PersistenceConstants.CLAIMED_REWARDS_INDEX);
             resolve(storedObjectCount);
         })
     }
@@ -1328,7 +1382,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
                 delegation.to = delegation.to.toLowerCase();
                 (delegation as any).objId = `${delegation.from}_${delegation.to}_${delegation.blockNumber}`;
             });
-            let storedObjectCount: number = await this._bulkLoad<Delegation>(blockchainData, this.getIndex(PersistenceConstants.DELEGATIONS_INDEX));
+            let storedObjectCount: number = await this._bulkLoad<Delegation>(blockchainData, PersistenceConstants.DELEGATIONS_INDEX);
             resolve(storedObjectCount);
         })
     }
@@ -1341,32 +1395,10 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
             });
 
 
-            let storedObjectCount: number = await this._bulkLoad<DelegationSnapshot>(blockchainData, this.getIndex(PersistenceConstants.DELEGATIONS_SNAPSHOT_INDEX));
+            let storedObjectCount: number = await this._bulkLoad<DelegationSnapshot>(blockchainData, PersistenceConstants.DELEGATIONS_SNAPSHOT_INDEX);
             resolve(storedObjectCount);
         })
     }
-
-    getFtsoInfo(): Promise<DataProviderInfo[]> {
-        return new Promise<DataProviderInfo[]>(async (resolve, reject) => {
-            const results: DataProviderInfo[] = await this._search<DataProviderInfo>(this.getIndex(PersistenceConstants.FTSO_INFO_INDEX), '*', this.maxResultsLimit);
-            if (isNotEmpty(results)) {
-                resolve(results);
-            } else {
-                resolve(null);
-            }
-        });
-    }
-
-    storeFtsoInfo(ftsoInfo: DataProviderInfo[]): Promise<number> {
-        return new Promise<number>(async (resolve, reject) => {
-            ftsoInfo.forEach(obj => {
-                (obj as any).objId = obj.address;
-            });
-            let storedObjectCount: number = await this._bulkLoad<DataProviderInfo>(ftsoInfo, this.getIndex(PersistenceConstants.FTSO_INFO_INDEX));
-            resolve(storedObjectCount);
-        })
-    }
-
 
     async getBalances(address: string, blockNublockNumberTo: number): Promise<Balance[]> {
         const queryString: string = `addressA: ${isEmpty(address) ? '*' : address.toLowerCase()} AND blockNumber: [0 TO ${blockNublockNumberTo}]`;
@@ -1394,7 +1426,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
                 delete balance.nonce;
             });
 
-            let storedObjectCount: number = await this._bulkLoad<Balance>(blockchainData, this.getIndex(PersistenceConstants.BALANCES_INDEX));
+            let storedObjectCount: number = await this._bulkLoad<Balance>(blockchainData, PersistenceConstants.BALANCES_INDEX);
             resolve(storedObjectCount);
         })
     }
@@ -1536,7 +1568,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
                 (voterWhitelist as any).objId = `${voterWhitelist.address}_${voterWhitelist.symbol}_${voterWhitelist.whitelisted}_${voterWhitelist.blockNumber}`;
                 delete voterWhitelist.nonce;
             });
-            let storedObjectCount: number = await this._bulkLoad<VoterWhitelist>(blockchainData, this.getIndex(PersistenceConstants.VOTER_WHITELIST_INDEX));
+            let storedObjectCount: number = await this._bulkLoad<VoterWhitelist>(blockchainData, PersistenceConstants.VOTER_WHITELIST_INDEX);
             resolve(storedObjectCount);
         })
     }
@@ -1546,22 +1578,38 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
         const finalizedPrices: PaginatedResult<PriceFinalized[]> = await this._paginatedSearch<PriceFinalized>(this.getIndex(PersistenceConstants.FINALIZED_PRICES_V1_INDEX), queryString, page, pageSize, sortClause);
         return finalizedPrices;
     }
+    async countFinalizedPrices(symbol: string, epochIdFrom: number, epochIdTo: number): Promise<Map<string, number>> {
+        const queryString: string = `epochId: [${epochIdFrom} TO ${epochIdTo}]`;
+        const aggResults = await this.doTermsAggregation('symbol', queryString, this.getIndex(PersistenceConstants.FINALIZED_PRICES_V1_INDEX));
+        let result: Map<string, number> = new Map<string, number>();
+        aggResults.map(bucket => {
+            result.set(bucket.key, bucket.doc_count);
+        });
+        return result;
+
+    }
 
     storeFinalizedPrices(blockchainData: PriceFinalized[]): Promise<number> {
         return new Promise<number>(async (resolve, reject) => {
             blockchainData.forEach(finalizedPrice => {
                 (finalizedPrice as any).objId = `${finalizedPrice.epochId}_${finalizedPrice.symbol}`;
             });
-            let storedObjectCount: number = await this._bulkLoad<PriceFinalized>(blockchainData, this.getIndex(PersistenceConstants.FINALIZED_PRICES_V1_INDEX));
+            let storedObjectCount: number = await this._bulkLoad<PriceFinalized>(blockchainData, PersistenceConstants.FINALIZED_PRICES_V1_INDEX);
             resolve(storedObjectCount);
         })
     }
 
     async getRevealedPrices(symbol: string, address: string, startBlock: number, endBlock: number, page: number, pageSize: number, sortField: PriceRevealedSortEnum, sortOrder: SortOrderEnum): Promise<PaginatedResult<PriceRevealed[]>> {
-        const queryString: string = `symbol: ${isEmpty(symbol) ? '*' : symbol} AND dataProvider:${isEmpty(address) ? '*' : address} AND blockNumber: [${startBlock} TO ${endBlock}]`;
+        const queryString: string = `symbol: ${isEmpty(symbol) ? '*' : symbol} AND dataProvider:(${isEmpty(address) ? '*' : address.split(',').join(' OR ')}) AND blockNumber: [${startBlock} TO ${endBlock}]`;
         const sortClause = `${sortField}:${sortOrder}`;
-        const finalizedPrices: PaginatedResult<PriceRevealed[]> = await this._paginatedSearch<PriceRevealed>(this.getIndex(PersistenceConstants.REVEALED_PRICES_V1_INDEX), queryString, page, pageSize, sortClause);
-        return finalizedPrices;
+        const revealedPrices: PaginatedResult<PriceRevealed[]> = await this._paginatedSearch<PriceRevealed>(this.getIndex(PersistenceConstants.REVEALED_PRICES_V1_INDEX), queryString, page, pageSize, sortClause);
+        return revealedPrices;
+    }
+    async getRevealedPricesByEpochId(symbol: string, address: string, epochIdFrom: number, epochIdTo: number, page: number, pageSize: number, sortField: PriceRevealedSortEnum, sortOrder: SortOrderEnum): Promise<PaginatedResult<PriceRevealed[]>> {
+        const queryString: string = `symbol: ${isEmpty(symbol) ? '*' : symbol} AND dataProvider:${isEmpty(address) ? '*' : address} AND epochId: [${epochIdFrom} TO ${epochIdTo}]`;
+        const sortClause = `${sortField}:${sortOrder}`;
+        const revealedPrices: PaginatedResult<PriceRevealed[]> = await this._paginatedSearch<PriceRevealed>(this.getIndex(PersistenceConstants.REVEALED_PRICES_V1_INDEX), queryString, page, pageSize, sortClause);
+        return revealedPrices;
     }
 
     storeRevealedPrices(blockchainData: PriceRevealed[]): Promise<number> {
@@ -1570,7 +1618,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
                 revealedPrice.dataProvider = revealedPrice.dataProvider.toLowerCase();
                 (revealedPrice as any).objId = `${revealedPrice.epochId}_${revealedPrice.symbol}_${revealedPrice.dataProvider}`;
             });
-            let storedObjectCount: number = await this._bulkLoad<PriceRevealed>(blockchainData, this.getIndex(PersistenceConstants.REVEALED_PRICES_V1_INDEX));
+            let storedObjectCount: number = await this._bulkLoad<PriceRevealed>(blockchainData, PersistenceConstants.REVEALED_PRICES_V1_INDEX);
             resolve(storedObjectCount);
         })
     }
@@ -1649,7 +1697,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
                 }
                 (ftsoFee as any).objId = `${ftsoFee.validFromEpoch}_${ftsoFee.dataProvider}_${ftsoFee.blockNumber}`;
             });
-            let storedObjectCount: number = await this._bulkLoad<FtsoFee>(blockchainData, this.getIndex(PersistenceConstants.FTSO_FEE_V1_INDEX));
+            let storedObjectCount: number = await this._bulkLoad<FtsoFee>(blockchainData, PersistenceConstants.FTSO_FEE_V1_INDEX);
             resolve(storedObjectCount);
         })
     }
@@ -1659,48 +1707,178 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
                 rewardDistributed.dataProvider = rewardDistributed.dataProvider.toLowerCase();
                 (rewardDistributed as any).objId = `${rewardDistributed.priceEpochId}_${rewardDistributed.symbol}_${rewardDistributed.dataProvider}`;
             });
-            let storedObjectCount: number = await this._bulkLoad<RewardDistributed>(blockchainData, this.getIndex(PersistenceConstants.FTSO_REWARD_DISTRIBUTED_V1_INDEX));
+            let storedObjectCount: number = await this._bulkLoad<RewardDistributed>(blockchainData, PersistenceConstants.FTSO_REWARD_DISTRIBUTED_V1_INDEX);
             resolve(storedObjectCount);
         })
     }
     async getRewardDistributed(dataProvider: string, symbol: string, startBlock: number, endBlock: number, page: number, pageSize: number, sortField: RewardDistributedSortEnum, sortOrder: SortOrderEnum): Promise<PaginatedResult<RewardDistributed[]>> {
-        const queryString: string = `symbol: ${isEmpty(symbol) ? '*' : symbol} AND dataProvider:${isEmpty(dataProvider) ? '*' : dataProvider} AND blockNumber: [${startBlock} TO ${endBlock}]`;
+        const queryString: string = `symbol: ${isEmpty(symbol) ? '*' : symbol} AND dataProvider:(${isEmpty(dataProvider) ? '*' : dataProvider.split(',').join(' OR ')}) AND blockNumber: [${startBlock} TO ${endBlock}]`;
         const sortClause = `${sortField}:${sortOrder}`;
         const results: PaginatedResult<RewardDistributed[]> = await this._paginatedSearch<RewardDistributed>(this.getIndex(PersistenceConstants.FTSO_REWARD_DISTRIBUTED_V1_INDEX), queryString, page, pageSize, sortClause);
         return results;
     }
-    async getFtsoRewardStats(dataProvider: string, startBlock: number, endBlock: number, groupBy: FtsoRewardStatsGroupByEnum): Promise<FtsoRewardStats[]> {
-        let results: FtsoRewardStats[] = [];
+    async getDataProviderRewardStats(dataProvider: string, startBlock: number, endBlock: number, groupBy: DataProviderRewardStatsGroupByEnum): Promise<DataProviderRewardStats[]> {
+        let results: DataProviderRewardStats[] = [];
         const queryString: string = `dataProvider:${isEmpty(dataProvider) ? '*' : dataProvider} AND blockNumber: [${startBlock} TO ${endBlock}]`;
         const providerRewards = await this._doGroupedStatsAggregation(groupBy, RewardDistributedSortEnum.providerReward, AggregationOperationEnum.sum, queryString, this.getIndex(PersistenceConstants.FTSO_REWARD_DISTRIBUTED_V1_INDEX));
         const delegatorsRewards = await this._doGroupedStatsAggregation(groupBy, RewardDistributedSortEnum.reward, AggregationOperationEnum.sum, queryString, this.getIndex(PersistenceConstants.FTSO_REWARD_DISTRIBUTED_V1_INDEX));
-        if (groupBy == FtsoRewardStatsGroupByEnum.dataProvider) {
+        if (groupBy == DataProviderRewardStatsGroupByEnum.dataProvider) {
             const rewardEpoch: RewardEpoch = await this._getRewardEpochByTargetBlockNumber(endBlock);
             providerRewards.map((bucket, bucketIdx) => {
-                let ftsoRewardStats: FtsoRewardStats = new FtsoRewardStats();
-                ftsoRewardStats.dataProvider = bucket.key;
-                ftsoRewardStats.epochId = rewardEpoch.id;
-                ftsoRewardStats.count = bucket.doc_count;
-                ftsoRewardStats.providerReward = bucket.value;
-                ftsoRewardStats.delegatorsReward = delegatorsRewards[bucketIdx].value;
-                results.push(ftsoRewardStats);
+                let dataProviderRewardStats: DataProviderRewardStats = new DataProviderRewardStats();
+                dataProviderRewardStats.dataProvider = bucket.key;
+                dataProviderRewardStats.epochId = rewardEpoch.id;
+                dataProviderRewardStats.count = bucket.doc_count;
+                dataProviderRewardStats.providerReward = bucket.value;
+                dataProviderRewardStats.delegatorsReward = delegatorsRewards[bucketIdx].value;
+                results.push(dataProviderRewardStats);
             });
-        } else if (groupBy == FtsoRewardStatsGroupByEnum.rewardEpochId) {
-            const rewardEpoch: RewardEpoch = await this._getRewardEpochByTargetBlockNumber(endBlock);
+        } else if (groupBy == DataProviderRewardStatsGroupByEnum.rewardEpochId) {
             providerRewards.map((bucket, bucketIdx) => {
-                let ftsoRewardStats: FtsoRewardStats = new FtsoRewardStats();
-                delete ftsoRewardStats.dataProvider;
-                ftsoRewardStats.epochId = parseInt(bucket.key);
-                ftsoRewardStats.count = bucket.doc_count;
-                ftsoRewardStats.providerReward = bucket.value;
-                ftsoRewardStats.delegatorsReward = delegatorsRewards[bucketIdx].value;
-                results.push(ftsoRewardStats);
+                let dataProviderRewardStats: DataProviderRewardStats = new DataProviderRewardStats();
+                delete dataProviderRewardStats.dataProvider;
+                dataProviderRewardStats.epochId = parseInt(bucket.key);
+                dataProviderRewardStats.count = bucket.doc_count;
+                dataProviderRewardStats.providerReward = bucket.value;
+                dataProviderRewardStats.delegatorsReward = delegatorsRewards[bucketIdx].value;
+                results.push(dataProviderRewardStats);
             });
         }
         return results;
     }
+    async getDataProviderSubmissionStats(startBlock: number, endBlock: number): Promise<DataProviderSubmissionStats[]> {
+        return new Promise<DataProviderSubmissionStats[]>(async (resolve, reject) => {
+            let results: DataProviderSubmissionStats[] = [];
+            const queryString: string = `blockNumber: [${startBlock} TO ${endBlock}]`;
+            let body = {
+                "size": 0,
+                "query": {
+                    "bool": {
+                        "filter": [
+                            {
+                                "query_string": {
+                                    "query": queryString
+                                }
+                            }
+                        ]
+                    }
+                },
+                "aggs": {
+                    "epochIdStats": {
+                        "stats": {
+                            "field": "epochId"
+                        }
+                    },
+                    "dataProvider": {
+                        "terms": {
+                            "field": "dataProvider",
+                            "size": this.maxResultsLimit
+                        },
+                        "aggs": {
+                            "symbol": {
+                                "terms": {
+                                    "field": "symbol",
+                                    "size": this.maxResultsLimit
+                                },
+                                "aggs": {
+                                    "innerIQR_SUM": {
+                                        "sum": {
+                                            "field": "innerIQR"
+                                        }
+                                    },
+                                    "innerPct_SUM": {
+                                        "sum": {
+                                            "field": "innerPct"
+                                        }
+                                    },
+                                    "borderIQR_SUM": {
+                                        "sum": {
+                                            "field": "borderIQR"
+                                        }
+                                    },
+                                    "borderPct_SUM": {
+                                        "sum": {
+                                            "field": "borderPct"
+                                        }
+                                    },
+                                    "outIQR_SUM": {
+                                        "sum": {
+                                            "field": "outIQR"
+                                        }
+                                    },
+                                    "outPct_SUM": {
+                                        "sum": {
+                                            "field": "outPct"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            this.elasticsearchClient.search({ index: this.getIndex(PersistenceConstants.REVEALED_PRICES_V1_INDEX), body: body }).then(async response => {
+                const epochIdFrom: number = response.body?.aggregations?.epochIdStats.min;
+                const epochIdTo: number = response.body?.aggregations?.epochIdStats.max;
+                const finalizedPricesCount: Map<string, number> = await this.countFinalizedPrices(null, epochIdFrom, epochIdTo);
+                this._getBuckets(response.body?.aggregations?.dataProvider)
+                    .flatMap(dataProviderBucket => {
+                        const dataProviderKey: string = dataProviderBucket.key;
+                        const allNumberOfCases: number = dataProviderBucket.doc_count;
+                        let symbolIdx: number = 0;
+                        this._getBuckets(dataProviderBucket.symbol).flatMap(symbolBucket => {
+                            const symbol: string = symbolBucket.key;
+                            symbolIdx++;
+                            const numberOfCases: number = symbolBucket?.doc_count;
+                            const innerIQR: number = symbolBucket.innerIQR_SUM?.value;
+                            const innerPct: number = symbolBucket.innerPct_SUM?.value;
+                            const borderIQR: number = symbolBucket.borderIQR_SUM?.value;
+                            const borderPct: number = symbolBucket.borderPct_SUM?.value;
+                            const outIQR: number = symbolBucket.outIQR_SUM?.value;
+                            const outPct: number = symbolBucket.outPct_SUM?.value;
+                            let stats: DataProviderSubmissionStats = new DataProviderSubmissionStats().calculateSymbolStats(dataProviderKey, symbol, finalizedPricesCount.get(symbol), numberOfCases, innerIQR, innerPct, borderIQR, borderPct, outIQR, outPct);
+                            results.push(stats);
+                        });
+                        const allFinalizedPricesCount: number = [...finalizedPricesCount.values()].reduce((acc, value) => acc + Number(value), 0);
+                        let globalStats = new DataProviderSubmissionStats().calculateGlobalStats(results.filter(result => result.dataProvider == dataProviderKey), dataProviderKey, allFinalizedPricesCount, symbolIdx);
+
+                        results.push(globalStats);
+                    });
+                resolve(results);
+            }).catch(err => {
+                reject(new Error(`Search error: ` + err.message))
+            });
+        });
+    }
+
+    async getAvailableSymbols(epochBlockNumberFrom: number, epochBlockNumberTo: number): Promise<string[]> {
+        const termsResults: { key: string, doc_count: number }[] = await this.doTermsAggregation('symbol', `blockNumber: [${epochBlockNumberFrom} TO ${epochBlockNumberTo}]`, this.getIndex(PersistenceConstants.FINALIZED_PRICES_V1_INDEX));
+        let results: string[] = [];
+        termsResults.map(result => {
+            results.push(result.key);
+        });
+        return results;
+    }
+    async getSubmittedHashes(epochId: number, submitter: string, startBlock: number, endBlock: number, page: number, pageSize: number): Promise<PaginatedResult<HashSubmitted[]>> {
+        const queryString: string = `epochId: ${isEmpty(epochId) ? '*' : epochId} AND submitter: ${isEmpty(submitter) ? '*' : submitter} AND blockNumber: [${startBlock} TO ${endBlock}]`;
+        const submittedHashes: PaginatedResult<HashSubmitted[]> = await this._paginatedSearch<HashSubmitted>(this.getIndex(PersistenceConstants.HASHES_SUBMITTED_V1_INDEX), queryString, page, pageSize);
+        return submittedHashes;
+    }
+
+
+    storeSubmittedHashes(blockchainData: HashSubmitted[]): Promise<number> {
+        return new Promise<number>(async (resolve, reject) => {
+            blockchainData.forEach(submittedHash => {
+                submittedHash.submitter = submittedHash.submitter.toLowerCase();
+                (submittedHash as any).objId = `${submittedHash.epochId}_${submittedHash.submitter}`;
+            });
+            let storedObjectCount: number = await this._bulkLoad<HashSubmitted>(blockchainData, PersistenceConstants.HASHES_SUBMITTED_V1_INDEX);
+            resolve(storedObjectCount);
+        })
+    }
 }
 
 export enum AggregationOperationEnum {
-    sum, min, max, avg
+    sum, min, max, avg, cardinality
 }

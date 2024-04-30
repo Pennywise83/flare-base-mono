@@ -1,7 +1,8 @@
 import { Client } from "@elastic/elasticsearch";
-import { Balance, ClaimedRewardsSortEnum, DataProviderInfo, Delegation, DelegationSnapshot, DelegationsSortEnum, FtsoFee, FtsoFeeSortEnum, FtsoRewardStats, FtsoRewardStatsGroupByEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, PriceFinalized, PriceFinalizedSortEnum, PriceRevealed, PriceRevealedSortEnum, Reward, RewardDistributed, RewardDistributedSortEnum, RewardEpoch, RewardEpochSettings, VotePower, VoterWhitelist, WrappedBalance } from "@flare-base/commons";
+import { Balance, ClaimedRewardsSortEnum, DataProviderInfo, DataProviderRewardStats, DataProviderRewardStatsGroupByEnum, Delegation, DelegationSnapshot, DelegationsSortEnum, FtsoFee, FtsoFeeSortEnum, HashSubmitted, PaginatedResult, PriceEpoch, PriceEpochSettings, PriceFinalized, PriceFinalizedSortEnum, PriceRevealed, PriceRevealedSortEnum, Reward, RewardDistributed, RewardDistributedSortEnum, RewardEpoch, RewardEpochSettings, VotePower, VoterWhitelist, WrappedBalance } from "@flare-base/commons";
 import { Logger } from "@nestjs/common";
 import { EpochSortEnum } from "libs/commons/src/model/epochs/price-epoch";
+import { DataProviderSubmissionStats } from "libs/commons/src/model/ftso/data-provider-submission-stats";
 import { SortOrderEnum } from "libs/commons/src/model/paginated-result";
 import { ClaimedRewardHistogramElement } from "libs/commons/src/model/rewards/reward";
 import { PersistenceDaoConfig } from "../../model/app-config/persistence-dao-config";
@@ -10,6 +11,7 @@ import { EpochStats } from "./impl/model/epoch-stats";
 import { PersistenceMetadata, PersistenceMetadataType } from "./impl/model/persistence-metadata";
 
 export interface IPersistenceDao {
+
     logger: Logger;
     status: ServiceStatusEnum;
     config: PersistenceDaoConfig;
@@ -67,16 +69,18 @@ export interface IPersistenceDao {
     getDataProvidersVotePower(rewardEpochId: number): Promise<VotePower[]>;
 
     // Ftso
-    getFtsoInfo(): Promise<DataProviderInfo[]>;
-    storeFtsoInfo(ftsoInfo: DataProviderInfo[]): Promise<number>;
     getUniqueDataProviderAddressList(endTime: number): Promise<string[]>;
     getVoterWhitelist(address: string, targetBlockNumber: number): Promise<VoterWhitelist[]>;
     storeVoterWhitelist(blockchainData: VoterWhitelist[]): Promise<number>;
+
+    getSubmittedHashes(epochId: number, submitter: string, startBlock: number, endBlock: number, page: number, pageSize: number): Promise<PaginatedResult<HashSubmitted[]>>;
+    storeSubmittedHashes(blockchainData: HashSubmitted[]): Promise<number>;
 
     getFinalizedPrices(symbol: string, startBlock: number, endBlock: number, page: number, pageSize: number, sortField: PriceFinalizedSortEnum, sortOrder: SortOrderEnum): Promise<PaginatedResult<PriceFinalized[]>>;
     storeFinalizedPrices(blockchainData: PriceFinalized[]): Promise<number>;
 
     getRevealedPrices(symbol: string, address: string, startBlock: number, endBlock: number, page: number, pageSize: number, sortField: PriceRevealedSortEnum, sortOrder: SortOrderEnum): Promise<PaginatedResult<PriceRevealed[]>>;
+    getRevealedPricesByEpochId(symbol: string, address: string, epochIdFrom: number, epochIdTo: number, page: number, pageSize: number, sortField: PriceRevealedSortEnum, sortOrder: SortOrderEnum): Promise<PaginatedResult<PriceRevealed[]>>;
     storeRevealedPrices(blockchainData: PriceRevealed[]): Promise<number>;
 
     storeFtsoFee(blockchainData: FtsoFee[]): Promise<number>;
@@ -86,6 +90,7 @@ export interface IPersistenceDao {
     storeRewardDistributed(blockchainData: RewardDistributed[]): Promise<number>;
     getRewardDistributed(dataProvider: string, symbol: string, startBlock: number, endBlock: number, page: number, pageSize: number, sortField: RewardDistributedSortEnum, sortOrder: SortOrderEnum): Promise<PaginatedResult<RewardDistributed[]>>;
 
-    getFtsoRewardStats(dataProvider: string, startBlock: number, endBlock: number, groupBy: FtsoRewardStatsGroupByEnum): Promise<FtsoRewardStats[]>;
-
+    getDataProviderRewardStats(dataProvider: string, startBlock: number, endBlock: number, groupBy: DataProviderRewardStatsGroupByEnum): Promise<DataProviderRewardStats[]>;
+    getDataProviderSubmissionStats(startBlock: number, endBlock: number): Promise<DataProviderSubmissionStats[]>;
+    getAvailableSymbols(epochBlockNumberFrom: number, epochBlockNumberTo: number): Promise<string[]>;
 }

@@ -1,10 +1,11 @@
+import { DataProviderExtendedInfo, DataProviderInfo, DataProviderRewardStats, DelegationDTO, DelegationSnapshot, FtsoFee, HashSubmitted, HashSubmittedRealTimeData, IRealTimeData, PriceEpoch, PriceFinalizedRealTimeData, PriceRevealedRealTimeData, RealTimeDataTypeEnum, RealTimeFtsoData, RewardDistributedRealTimeData, RewardEpoch, VotePowerDTO, WrappedBalance } from '@flare-base/commons';
+import { Logger } from '@nestjs/common';
+import { isNotEmpty } from 'class-validator';
 import * as Redis from 'ioredis';
+import { DataProviderSubmissionStats } from 'libs/commons/src/model/ftso/data-provider-submission-stats';
 import { CacheDaoConfig } from "../../../model/app-config/cache-dao-config";
 import { ServiceStatusEnum } from "../../../service/network-dao-dispatcher/model/service-status.enum";
 import { ICacheDao } from "../i-cache-dao.service";
-import { Logger } from '@nestjs/common';
-import { DataProviderExtendedInfo, DelegationDTO, DelegationSnapshot, FtsoFee, FtsoRewardStats, PriceEpoch, RewardEpoch, VotePowerDTO, WrappedBalance } from '@flare-base/commons';
-import { isEmpty, isNotEmpty } from 'class-validator';
 
 export abstract class CacheDaoImpl implements ICacheDao {
     abstract logger: Logger;
@@ -87,13 +88,75 @@ export abstract class CacheDaoImpl implements ICacheDao {
         const cacheKey: string = `ftsoFee_${rewardEpochId}`;
         return await this._set<FtsoFee[]>(cacheKey, daoData, endTime);
     }
-    async setFtsoRewardStatsByRewardEpoch(rewardEpochId: number, ftsoRewardStats: FtsoRewardStats[], endTime?: number): Promise<void> {
-        const cacheKey: string = `ftsoRewardStatsByRewardEpoch_${rewardEpochId}`;
-        return await this._set<FtsoRewardStats[]>(cacheKey, ftsoRewardStats, endTime);
+    async setDataProviderRewardStatsByRewardEpoch(rewardEpochId: number, dataProviderRewardStats: DataProviderRewardStats[], endTime?: number): Promise<void> {
+        const cacheKey: string = `DataProviderRewardStatsByRewardEpoch_${rewardEpochId}`;
+        return await this._set<DataProviderRewardStats[]>(cacheKey, dataProviderRewardStats, endTime);
     }
-    async getFtsoRewardStatsByRewardEpoch(rewardEpochId: number): Promise<FtsoRewardStats[]> {
-        const cacheKey: string = `ftsoRewardStatsByRewardEpoch_${rewardEpochId}`;
-        return await this._get<FtsoRewardStats[]>(cacheKey);
+    async getDataProviderRewardStatsByRewardEpoch(rewardEpochId: number): Promise<DataProviderRewardStats[]> {
+        const cacheKey: string = `DataProviderRewardStatsByRewardEpoch_${rewardEpochId}`;
+        return await this._get<DataProviderRewardStats[]>(cacheKey);
+    }
+
+    async getDataProvideSubmissionStatsByRewardEpoch(rewardEpochId: number): Promise<DataProviderSubmissionStats[]> {
+        const cacheKey: string = `DataProvideSubmissionStatsByRewardEpoch${rewardEpochId}`;
+        return await this._get<DataProviderSubmissionStats[]>(cacheKey);
+    }
+    async setDataProvideSubmissionStatsByRewardEpoch(rewardEpochId: number, submissionStats: DataProviderSubmissionStats[], endTime?: number): Promise<void> {
+        const cacheKey: string = `DataProvideSubmissionStatsByRewardEpoch${rewardEpochId}`;
+        return await this._set<DataProviderSubmissionStats[]>(cacheKey, submissionStats, endTime);
+    }
+
+    async getRealTimeFtsoData(): Promise<RealTimeFtsoData> {
+        const cacheKey: string = `${this.cacheDomain}_RealTimeFtsoData`;
+        const now: number = new Date().getTime();
+        let result: RealTimeFtsoData = new RealTimeFtsoData();
+        const cacheData: IRealTimeData[] = await this._get<IRealTimeData[]>(cacheKey);
+        if (isNotEmpty(cacheData)) {
+            cacheData.map(data => {
+                switch (data.type) {
+                    case RealTimeDataTypeEnum.hashSubmitted:
+                        result.hashSubmitted.push(new HashSubmittedRealTimeData(data as any));
+                        break;
+                    case RealTimeDataTypeEnum.revealedPrice:
+                        result.revealedPrices.push(new PriceRevealedRealTimeData(data as any));
+                        break;
+                    case RealTimeDataTypeEnum.finalizedPrice:
+                        result.finalizedPrices.push(new PriceFinalizedRealTimeData(data as any));
+                        break;
+                    case RealTimeDataTypeEnum.rewardDistributed:
+                        result.distributedRewards.push(new RewardDistributedRealTimeData(data as any));
+                        break;
+                }
+            });
+        }
+        return result;
+    }
+    async pushRealTimeFtsoData(data: any): Promise<void> {
+        const cacheKey: string = `${this.cacheDomain}_RealTimeFtsoData`;
+        const now: number = new Date().getTime();
+        if (data) {
+            const cacheData: IRealTimeData[] = await this._get<IRealTimeData[]>(cacheKey);
+            let newCacheData: IRealTimeData[] = [];
+            if (isNotEmpty(cacheData)) {
+                cacheData.filter(data => data.timestamp >= (now - (60 * 15 * 1000))).map(data => newCacheData.push(data));
+            }
+            if (data && data.value && data.dataProvider && data.symbol) {
+                newCacheData.push(new PriceRevealedRealTimeData(data as any));
+            }
+            if (data && data.submitter) {
+                newCacheData.push(new HashSubmittedRealTimeData(data as any));
+            }
+            if (data && data.lowIQRRewardPrice) {
+                newCacheData.push(new PriceFinalizedRealTimeData(data as any));
+            }
+            if (data && data.reward) {
+                newCacheData.push(new RewardDistributedRealTimeData(data as any));
+            }
+            return await this._set<IRealTimeData[]>(cacheKey, newCacheData);
+        } else {
+            return;
+        }
+
     }
 
     // Balances
@@ -195,6 +258,17 @@ export abstract class CacheDaoImpl implements ICacheDao {
         return await this._set<DelegationSnapshot[]>(cacheKey, delegationsSnapshot, endTime)
     }
 
+    async getDataProvidersInfo(rewardEpochId: number): Promise<DataProviderInfo[]> {
+        const cacheKey: string = `dataProvidersInfo_${rewardEpochId}`;
+        return await this._get<DataProviderInfo[]>(cacheKey);
+    }
+    async setDataProvidersInfo(rewardEpochId: number, data: DataProviderInfo[], endTime?: number): Promise<void> {
+        const cacheKey: string = `dataProvidersInfo_${rewardEpochId}`;
+        return await this._set<DataProviderInfo[]>(cacheKey, data, endTime)
+
+    }
+
+
     private async _set<T>(key: string, value: T, endTime?: number): Promise<void> {
         try {
             if (isNotEmpty(endTime)) {
@@ -204,7 +278,8 @@ export abstract class CacheDaoImpl implements ICacheDao {
                     await this.redisCluster.set(`${this.cacheDomain}_${key}`, JSON.stringify(value), 'EX', ttl);
                 }
             } else {
-                await this.redisCluster.set(`${this.cacheDomain}_${key}`, JSON.stringify(value));
+                const ttl: number = (60 * 60 * 24 * 7);
+                await this.redisCluster.set(`${this.cacheDomain}_${key}`, JSON.stringify(value), 'EX', ttl);
             }
 
             return;

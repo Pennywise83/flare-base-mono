@@ -139,13 +139,26 @@ export class PersistenceConstants {
             timestamp: { type: 'date', format: 'epoch_millis' },
             epochId: { type: 'long' },
             symbol: { type: 'keyword' },
-            price: { type: 'double' },
+            value: { type: 'double' },
             rewardedSymbol: { type: 'boolean' },
             lowIQRRewardPrice: { type: 'double' },
             highIQRRewardPrice: { type: 'double' },
             lowPctRewardPrice: { type: 'double' },
             highPctRewardPrice: { type: 'double' },
 
+        }
+    };
+
+    static HASHES_SUBMITTED_V1_INDEX = 'v1submittedhashes';
+    static HASHES_SUBMITTED_V1_INDEX_MAPPING = {
+        _source: {
+            enabled: true
+        },
+        properties: {
+            blockNumber: { type: 'long' },
+            timestamp: { type: 'date', format: 'epoch_millis' },
+            epochId: { type: 'long' },
+            submitter: { type: 'keyword' },
         }
     };
 
@@ -159,7 +172,7 @@ export class PersistenceConstants {
             timestamp: { type: 'date', format: 'epoch_millis' },
             epochId: { type: 'long' },
             symbol: { type: 'keyword' },
-            price: { type: 'double' },
+            value: { type: 'double' },
             dataProvider: { type: 'keyword' },
             innerIQR: { type: 'boolean' },
             innerPct: { type: 'boolean' },

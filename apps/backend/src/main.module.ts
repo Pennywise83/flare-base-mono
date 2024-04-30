@@ -56,22 +56,22 @@ import { RewardsService } from './service/rewards/rewards.service';
         }),
         BullModule.registerQueue({
             name: PERSISTENCE_DAO_FLR_QUEUE,
-            prefix: '{q}'
+            prefix: '{q2}'
 
         }),
         BullModule.registerQueue({
             name: PERSISTENCE_DAO_SGB_QUEUE,
-            prefix: '{q}'
+            prefix: '{q2}'
 
         }),
         BullModule.registerQueue({
             name: BLOCKCHAIN_DAO_FLR_QUEUE,
-            prefix: '{q}'
+            prefix: '{q2}'
 
         }),
         BullModule.registerQueue({
             name: BLOCKCHAIN_DAO_SGB_QUEUE,
-            prefix: '{q}'
+            prefix: '{q2}'
 
         }),
         HttpModule.register({

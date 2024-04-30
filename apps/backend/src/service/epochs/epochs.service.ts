@@ -200,7 +200,7 @@ export class EpochsService {
                     throw new Error(`Service unavailable`);
                 }
                 const rewardEpochSettings: RewardEpochSettings = await this.getRewardEpochSettings(network);
-                const expectedRewardEpochs: number[] = rewardEpochSettings.getEpochIdsFromTimeRange(startTime, endTime);
+                const expectedRewardEpochs: number[] = rewardEpochSettings.getEpochIdsFromTimeRange(startTime, endTime).filter(rewardEpoch => rewardEpoch < rewardEpochSettings.getNextEpochId());
                 if (expectedRewardEpochs.length == 0) {
                     resolve(new PaginatedResult(page, pageSize, sortField, sortOrder, 0, []));
                     return;
@@ -417,11 +417,10 @@ export class EpochsService {
     }
     getBlockNumberRangeByPriceEpochs(network: NetworkEnum, startTime: number, endTime: number): Promise<EpochStats> {
         return new Promise<EpochStats>(async (resolve, reject) => {
-            let blockchainDao: IBlockchainDao = await this._networkDaoDispatcher.getBlockchainDao(network);
             let persistenceDao: IPersistenceDao = await this._networkDaoDispatcher.getPersistenceDao(network);
 
             try {
-                if (ServiceUtils.isServiceUnavailable(blockchainDao) || ServiceUtils.isServiceUnavailable(persistenceDao)) {
+                if (ServiceUtils.isServiceUnavailable(persistenceDao)) {
                     throw new Error(`Service unavailable`);
                 }
 

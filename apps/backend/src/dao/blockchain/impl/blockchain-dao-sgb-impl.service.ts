@@ -1,10 +1,10 @@
 import { HashSubmitted, NetworkEnum, SgbContract, SgbContractCommon, SgbFtsoRewardManager } from "@flare-base/commons";
-import { InjectQueue, Processor } from "@nestjs/bull";
+import { InjectQueue, Process, Processor } from "@nestjs/bull";
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { NetworkConfig } from "apps/backend/src/model/app-config/network-config";
 import { ServiceStatusEnum } from "apps/backend/src/service/network-dao-dispatcher/model/service-status.enum";
-import { Queue } from "bull";
+import { Job, Queue } from "bull";
 import { isNotEmpty } from "class-validator";
 import { ethers } from "ethers";
 import { readFileSync, writeFileSync } from "fs";
@@ -263,5 +263,68 @@ export class BlockchainDaoSgbImpl extends BlockchainDaoImpl {
             this.hashSubmittedListener$.next(hashSubmitted);
         })
         return Promise.resolve();
+    }
+
+
+    async getSubmittedHashes(startBlock: number, endBlock: number): Promise<HashSubmitted[]> {
+        try {
+            if (endBlock == null) {
+                endBlock = await this.provider.getBlockNumber();
+            }
+            const events: HashSubmitted[] = [];
+            const job = await this._blockchainDaoQueue.add('scanSubmittedHashesProcessor', { startBlock: startBlock, endBlock: endBlock });
+            const evts: HashSubmitted[] = await job.finished() as HashSubmitted[];
+            events.push(...evts);
+            return events;
+        } catch (err) {
+            throw err;
+        }
+    }
+    @Process({ name: 'scanSubmittedHashesProcessor', concurrency: 1 })
+    private async scanSubmittedHashesProcessor(job: Job<unknown>): Promise<any> {
+        return new Promise((resolve, reject) => {
+            this._scanSubmittedHashes(job.data['startBlock'], job.data['endBlock'])
+                .then(res => {
+                    let results: HashSubmitted[] = [];
+                    if (res.length > 0) {
+                        results = res.map(evt => {
+                            let hashSubmitted: HashSubmitted = new HashSubmitted();
+                            hashSubmitted.blockNumber = evt.blockNumber;
+                            hashSubmitted.submitter = evt.args[0];
+                            hashSubmitted.epochId = Number(evt.args[1]);
+                            hashSubmitted.timestamp = Number(evt.args[4]) * 1000;
+                            return hashSubmitted;
+                        });
+                    }
+                    resolve(results);
+                })
+                .catch(error => {
+                    reject(error);
+                });
+        });
+    }
+    async _scanSubmittedHashes(blockNumberStart: number, blockNumberEnd: number): Promise<SgbContractCommon.TypedEventLog<any>[]> {
+        return new Promise<SgbContractCommon.TypedEventLog<any>[]>(async (resolve, reject) => {
+            try {
+                let maxScanSize: number = 250;
+                let results: SgbContractCommon.TypedEventLog<any>[] = [];
+                let filter: any = (this.priceSubmitter as SgbContract.PriceSubmitter).filters.PriceHashesSubmitted;
+                const address = await this.priceSubmitter.getAddress();
+                const processBlocks = async (start: number, end: number, contract: SgbContract.PriceSubmitter, filter: any) => {
+                    this.logger.verbose(`_scanSubmittedHashes - Contract: ${address} - Processing blocks from ${start} to ${end}  - Size: ${maxScanSize}`);
+                    const startTime: number = new Date().getTime();
+                    const hashSubmittedEvents: SgbContractCommon.TypedEventLog<any>[] = await contract.queryFilter(filter, start, end);
+                    maxScanSize = this.getMaxScanSize(startTime, maxScanSize, 250);
+                    results = results.concat(hashSubmittedEvents);
+                    if (end < blockNumberEnd) {
+                        await processBlocks(end + 1, Math.min(end + maxScanSize, blockNumberEnd), contract, filter);
+                    }
+                };
+                await processBlocks(blockNumberStart, Math.min(blockNumberStart + maxScanSize, blockNumberEnd), this.priceSubmitter as SgbContract.PriceSubmitter, filter);
+                resolve(results);
+            } catch (e) {
+                reject(e);
+            }
+        });
     }
 }

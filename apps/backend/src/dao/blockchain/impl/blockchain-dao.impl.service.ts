@@ -30,7 +30,7 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
     _rewardEpochSettings: RewardEpochSettings;
     _priceEpochSettings: PriceEpochSettings;
     priceEpochListener$: Subject<PriceEpoch> = new Subject<PriceEpoch>();
-    rewardEpochListener$: Subject<PriceEpoch> = new Subject<RewardEpoch>();
+    rewardEpochListener$: Subject<RewardEpoch> = new Subject<RewardEpoch>();
     claimedRewardsListener$: Subject<Reward> = new Subject<Reward>();
     wrappedBalanceListener$: Subject<Balance> = new Subject<Balance>();;
     delegationsListener$: Subject<Delegation> = new Subject<Delegation>();
@@ -233,7 +233,11 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
     async startPriceFinalizedListener(): Promise<void> {
         const lastBlockNumber: number = await this.provider.getBlockNumber();
         let filteredFtsoContracts: { [symbol: string]: DynamicFtso[] } = this.ftsoManagerWrapper.getContractsByBlockNumberRange(lastBlockNumber - 1000, lastBlockNumber);
-        this._activeFtsoContracts = Object.keys(filteredFtsoContracts).length;
+        let activeSymbols = [];
+        Object.keys(filteredFtsoContracts).map(symbol => {
+            filteredFtsoContracts[symbol].filter(contract => contract.active).map(contract => activeSymbols.push(contract.symbol));
+        });
+        this._activeFtsoContracts = activeSymbols.length;
         Object.keys(filteredFtsoContracts).map(async (symbol, symbolIdx) => {
             const contract: FlrContract.Ftso = FlrContract.Ftso__factory.connect(filteredFtsoContracts[symbol][0].address, this.provider);
             const ftsoAddress: string = await contract.getAddress();
@@ -261,11 +265,13 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
                 priceFinalized.epochId = Number(epochId);
                 priceFinalized.timestamp = Number(timestamp) * 1000;
                 priceFinalized.symbol = this.ftsoManagerWrapper.getSymbolByContractAddress(ftsoAddress);
-                priceFinalized.price = (Number(price) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(ftsoAddress));
+                priceFinalized.value = (Number(price) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(ftsoAddress));
                 priceFinalized.lowIQRRewardPrice = (Number(lowIQRRewardPrice) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(ftsoAddress));
                 priceFinalized.highIQRRewardPrice = (Number(highIQRRewardPrice) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(ftsoAddress));
                 priceFinalized.lowPctRewardPrice = (Number(lowElasticBandRewardPrice) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(ftsoAddress));
                 priceFinalized.highPctRewardPrice = (Number(highElasticBandRewardPrice) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(ftsoAddress));
+                priceFinalized.rewardedSymbol = Boolean(rewardedFtso);
+
                 priceFinalized.blockNumber = event.log.blockNumber;
                 this.pricesFinalizedListener$.next(priceFinalized);
             })
@@ -360,6 +366,7 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
                 let results: Array<Reward> = await job.finished() as Array<Reward>;
 
                 this.logger.log(`scanClaimedRewards - getting timestamps...`)
+                this._blockNumberTimestampCache = {};
                 const claimedRewardsTimestamp: Array<number> = await this._makeBatchedCalls(5000, 10, this._getTimestampFromBlockNumber.bind(this), results.map((evt) => [evt.blockNumber]));
                 claimedRewardsTimestamp.map((delegationTimestamp, idx) => {
                     results[idx].timestamp = delegationTimestamp;
@@ -476,7 +483,7 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
                 priceRevealed.timestamp = Number(timestamp) * 1000;
                 priceRevealed.epochId = Number(epochId);
                 priceRevealed.symbol = this.ftsoManagerWrapper.getSymbolByContractAddress(ftso);
-                priceRevealed.price = (Number(prices[ftsoIdx]) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(ftso));
+                priceRevealed.value = (Number(prices[ftsoIdx]) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(ftso));
                 priceRevealed.dataProvider = voter;
                 this.pricesRevealedListener$.next(priceRevealed);
             });
@@ -565,6 +572,7 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
                 const job = await this._blockchainDaoQueue.add('scanVoterWhitelistProcessor', { startBlock, endBlock });
                 let results: VoterWhitelist[] = await job.finished() as VoterWhitelist[];
                 this.logger.log(`_scanVoterWhitelist - getting timestamps...`)
+                this._blockNumberTimestampCache = {};
                 const voterWhitelistTimestamps: Array<number> = await this._makeBatchedCalls(5000, 10, this._getTimestampFromBlockNumber.bind(this), results.map((evt) => [evt.blockNumber]));
                 voterWhitelistTimestamps.map((delegationTimestamp, idx) => {
                     results[idx].timestamp = delegationTimestamp;
@@ -744,6 +752,9 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
         });
     }
 
+    abstract getSubmittedHashes(blockNumberStart: number, blockNumberEnd: number): Promise<HashSubmitted[]>
+   
+
     async getFinalizedPrices(symbol: string, blockNumberStart: number, blockNumberEnd: number): Promise<PriceFinalized[]> {
         try {
             if (blockNumberEnd == null) {
@@ -795,14 +806,14 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
                             finalizedPrice.symbol = this.ftsoManagerWrapper.getSymbolByContractAddress(job.data['contract'].address);
                             if ((evt as any).hasElasticBand) {
                                 finalizedPrice.timestamp = Number(evt.args[8]) * 1000;
-                                finalizedPrice.price = (Number(evt.args[1]) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(job.data['contract'].address));
+                                finalizedPrice.value = (Number(evt.args[1]) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(job.data['contract'].address));
                                 finalizedPrice.lowIQRRewardPrice = (Number(evt.args[3]) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(job.data['contract'].address));
                                 finalizedPrice.highIQRRewardPrice = (Number(evt.args[4]) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(job.data['contract'].address));
                                 finalizedPrice.lowPctRewardPrice = (Number(evt.args[5]) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(job.data['contract'].address));
                                 finalizedPrice.highPctRewardPrice = (Number(evt.args[6]) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(job.data['contract'].address));
                             } else {
                                 finalizedPrice.timestamp = Number(evt.args[6]) * 1000;
-                                finalizedPrice.price = (Number(evt.args[1]) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(job.data['contract'].address));
+                                finalizedPrice.value = (Number(evt.args[1]) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(job.data['contract'].address));
                                 finalizedPrice.lowIQRRewardPrice = (Number(evt.args[3]) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(job.data['contract'].address));
                                 finalizedPrice.highIQRRewardPrice = (Number(evt.args[4]) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(job.data['contract'].address));
                             }
@@ -876,14 +887,14 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
                     if (res.length > 0) {
                         this.logger.verbose(`_scanRevealedPrices - Processing events...`);
                         for (let evt of res) {
-                            
+
                             for (let argIndex in evt.args[2]) {
                                 let revealedPrice: PriceRevealed = new PriceRevealed();
                                 revealedPrice.epochId = Number(evt.args[1]);
                                 revealedPrice.blockNumber = evt.blockNumber;
                                 revealedPrice.timestamp = Number(evt.args[5]) * 1000;
                                 revealedPrice.symbol = this.ftsoManagerWrapper.getSymbolByContractAddress(evt.args[2][argIndex]);
-                                revealedPrice.price = (Number(evt.args[3][argIndex]) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(evt.args[2][argIndex]))
+                                revealedPrice.value = (Number(evt.args[3][argIndex]) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(evt.args[2][argIndex]))
                                 revealedPrice.dataProvider = evt.args[0];
                                 results.push(revealedPrice);
                             }
@@ -1000,9 +1011,9 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
             if (events.length > 0) {
                 this.logger.log(`_scanRewardDistributed - getting timestamps...`)
                 this._blockNumberTimestampCache = {};
-                const delegateTimestamps: Array<number> = await this._makeBatchedCalls(5000, 10, this._getTimestampFromBlockNumber.bind(this), events.map((evt) => [evt.blockNumber]));
-                delegateTimestamps.map((delegationTimestamp, idx) => {
-                    events[idx].timestamp = delegationTimestamp;
+                const rewardDistributedTimestamps: Array<number> = await this._makeBatchedCalls(5000, 10, this._getTimestampFromBlockNumber.bind(this), events.map((evt) => [evt.blockNumber]));
+                rewardDistributedTimestamps.map((rewardDistributedTimestamp, idx) => {
+                    events[idx].timestamp = rewardDistributedTimestamp;
                 });
             }
             events.sort((a, b) => a.blockNumber - b.blockNumber);
@@ -1069,14 +1080,17 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
             ftso: string,
             epochId: bigint,
             addresses: string[],
-            rewards: bigint[]
+            rewards: bigint[],
+            evt: any
         ) => {
-            addresses.map((address, addressIdx) => {
+            addresses.map(async (address, addressIdx) => {
                 let rewardDistributed: RewardDistributed = new RewardDistributed();
                 rewardDistributed.dataProvider = address;
                 rewardDistributed.priceEpochId = Number(epochId);
                 rewardDistributed.symbol = this.ftsoManagerWrapper.getSymbolByContractAddress(ftso);
                 rewardDistributed.reward = Number(ethers.formatEther(rewards[addressIdx]));
+                rewardDistributed.blockNumber = evt.log.blockNumber;
+                rewardDistributed.timestamp = await this._getTimestampFromBlockNumber(evt.log.blockNumber);
                 this.rewardDistributedListener$.next(rewardDistributed);
             });
 

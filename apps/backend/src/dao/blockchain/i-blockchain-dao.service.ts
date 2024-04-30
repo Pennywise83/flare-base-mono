@@ -38,7 +38,7 @@ export interface IBlockchainDao {
     getRewardEpoch(id: number): Promise<RewardEpoch>;
     getCurrentRewardEpoch(): Promise<RewardEpoch>;
     startRewardEpochListener(): Promise<void>;
-    rewardEpochListener$: Subject<PriceEpoch>;
+    rewardEpochListener$: Subject<RewardEpoch>;
     // Price epochs
     getPriceEpochs(priceEpochStart: number, priceEpochEnd: number): Promise<PriceEpoch[]>;
     priceEpochListener$: Subject<PriceEpoch>;
@@ -81,6 +81,8 @@ export interface IBlockchainDao {
     startFtsoFeeListener(): Promise<void>;
     ftsoFeeListener$: Subject<FtsoFee>;
     getRewardDistributed(startBlock: number, endBlock: number): Promise<RewardDistributed[]>;
+    getSubmittedHashes(from: number, to: number): Promise<HashSubmitted[]>;
+
 
 
 
