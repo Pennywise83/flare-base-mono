@@ -113,7 +113,6 @@ export class DataProviderDetailsComponent implements OnInit, OnDestroy {
                         this.priceEpochSettings = res[0] as PriceEpochSettings;
                         this.dataProviderInfo = res[1] as DataProviderInfo[];
                         this.filteredDataProvidersData = res[1] as DataProviderInfo[];;
-                        console.log(this.address);
                         this.feedsRequest = new FeedsRequest(this.address, parseInt(this._route.snapshot.queryParamMap.get('startTime')), parseInt(this._route.snapshot.queryParamMap.get('endTime')))
                         this.delegatorsRequest = new DelegatorsRequest(this.address, this.rewardEpochSettings.getEpochIdForTime(this.feedsRequest.endTime));
                         this.votePowerRequest = new VotePowerHistoryRequest(this.address, this.feedsRequest.startTime, this.feedsRequest.endTime);
@@ -162,7 +161,6 @@ export class DataProviderDetailsComponent implements OnInit, OnDestroy {
                                     break;
                                 case DataProviderSectionEnum.rewards:
                                     this.rewardsHistoryRequest = new RewardsHistoryRequest(this.address, this.rewardEpochSettings.getStartTimeForEpochId(this.rewardEpochSettings.getEpochIdForTime(this.feedsRequest.endTime) - 60), this.feedsRequest.endTime);
-                                    console.log(this.rewardsHistoryRequest);
                                     this.rewardsHistoryRequest.pageSize = 5000;
                                     Commons.setPageTitle(`Flare base - ${this.network.charAt(0).toUpperCase() + this.network.slice(1)} - Data providers explorer - Rewards history - ${this.selectedProviders[0].name} -  ${this.feedsRequest.symbol}`, this._titleService, this._matomoTracker);
                                     this.section = DataProviderSectionEnum.rewards;
