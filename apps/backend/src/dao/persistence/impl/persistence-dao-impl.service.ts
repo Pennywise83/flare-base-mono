@@ -78,7 +78,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
                             let indexPrefix: string = Object.keys(this.indicesMapping)[idx];
                             let indexMapping: PersistenceIndexMapping = this.indicesMapping[indexPrefix];
                             let indexName: string = this.getIndexName(indexMapping.type, new Date().getTime());
-                       //     createCalls.push(this._createIndex(indexName, indexMapping.mapping));
+                            createCalls.push(this._createIndex(indexName, indexMapping.mapping));
                         }
                     });
                     if (createCalls.length > 0) {
@@ -473,7 +473,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
                     response = scrollResponse;
                 }
                 result.map((r) => delete r.objId);
-                //  await this._cacheDao.setFullScanCache(indexName, query, result, new Date().getTime() + (60 * 10 * 1000));
+                await this._cacheDao.setFullScanCache(indexName, query, result, new Date().getTime() + (60 * 10 * 1000));
                 resolve(result);
             }).catch((err) => {
                 reject(new Error(`Search error on index '${indexName}': ` + err.message));
