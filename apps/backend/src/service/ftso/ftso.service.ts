@@ -21,6 +21,7 @@ import { NetworkDaoDispatcherService } from "../network-dao-dispatcher/network-d
 import { ProgressGateway } from "../progress.gateway";
 import { ServiceUtils } from "../service-utils";
 import { TowoLabsDataProviderInfo } from "./model/towo-data-provider-info";
+import { interval } from "rxjs";
 
 @Injectable()
 export class FtsoService {
@@ -60,6 +61,7 @@ export class FtsoService {
                 if (networkConfig && networkConfig.scanActive) {
                     await this._bootstrapFtsoScan(network, persistenceDao, blockchainDao);
                     await this._startFtsoListeners(network, persistenceDao, blockchainDao, cacheDao, networkConfig);
+                    await this._consistencyCheck(network, persistenceDao, networkConfig.persistenceDao.persistenceMetadataCleanTimeMinutes);
                 }
             }
             this.logger.log(`Initialized.`);
@@ -69,6 +71,18 @@ export class FtsoService {
         }
     }
 
+    private async _consistencyCheck(network: NetworkEnum, persistenceDao: IPersistenceDao, intervalPeriod: number): Promise<void> {
+        interval(intervalPeriod * 60 * 1000).subscribe(async () => {
+            this.logger.log(`${network} - Revealed prices consistency check...`);
+            const missingProcessedRevealedPricesPersistenceMetadata: PersistenceMetadataScanInfo[] = await persistenceDao.getUnpocessedRevealedPricesPersistenceMetadata();
+            if (missingProcessedRevealedPricesPersistenceMetadata.length > 5) {  // Set a tolerance of 5 missing revealed prices
+                this.logger.log(`${network} - Reprocessing ${missingProcessedRevealedPricesPersistenceMetadata.length} sets of revealed prices...`);
+                for (let missingBlock of missingProcessedRevealedPricesPersistenceMetadata) {
+                    await this.getRevealedPrices(network, null, null, missingBlock.from, missingBlock.to, 1, 0, PriceRevealedSortEnum.epochId, SortOrderEnum.desc, true);
+                }
+            }
+        });
+    }
     private async _bootstrapFtsoScan(network: NetworkEnum, persistenceDao: IPersistenceDao, blockchainDao: IBlockchainDao): Promise<void> {
         this.logger.log(`${network} - Starting ftso scan bootstrap...`);
         const startTime: number = new Date().getTime();
@@ -848,7 +862,8 @@ export class FtsoService {
         page: number,
         pageSize: number,
         sortField?: PriceRevealedSortEnum,
-        sortOrder?: SortOrderEnum
+        sortOrder?: SortOrderEnum,
+        force?: boolean
     ): Promise<PaginatedResult<PriceRevealed[]>> {
         const blockchainDao: IBlockchainDao = await this._networkDaoDispatcher.getBlockchainDao(network);
         const persistenceDao: IPersistenceDao = await this._networkDaoDispatcher.getPersistenceDao(network);
@@ -861,7 +876,7 @@ export class FtsoService {
             throw new Error(`Unable to get finalized prices for symbol: ${isNotEmpty(symbol) ? symbol : '*'}. Invalid epoch id.`);
             return;
         }
-        let paginatedResults: PaginatedResult<PriceRevealed[]> = await this.getRevealedPrices(network, dataProvider, symbol, priceEpochFrom.blockNumber + 1, priceEpochTo.blockNumber, page, pageSize, sortField!, sortOrder!);
+        let paginatedResults: PaginatedResult<PriceRevealed[]> = await this.getRevealedPrices(network, dataProvider, symbol, priceEpochFrom.blockNumber + 1, priceEpochTo.blockNumber, page, pageSize, sortField!, sortOrder!, force!);
         paginatedResults = await persistenceDao.getRevealedPricesByEpochId(symbol, dataProvider, epochId, epochId, page, pageSize, sortField!, sortOrder!);
         return paginatedResults;
     }
@@ -874,7 +889,8 @@ export class FtsoService {
         page: number,
         pageSize: number,
         sortField?: PriceRevealedSortEnum,
-        sortOrder?: SortOrderEnum
+        sortOrder?: SortOrderEnum,
+        force?: boolean
     ): Promise<PaginatedResult<PriceRevealed[]>> {
         const blockchainDao: IBlockchainDao = await this._networkDaoDispatcher.getBlockchainDao(network);
         const persistenceDao: IPersistenceDao = await this._networkDaoDispatcher.getPersistenceDao(network);
@@ -894,10 +910,16 @@ export class FtsoService {
                     if (!missingBlocksDataProvidersMap[dataProviders[i]]) { missingBlocksDataProvidersMap[dataProviders[i]] = [] }
                     missingBlocksDataProvidersMap[dataProviders[i]].push(...missingDataProviderBlocks);
                 }
+                if (typeof force != 'undefined' && Boolean(force) == true) {
+                    missingBlocksDataProvidersMap[dataProviders[i]].push({ from: startBlock, to: endBlock })
+                }
             }
         } else {
             persistenceMetadata.push(...await persistenceDao.getPersistenceMetadata(PersistenceMetadataType.RevealedPrice, null, startBlock, endBlock));
             missingBlocks.push(...new PersistenceMetadata().findMissingIntervals(persistenceMetadata, startBlock, endBlock))
+            if (typeof force != 'undefined' && Boolean(force) == true) {
+                missingBlocks.push({ from: startBlock, to: endBlock })
+            }
         }
         if (Object.keys(missingBlocksDataProvidersMap).length > 0) {
             for (let dataProviderAddress in missingBlocksDataProvidersMap) {
@@ -931,10 +953,11 @@ export class FtsoService {
         if (missingBlocks.length > 0) {
             for (const missingBlockNumber of missingBlocks) {
                 this.logger.log(`${network} - Fetching revealed prices for symbol: ${isNotEmpty(symbol) ? symbol : '*'} and dataProvider: ${isNotEmpty(dataProvider) ? dataProvider : '*'} - From block ${missingBlockNumber.from} to ${missingBlockNumber.to} - Size: ${missingBlockNumber.to - missingBlockNumber.from}`);
+                const finalizedPrices: PriceFinalized[] = (await this.getFinalizedPrices(network, null, missingBlockNumber.from, missingBlockNumber.to, 1, 1_000_000)).results;
                 let blockchainData: PriceRevealed[] = [];
                 let blockRanges: { from: number, to: number }[] = [];
-                if (missingBlockNumber.to - missingBlockNumber.from >= 4500) {
-                    blockRanges = Commons.divideBlocks(missingBlockNumber.from, missingBlockNumber.to, 4500);
+                if (missingBlockNumber.to - missingBlockNumber.from >= 40000) {
+                    blockRanges = Commons.divideBlocks(missingBlockNumber.from, missingBlockNumber.to, 40000);
                 } else {
                     blockRanges = [{ from: missingBlockNumber.from, to: missingBlockNumber.to }];
                 }
@@ -942,12 +965,13 @@ export class FtsoService {
 
                 blockchainData.push(...await blockchainDao.getRevealedPrices(null, blockRange.from, blockRange.to))
                 if (blockchainData.length > 0) {
-                    const finalizedPrices: PriceFinalized[] = (await this.getFinalizedPrices(network, null, missingBlockNumber.from, missingBlockNumber.to, 1, 1_000_000)).results;
                     if (isEmpty(finalizedPrices)) {
                         throw new Error(`Unable to get revealed prices for symbol: ${isNotEmpty(symbol) ? symbol : '*'} and dataProvider: ${isNotEmpty(dataProvider) ? dataProvider : '*'}. Unable to retrieve finalized prices for the selected timerange.`);
                         return;
                     }
-                    let parsedRevealedPrice: PriceRevealed[] = this.parseRevealedPriceScores(blockchainData, finalizedPrices);
+                    const priceEpochMin: number = Math.min(...blockchainData.map(data => data.epochId));
+                    const priceEpochMax: number = Math.max(...blockchainData.map(data => data.epochId));
+                    let parsedRevealedPrice: PriceRevealed[] = this.parseRevealedPriceScores(blockchainData, finalizedPrices.filter(finalizedPrice => finalizedPrice.epochId >= priceEpochMin && finalizedPrice.epochId <= priceEpochMax));
                     await persistenceDao.storeRevealedPrices(parsedRevealedPrice);
                 }
                 await persistenceDao.storePersistenceMetadata(PersistenceMetadataType.RevealedPrice, null, blockRange.from, blockRange.to);
@@ -967,6 +991,7 @@ export class FtsoService {
     }
 
     parseRevealedPriceScores(revealedPrices: PriceRevealed[], finalizedPrices: PriceFinalized[]): PriceRevealed[] {
+        this.logger.debug(`Parsing ${revealedPrices.length} revealedPrices with ${finalizedPrices.length} finalizedPrices.`);
         finalizedPrices.map(finalizedPrice => {
             revealedPrices.filter(revealedPrice => revealedPrice.epochId == finalizedPrice.epochId && revealedPrice.symbol == finalizedPrice.symbol).map(revealedPrice => {
                 revealedPrice.borderIQR = false;
@@ -997,6 +1022,7 @@ export class FtsoService {
                 }
             });
         });
+        this.logger.debug(`Parsed ${revealedPrices.length} revealedPrices with ${finalizedPrices.length} finalizedPrices.`);
         return revealedPrices;
     }
 

@@ -8,7 +8,7 @@ import { ClaimedRewardHistogramElement } from "libs/commons/src/model/rewards/re
 import { PersistenceDaoConfig } from "../../model/app-config/persistence-dao-config";
 import { ServiceStatusEnum } from "../../service/network-dao-dispatcher/model/service-status.enum";
 import { EpochStats } from "./impl/model/epoch-stats";
-import { PersistenceMetadata, PersistenceMetadataType } from "./impl/model/persistence-metadata";
+import { PersistenceMetadata, PersistenceMetadataScanInfo, PersistenceMetadataType } from "./impl/model/persistence-metadata";
 
 export interface IPersistenceDao {
 
@@ -81,6 +81,7 @@ export interface IPersistenceDao {
 
     getRevealedPrices(symbol: string, address: string, startBlock: number, endBlock: number, page: number, pageSize: number, sortField: PriceRevealedSortEnum, sortOrder: SortOrderEnum): Promise<PaginatedResult<PriceRevealed[]>>;
     getRevealedPricesByEpochId(symbol: string, address: string, epochIdFrom: number, epochIdTo: number, page: number, pageSize: number, sortField: PriceRevealedSortEnum, sortOrder: SortOrderEnum): Promise<PaginatedResult<PriceRevealed[]>>;
+    getUnpocessedRevealedPricesPersistenceMetadata(): Promise<PersistenceMetadataScanInfo[]>;
     storeRevealedPrices(blockchainData: PriceRevealed[]): Promise<number>;
 
     storeFtsoFee(blockchainData: FtsoFee[]): Promise<number>;

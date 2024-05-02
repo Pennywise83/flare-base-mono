@@ -16,7 +16,7 @@ import { IPersistenceDao } from "../i-persistence-dao.service";
 import { EpochStats } from "./model/epoch-stats";
 import { PersistenceConstants } from "./model/persistence-constants";
 import { PersistenceIndexMapping, PersistenceRollIntervalEnum } from "./model/persistence-index-mapping";
-import { PersistenceMetadata, PersistenceMetadataType } from "./model/persistence-metadata";
+import { PersistenceMetadata, PersistenceMetadataScanInfo, PersistenceMetadataType } from "./model/persistence-metadata";
 
 export abstract class PersistenceDaoImpl implements IPersistenceDao {
 
@@ -1611,6 +1611,50 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
         const revealedPrices: PaginatedResult<PriceRevealed[]> = await this._paginatedSearch<PriceRevealed>(this.getIndex(PersistenceConstants.REVEALED_PRICES_V1_INDEX), queryString, page, pageSize, sortClause);
         return revealedPrices;
     }
+    async getUnpocessedRevealedPricesPersistenceMetadata(): Promise<PersistenceMetadataScanInfo[]> {
+        let results: PersistenceMetadataScanInfo[] = [];
+        const body = {
+            "size": 0,
+            "query": {
+                "bool": {
+                    "filter": [
+                        {
+                            "query_string": {
+                                "query": "NOT borderIQR:*"
+                            }
+                        }
+                    ]
+                }
+            },
+            "aggs": {
+                "epochId": {
+                    "terms": {
+                        "field": "epochId",
+                        "size": 10000
+                    },
+                    "aggs": {
+                        "blockNumbers": {
+                            "stats": {
+                                "field": "blockNumber"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        const response = await this.elasticsearchClient.search({
+            index: this.getIndex(PersistenceConstants.REVEALED_PRICES_V1_INDEX),
+            body: body,
+        });
+        this._getBuckets(response.body?.aggregations?.epochId)
+            .flatMap(epochIdBucket => {
+                if (epochIdBucket && epochIdBucket.blockNumbers && epochIdBucket.blockNumbers.min) {
+                    results.push({ from: epochIdBucket.blockNumbers.min, to: epochIdBucket.blockNumbers.max });
+                }
+            });
+        return results;
+    }
+
 
     storeRevealedPrices(blockchainData: PriceRevealed[]): Promise<number> {
         return new Promise<number>(async (resolve, reject) => {
