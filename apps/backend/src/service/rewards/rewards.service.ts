@@ -27,7 +27,6 @@ export class RewardsService {
         private readonly _configService: ConfigService,
         private readonly _networkDaoDispatcher: NetworkDaoDispatcherService,
         private readonly _epochsService: EpochsService,
-        private readonly _progressGateway: ProgressGateway
     ) {
     }
 

@@ -15,7 +15,7 @@ export class PersistenceMetadata extends PersistenceMetadataScanInfo {
 
         data.sort((a, b) => a.from - b.from);
         const missingIntervals: PersistenceMetadataScanInfo[] = [];
-        let currentTo = from; // Cambiato da currentFrom a currentTo
+        let currentTo = from; 
 
         for (const item of data) {
             if (currentTo < item.from) {
@@ -24,7 +24,7 @@ export class PersistenceMetadata extends PersistenceMetadataScanInfo {
                     to: item.from
                 });
             }
-            currentTo = Math.max(currentTo, item.to); // Aggiunto Math.max per tenere traccia del massimo "to"
+            currentTo = Math.max(currentTo, item.to); 
         }
 
         if (currentTo < to) {

@@ -267,8 +267,15 @@ export abstract class CacheDaoImpl implements ICacheDao {
         return await this._set<DataProviderInfo[]>(cacheKey, data, endTime)
 
     }
-
-
+    async cleanDataProviderSubmissionStats(): Promise<void> {
+        await this._del('DataProvideSubmissionStatsByRewardEpoch');
+        await this._del('dataProvidersData');
+        return;
+    }
+    private async _del(key: string): Promise<void> {
+        const keys = await this.redisCluster.keys(`${this.cacheDomain}_${key}*`);
+        await this.redisCluster.del(keys);
+    }
     private async _set<T>(key: string, value: T, endTime?: number): Promise<void> {
         try {
             if (isNotEmpty(endTime)) {

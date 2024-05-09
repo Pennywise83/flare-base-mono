@@ -146,13 +146,13 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
             await this.persistenceMetadataCleaner();
         });
     }
-    private async persistenceMetadataCleaner(): Promise<void> {
+    private async  persistenceMetadataCleaner(): Promise<void> {
         try {
             let index: string = this.getIndex(PersistenceConstants.METADATA_INDEX);
             this.logger.log(`Optimizing persistence metadata...`);
             for (let i in PersistenceMetadataType) {
                 if (PersistenceMetadataType[i] != PersistenceMetadataType.DelegationSnapshot) {
-                    const persistenceMetadata: PersistenceMetadata[] = await this.getPersistenceMetadata(PersistenceMetadataType[i], 'all', 0, null);
+                    const persistenceMetadata: PersistenceMetadata[] = await this.getPersistenceMetadata(PersistenceMetadataType[i], '*', 0, null);
                     await this.optimizePersistenceMetadata(PersistenceMetadataType[i], persistenceMetadata);
                 }
             }
@@ -1669,7 +1669,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
 
 
     async getFtsoFee(targetBlockNumber: number, dataProvider: string, sortField: FtsoFeeSortEnum, sortOrder: SortOrderEnum): Promise<FtsoFee[]> {
-        const queryString = `dataProvider: (${isNotEmpty(dataProvider) ? dataProvider : '*'} OR defaultFtsoFee) AND validFromEpoch: [ 0 TO ${targetBlockNumber}]`;
+        const queryString = `dataProvider: (${isNotEmpty(dataProvider) ? dataProvider : '*'} OR defaultFtsoFee) AND blockNumber: [ 0 TO ${targetBlockNumber}]`;
         const voterWhitelist = await this.getVoterWhitelist(null, targetBlockNumber);
         const uniqueDataProviderAddressList: string[] = [... new Set(voterWhitelist.filter(voterWhitelist => voterWhitelist.whitelisted == true).map(voterWhitelist => voterWhitelist.address))];
         let result: FtsoFee[] = await this._search<FtsoFee>(this.getIndex(PersistenceConstants.FTSO_FEE_V1_INDEX), queryString, this.maxResultsLimit, 'timestamp:asc');
@@ -1869,7 +1869,6 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
                 this._getBuckets(response.body?.aggregations?.dataProvider)
                     .flatMap(dataProviderBucket => {
                         const dataProviderKey: string = dataProviderBucket.key;
-                        const allNumberOfCases: number = dataProviderBucket.doc_count;
                         let symbolIdx: number = 0;
                         this._getBuckets(dataProviderBucket.symbol).flatMap(symbolBucket => {
                             const symbol: string = symbolBucket.key;
@@ -1886,7 +1885,6 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
                         });
                         const allFinalizedPricesCount: number = [...finalizedPricesCount.values()].reduce((acc, value) => acc + Number(value), 0);
                         let globalStats = new DataProviderSubmissionStats().calculateGlobalStats(results.filter(result => result.dataProvider == dataProviderKey), dataProviderKey, allFinalizedPricesCount, symbolIdx);
-
                         results.push(globalStats);
                     });
                 resolve(results);

@@ -150,7 +150,6 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
         return new Promise<Delegation[]>(async (resolve, reject) => {
             try {
                 const job = await this._blockchainDaoQueue.add('scanDelegationsProcessor', { startBlock, endBlock, address });
-                // let events: TypedEventLog<FlrContractCommon.TypedContractEvent<FlrContractVP.DelegateEvent.InputTuple, FlrContractVP.DelegateEvent.OutputTuple, FlrContractVP.DelegateEvent.OutputObject>>[] = await this._scanDelegations(startBlock, endBlock, address);
                 let results: Delegation[] = await job.finished() as Delegation[];
                 if (results.length > 0) {
                     this.logger.log(`_scanDelegations - getting timestamps...`)
@@ -895,7 +894,7 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
                                 revealedPrice.timestamp = Number(evt.args[5]) * 1000;
                                 revealedPrice.symbol = this.ftsoManagerWrapper.getSymbolByContractAddress(evt.args[2][argIndex]);
                                 revealedPrice.value = (Number(evt.args[3][argIndex]) / 10 ** this.ftsoManagerWrapper.getDecimalsByContractAddress(evt.args[2][argIndex]))
-                                revealedPrice.dataProvider = evt.args[0];
+                                revealedPrice.dataProvider = evt.args[0].toLowerCase();
                                 results.push(revealedPrice);
                             }
                         }
@@ -1035,7 +1034,7 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
                             for (let addressIdx in evt.args[2]) {
                                 let dataProviderAddress: string = evt.args[2][addressIdx];
                                 let rewardDistributed: RewardDistributed = new RewardDistributed();
-                                rewardDistributed.dataProvider = dataProviderAddress;
+                                rewardDistributed.dataProvider = dataProviderAddress.toLowerCase();
                                 rewardDistributed.priceEpochId = Number(evt.args[1]);
                                 rewardDistributed.symbol = this.ftsoManagerWrapper.getSymbolByContractAddress(evt.args[0]);
                                 rewardDistributed.reward = Number(ethers.formatEther(evt.args[3][addressIdx]));

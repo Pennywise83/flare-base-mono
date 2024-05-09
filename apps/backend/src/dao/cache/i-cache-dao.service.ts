@@ -72,6 +72,7 @@ export interface ICacheDao {
 
     getDataProvideSubmissionStatsByRewardEpoch(rewardEpochId: number): Promise<DataProviderSubmissionStats[]>;
     setDataProvideSubmissionStatsByRewardEpoch(rewardEpochId: number, submissionStats: DataProviderSubmissionStats[], endTime?: number): Promise<void>;
+    cleanDataProviderSubmissionStats(): Promise<void>;
 
     getDataProvidersInfo(rewardEpochId: number): Promise<DataProviderInfo[]>;
     setDataProvidersInfo(rewardEpochId: number, data: DataProviderInfo[], endTime?: number): Promise<void>;

@@ -1,4 +1,4 @@
-import { ActionResult, Commons, DataProviderExtendedInfo, DataProviderInfo, DataProviderRewardStats, DataProviderRewardStatsGroupByEnum, FtsoFee, FtsoFeeSortEnum, HashSubmitted, HashSubmittedMatrix, HashSubmittedSortEnum, NetworkEnum, PaginatedResult, PriceFinalized, PriceFinalizedMatrix, PriceFinalizedSortEnum, PriceRevealed, PriceRevealedMatrix, PriceRevealedSortEnum, RealTimeFtsoData, RewardDistributed, RewardDistributedMatrix, RewardDistributedSortEnum } from "@flare-base/commons";
+import { ActionResult, Commons, DataProviderExtendedInfo, DataProviderInfo, DataProviderRewardStats, DataProviderRewardStatsGroupByEnum, FtsoFee, FtsoFeeSortEnum, NetworkEnum, PaginatedResult, PriceFinalized, PriceFinalizedMatrix, PriceFinalizedSortEnum, PriceRevealed, PriceRevealedMatrix, PriceRevealedSortEnum, RealTimeFtsoData, RewardDistributed, RewardDistributedMatrix, RewardDistributedSortEnum } from "@flare-base/commons";
 import { Controller, Get, Headers, HttpStatus, Param, ParseIntPipe, Query, Req, Res } from "@nestjs/common";
 import { ApiParam, ApiProduces, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { isEmpty } from "class-validator";
@@ -13,7 +13,6 @@ import { NetworkValidationPipe } from "../model/network-validation-pipe";
 import { PageDTO } from "../model/page-dto";
 import { PageSizeDTO } from "../model/page-size-dto";
 import { FtsoFeeSortValidationPipe, SortFieldFtsoFeeDTO } from "../model/sort-field-ftso-fee-dto";
-import { HashSubmittedSortValidationPipe, SortFieldHashSubmittedDTO } from "../model/sort-field-hash-submitted-dto";
 import { PriceFinalizedSortValidationPipe, SortFieldPriceFinalizedDTO } from "../model/sort-field-price-finalized-dto";
 import { PriceRevealedSortValidationPipe, SortFieldPriceRevealedDTO } from "../model/sort-field-price-revealed-dto";
 import { RewardDistributedSortValidationPipe, SortFieldRewardDistributedDTO } from "../model/sort-field-reward-distributed-dto";
@@ -197,6 +196,9 @@ export class FtsoController {
                 if (startTime > endTime) {
                     throw new Error(`Wrong time range`);
                 }
+                if (endTime > new Date().getTime()) {
+                    throw new Error(`Wrong time range`);
+                }
                 const priceEpochSettings = await this._epochService.getPriceEpochSettings(network);
                 startTime += - priceEpochSettings.priceEpochDurationMillis;
                 const paginatedResults: PaginatedResult<PriceFinalized[]> = await this._ftsoService.getFinalizedPricesDto(network, symbol, startTime, endTime, page, pageSize, sortField!, SortOrderEnum[sortOrder]!)
@@ -317,6 +319,9 @@ export class FtsoController {
                 if (startTime > endTime) {
                     throw new Error(`Wrong time range`);
                 }
+                if (endTime > new Date().getTime()) {
+                    throw new Error(`Wrong time range`);
+                }
                 const priceEpochSettings = await this._epochService.getPriceEpochSettings(network);
                 startTime += - priceEpochSettings.priceEpochDurationMillis;
                 const paginatedResults: PaginatedResult<PriceRevealed[]> = await this._ftsoService.getRevealedPricesDto(network, dataProvider, symbol, startTime, endTime, page, pageSize, sortField!, SortOrderEnum[sortOrder]!)
@@ -340,61 +345,6 @@ export class FtsoController {
             }
         });
     }
-
-
-    @ApiParam({ name: "network", enum: NetworkEnum, enumName: "NetworkEnum", required: true })
-    @ApiQuery({ name: 'epochId', description: 'The unique identifier for the price epoch id', type: Number, required: true })
-    @ApiQuery({ name: 'page', type: PageDTO })
-    @ApiQuery({ name: 'pageSize', type: PageSizeDTO })
-    @ApiQuery({ name: 'sortField', type: SortFieldHashSubmittedDTO })
-    @ApiQuery({ name: 'sortOrder', type: SortOrderDTO })
-    @ApiPaginatedResult(HashSubmitted, 'Returns a list of submitted hashes for the provided price epoch')
-
-    @ApiProduces('text/csv')
-    @ApiProduces('application/json')
-    @ApiProduces('application/vnd.flare.base+json')
-    @Get("/getSubmittedHashesByEpochId/:network")
-    async getSubmittedHashesByEpochId(
-        @Headers() headers,
-        @Param('network', NetworkValidationPipe) network: NetworkEnum,
-        @Query('epochId', ParseIntPipe) epochId: number,
-        @Query('page', ParseIntPipe) page: number,
-        @Query('pageSize', ParseIntPipe) pageSize: number,
-        @Query('sortField', HashSubmittedSortValidationPipe) sortField: HashSubmittedSortEnum,
-        @Query('sortOrder', SortOrderValidationPipe,) sortOrder: SortOrderEnum,
-        @Req() req?,
-        @Res() res?
-
-    ): Promise<ActionResult<PaginatedResult<HashSubmitted[]> | PaginatedResult<HashSubmittedMatrix>>> {
-        let actionResult: ActionResult<PaginatedResult<HashSubmitted[]> | PaginatedResult<HashSubmittedMatrix>> = new ActionResult();
-        const outputFormat = req.headers['accept'];
-        return new Promise<ActionResult<PaginatedResult<HashSubmitted[]> | PaginatedResult<HashSubmittedMatrix>>>(async resolve => {
-            try {
-                if (isEmpty(network)) {
-                    throw new Error(`Network could not be empty`);
-                }
-                const paginatedResults: PaginatedResult<HashSubmitted[]> = await this._ftsoService.getSubmittedHashesByEpochId(network, epochId, page, pageSize, sortField!, SortOrderEnum[sortOrder]!)
-                actionResult.status = 'OK';
-                actionResult.result = paginatedResults;
-                actionResult.duration = new Date().getTime() - actionResult.start;
-                if (outputFormat == 'application/json') {
-                    resolve((res).status(HttpStatus.OK).json(actionResult));
-                } else if (outputFormat == 'application/vnd.flare.base+json') {
-                    (actionResult as ActionResult<PaginatedResult<HashSubmittedMatrix>>).result.results = new HashSubmittedMatrix(paginatedResults.results);
-                    resolve((res).status(HttpStatus.OK).json(actionResult));
-                } else {
-                    let csvData = Commons.objectsToCsv(paginatedResults.results);
-                    resolve((res as any).status(HttpStatus.OK).send(csvData));
-                }
-            } catch (err) {
-                actionResult.status = 'KO';
-                actionResult.duration = new Date().getTime() - actionResult.start;
-                actionResult.message = err.message;
-                resolve((res).status(HttpStatus.INTERNAL_SERVER_ERROR).json(actionResult));
-            }
-        });
-    }
-
 
     @ApiParam({ name: "network", enum: NetworkEnum, enumName: "NetworkEnum", required: true })
     @ApiQuery({ name: 'dataProvider', description: 'Address of the data provider. Leave empty to fetch the prices for all data providers.', type: String, required: false })
@@ -525,6 +475,9 @@ export class FtsoController {
                 if (startTime > endTime) {
                     throw new Error(`Wrong time range`);
                 }
+                if (endTime > new Date().getTime()) {
+                    throw new Error(`Wrong time range`);
+                }
                 const paginatedResults: PaginatedResult<RewardDistributed[]> = await this._ftsoService.getRewardsDistributedDTO(network, dataProvider, symbol, startTime, endTime, page, pageSize, sortField!, SortOrderEnum[sortOrder]!)
                 actionResult.status = 'OK';
                 actionResult.result = paginatedResults;
@@ -626,6 +579,12 @@ export class FtsoController {
                 if (isEmpty(network)) {
                     throw new Error(`Network could not be empty`);
                 }
+                if (startTime > endTime) {
+                    throw new Error(`Wrong time range`);
+                }
+                if (endTime > new Date().getTime()) {
+                    throw new Error(`Wrong time range`);
+                }
                 const results: PaginatedResult<DataProviderRewardStats[]> = await this._ftsoService.getDataProviderRewardStatsHistory(network, dataProvider, startTime, endTime, page, pageSize, sortField, sortOrder);
                 actionResult.status = 'OK';
                 actionResult.result = results;
@@ -674,6 +633,12 @@ export class FtsoController {
             try {
                 if (isEmpty(network)) {
                     throw new Error(`Network could not be empty`);
+                }
+                if (startTime > endTime) {
+                    throw new Error(`Wrong time range`);
+                }
+                if (endTime > new Date().getTime()) {
+                    throw new Error(`Wrong time range`);
                 }
                 const priceEpochSettings = await this._epochService.getPriceEpochSettings(network); priceEpochSettings.getEpochIdForTime(startTime)
                 startTime += - priceEpochSettings.priceEpochDurationMillis;
@@ -761,6 +726,9 @@ export class FtsoController {
                     throw new Error(`Network could not be empty`);
                 }
                 if (startTime > endTime) {
+                    throw new Error(`Wrong time range`);
+                }
+                if (endTime > new Date().getTime()) {
                     throw new Error(`Wrong time range`);
                 }
                 const results: string[] = await this._ftsoService.getAvailableSymbols(network, startTime, endTime);

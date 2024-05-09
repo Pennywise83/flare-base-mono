@@ -104,9 +104,9 @@ export class DataProviderExtendedInfo {
         }
         if (isNotEmpty(ftsoSubmissionStats6h)) {
             this.availability6h = ftsoSubmissionStats6h.availability;
-            this.successRate = ftsoSubmissionStats6h.successRate;
-            this.successRateIQR = ftsoSubmissionStats6h.successRateIQR;
-            this.successRatePct = ftsoSubmissionStats6h.successRatePct;
+            this.successRate6h = ftsoSubmissionStats6h.successRate;
+            this.successRateIQR6h = ftsoSubmissionStats6h.successRateIQR;
+            this.successRatePct6h = ftsoSubmissionStats6h.successRatePct;
         } else {
             delete this.availability6h;
             delete this.successRate6h;

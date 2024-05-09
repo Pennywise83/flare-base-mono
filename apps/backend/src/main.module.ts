@@ -170,10 +170,8 @@ export class MainModule {
         }
         await this._epochsService.initialize();
         await this._balanceService.initialize();
-        await this._ftsoService.initialize();
         await this._delegationsService.initialize();
         await this._rewardsService.initialize();
-
-
+        await this._ftsoService.initialize();
     }
 }

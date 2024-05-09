@@ -483,7 +483,7 @@ export class DelegationsService {
                     resolve(cacheData);
                     return;
                 }
-
+                this.logger.log(`${network} - getDataProviderVotePowerByAddress - ${rewardEpochId}`);
                 const rewardEpochSettings: RewardEpochSettings = await this._epochsService.getRewardEpochSettings(network);
                 const nextEpochId: number = rewardEpochSettings.getNextEpochId();
                 await this.getDelegators(network, null, rewardEpochId, 1, 0);
@@ -599,6 +599,7 @@ export class DelegationsService {
                     resolve(cacheData);
                     return;
                 }
+                this.logger.log(`${network} - getTotalVotePowerByRewardEpoch - ${rewardEpochId}`);
                 const rewardEpochSettings: RewardEpochSettings = await this._epochsService.getRewardEpochSettings(network);
                 const nextEpochId: number = rewardEpochSettings.getNextEpochId();
                 await this.getDelegators(network, null, rewardEpochId, 1, 0);

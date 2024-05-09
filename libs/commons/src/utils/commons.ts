@@ -4,6 +4,7 @@ import { AggregationInterval } from "../model/aggregation-intervals";
 import { BlockScanInfo, NetworkEnum } from "../model/blockchain";
 import { Title } from "@angular/platform-browser";
 import { MatomoTracker } from 'ngx-matomo';
+import { timer } from 'rxjs';
 
 
 export class Commons {
@@ -122,8 +123,9 @@ export class Commons {
     }
 
     static setPageTitle(title: string, titleService: Title, tracker: MatomoTracker): void {
-        titleService.setTitle(title);
-        tracker.setDocumentTitle(title);
+            titleService.setTitle(title);
+            tracker.setDocumentTitle(title);
+            tracker.trackPageView(title);
     }
     static divideBlocks = (blockStart: number, blockEnd: number, blockSize: number): { from: number, to: number }[] =>
         Array.from({ length: Math.ceil((blockEnd - blockStart) / blockSize) }, (_, index) => ({

@@ -1,4 +1,4 @@
-import { Commons, DataProviderExtendedInfo, DataProviderInfo, DataProviderRewardStats, DataProviderRewardStatsGroupByEnum, FtsoFee, FtsoFeeSortEnum, HashSubmitted, HashSubmittedRealTimeData, HashSubmittedSortEnum, IRealTimeData, NetworkEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, PriceFinalized, PriceFinalizedRealTimeData, PriceFinalizedSortEnum, PriceRevealed, PriceRevealedRealTimeData, PriceRevealedSortEnum, RealTimeDataTypeEnum, RealTimeFtsoData, RewardDistributedRealTimeData, RewardEpoch, RewardEpochDTO, RewardEpochSettings, SortOrderEnum, VotePower, VotePowerDTO, VoterWhitelist, WebsocketTopicsEnum } from "@flare-base/commons";
+import { Commons, DataProviderExtendedInfo, DataProviderInfo, DataProviderRewardStats, DataProviderRewardStatsGroupByEnum, FtsoFee, FtsoFeeSortEnum, HashSubmitted, HashSubmittedSortEnum, NetworkEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, PriceFinalized, PriceFinalizedSortEnum, PriceRevealed, PriceRevealedSortEnum, RealTimeFtsoData, RewardEpoch, RewardEpochDTO, RewardEpochSettings, SortOrderEnum, VotePower, VotePowerDTO, VoterWhitelist } from "@flare-base/commons";
 import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -8,6 +8,7 @@ import { EpochSortEnum } from "libs/commons/src/model/epochs/price-epoch";
 import { DataProviderSubmissionStats } from "libs/commons/src/model/ftso/data-provider-submission-stats";
 import { RewardDistributed, RewardDistributedSortEnum } from "libs/commons/src/model/ftso/reward-distributed";
 import * as path from 'path';
+import { interval } from "rxjs";
 import { IBlockchainDao } from "../../dao/blockchain/i-blockchain-dao.service";
 import { ICacheDao } from "../../dao/cache/i-cache-dao.service";
 import { IPersistenceDao } from "../../dao/persistence/i-persistence-dao.service";
@@ -18,10 +19,8 @@ import { BalancesService } from "../balances/balances.service";
 import { DelegationsService } from "../delegations/delegations.service";
 import { EpochsService } from "../epochs/epochs.service";
 import { NetworkDaoDispatcherService } from "../network-dao-dispatcher/network-dao-dispatcher.service";
-import { ProgressGateway } from "../progress.gateway";
 import { ServiceUtils } from "../service-utils";
 import { TowoLabsDataProviderInfo } from "./model/towo-data-provider-info";
-import { interval } from "rxjs";
 
 @Injectable()
 export class FtsoService {
@@ -33,7 +32,6 @@ export class FtsoService {
     private _voterWhitelistList: { [network: string]: VoterWhitelist[] } = {};
     private _ftsoFeeList: { [network: string]: FtsoFee[] } = {};
     private _ftsoFees: { [network: string]: FtsoFee[] } = {};
-    private _lastRewardEpochs: { [network: string]: RewardEpochDTO[] } = {};
     private _lastBlockNumber: { [network: string]: number } = {};
 
     constructor(
@@ -42,7 +40,6 @@ export class FtsoService {
         private _epochsService: EpochsService,
         private _balanceService: BalancesService,
         private _delegationsService: DelegationsService,
-        private readonly _realTimeFtsoDataGateway: ProgressGateway,
         private readonly httpService: HttpService
     ) {
 
@@ -58,10 +55,14 @@ export class FtsoService {
                 const blockchainDao: IBlockchainDao = await this._networkDaoDispatcher.getBlockchainDao(network);
                 const persistenceDao: IPersistenceDao = await this._networkDaoDispatcher.getPersistenceDao(network);
                 const cacheDao: ICacheDao = await this._networkDaoDispatcher.getCacheDao(network);
+                const priceEpochSettings: PriceEpochSettings = await this._epochsService.getPriceEpochSettings(network);
                 if (networkConfig && networkConfig.scanActive) {
                     await this._bootstrapFtsoScan(network, persistenceDao, blockchainDao);
                     await this._startFtsoListeners(network, persistenceDao, blockchainDao, cacheDao, networkConfig);
-                    await this._consistencyCheck(network, persistenceDao, networkConfig.persistenceDao.persistenceMetadataCleanTimeMinutes);
+                    await this._consistencyCheck(network, persistenceDao, cacheDao);
+                    interval(networkConfig.persistenceDao.persistenceMetadataCleanTimeMinutes * 60 * 1000).subscribe(async () => {
+                        await this._consistencyCheck(network, persistenceDao, cacheDao);
+                    });
                 }
             }
             this.logger.log(`Initialized.`);
@@ -71,17 +72,18 @@ export class FtsoService {
         }
     }
 
-    private async _consistencyCheck(network: NetworkEnum, persistenceDao: IPersistenceDao, intervalPeriod: number): Promise<void> {
-        interval(intervalPeriod * 60 * 1000).subscribe(async () => {
-            this.logger.log(`${network} - Revealed prices consistency check...`);
-            const missingProcessedRevealedPricesPersistenceMetadata: PersistenceMetadataScanInfo[] = await persistenceDao.getUnpocessedRevealedPricesPersistenceMetadata();
-            if (missingProcessedRevealedPricesPersistenceMetadata.length > 5) {  // Set a tolerance of 5 missing revealed prices
-                this.logger.log(`${network} - Reprocessing ${missingProcessedRevealedPricesPersistenceMetadata.length} sets of revealed prices...`);
-                for (let missingBlock of missingProcessedRevealedPricesPersistenceMetadata) {
-                    await this.getRevealedPrices(network, null, null, missingBlock.from, missingBlock.to, 1, 0, PriceRevealedSortEnum.epochId, SortOrderEnum.desc, true);
-                }
+    private async _consistencyCheck(network: NetworkEnum, persistenceDao: IPersistenceDao, cacheDao: ICacheDao): Promise<void> {
+
+        this.logger.log(`${network} - Revealed prices consistency check...`);
+        const missingProcessedRevealedPricesPersistenceMetadata: PersistenceMetadataScanInfo[] = await persistenceDao.getUnpocessedRevealedPricesPersistenceMetadata();
+        if (missingProcessedRevealedPricesPersistenceMetadata.length > 5) {  // Set a tolerance of 5 missing revealed prices
+            this.logger.log(`${network} - Reprocessing ${missingProcessedRevealedPricesPersistenceMetadata.length} sets of revealed prices...`);
+            for (let missingBlock of missingProcessedRevealedPricesPersistenceMetadata) {
+                await this.getRevealedPrices(network, null, null, missingBlock.from, missingBlock.to, 1, 0, PriceRevealedSortEnum.epochId, SortOrderEnum.desc, true);
             }
-        });
+            await cacheDao.cleanDataProviderSubmissionStats();
+        }
+
     }
     private async _bootstrapFtsoScan(network: NetworkEnum, persistenceDao: IPersistenceDao, blockchainDao: IBlockchainDao): Promise<void> {
         this.logger.log(`${network} - Starting ftso scan bootstrap...`);
@@ -150,21 +152,15 @@ export class FtsoService {
         if (isEmpty(this._ftsoFees[network])) {
             this._ftsoFees[network] = await this.getFtsoFee(network, await blockchainDao.provider.getBlockNumber(), null, FtsoFeeSortEnum.timestamp, SortOrderEnum.desc, true);
         }
-        if (isEmpty(this._lastBlockNumber[network])) {
-            const rewardEpochSettings: RewardEpochSettings = await this._epochsService.getRewardEpochSettings(network);
-            this._lastRewardEpochs[network] = [
-                await this._epochsService.getRewardEpochDto(network, rewardEpochSettings.getCurrentEpochId() - 2),
-                await this._epochsService.getRewardEpochDto(network, rewardEpochSettings.getCurrentEpochId() - 1),
-                await this._epochsService.getRewardEpochDto(network, rewardEpochSettings.getCurrentEpochId())
-            ]
-        }
         this.logger.log(`${network} - Ftso scan bootstrap finished. Duration: ${(new Date().getTime() - startTime) / 1000} s`);
+        this._lastBlockNumber[network] = actualBlockNumber;
         return;
     }
     private async _startFtsoListeners(network: NetworkEnum, persistenceDao: IPersistenceDao, blockchainDao: IBlockchainDao, cacheDao: ICacheDao, networkConfig: NetworkConfig): Promise<void> {
         try {
             this.logger.log(`${network} - Initializing Ftso Prices listener.`);
             this._lastBlockNumber[network] = await blockchainDao.provider.getBlockNumber();
+            const rewardEpochSettings: RewardEpochSettings = await this._epochsService.getRewardEpochSettings(network);
             if (isEmpty(this._priceRevealedList[network])) { this._priceRevealedList[network] = {} }
             if (isEmpty(this._priceFinalizedList[network])) { this._priceFinalizedList[network] = {} }
             if (isEmpty(this._hashSubmittedList[network])) { this._hashSubmittedList[network] = {} }
@@ -175,41 +171,29 @@ export class FtsoService {
             blockchainDao.priceEpochListener$.subscribe(async priceEpoch => {
                 this.logger.log(`${network} - ${priceEpoch.id} - Price epoch finalized.`);
                 const lastBlockNumber: number = await blockchainDao.provider.getBlockNumber();
-                await this._storeListenerEvents(network, priceEpoch, persistenceDao, blockchainDao, lastBlockNumber);
+                await this._storeListenerEvents(network, priceEpoch, persistenceDao, blockchainDao, lastBlockNumber, rewardEpochSettings);
+                await this.getDataProvidersData(network,rewardEpochSettings.getCurrentEpochId());
             });
 
             blockchainDao.pricesRevealedListener$.subscribe(async priceRevealed => {
                 if (isEmpty(this._priceRevealedList[network][priceRevealed.epochId])) { this._priceRevealedList[network][priceRevealed.epochId] = {} }
                 if (isEmpty(this._priceRevealedList[network][priceRevealed.epochId][priceRevealed.symbol])) { this._priceRevealedList[network][priceRevealed.epochId][priceRevealed.symbol] = [] }
                 this._priceRevealedList[network][priceRevealed.epochId][priceRevealed.symbol].push(priceRevealed);
-                await cacheDao.pushRealTimeFtsoData(priceRevealed);
-                (priceRevealed as PriceRevealedRealTimeData).type = RealTimeDataTypeEnum.revealedPrice;
-                this._realTimeFtsoDataGateway.server.emit(`${WebsocketTopicsEnum.REAL_TIME_FTSO_DATA.toString()}_${network}`, priceRevealed);
             });
 
             blockchainDao.pricesFinalizedListener$.subscribe(async priceFinalized => {
                 if (isEmpty(this._priceFinalizedList[network][priceFinalized.epochId])) { this._priceFinalizedList[network][priceFinalized.epochId] = {} }
                 if (isEmpty(this._priceFinalizedList[network][priceFinalized.epochId][priceFinalized.symbol])) { this._priceFinalizedList[network][priceFinalized.epochId][priceFinalized.symbol] = priceFinalized }
-                await cacheDao.pushRealTimeFtsoData(priceFinalized);
-                (priceFinalized as PriceFinalizedRealTimeData).type = RealTimeDataTypeEnum.finalizedPrice;
-                this._realTimeFtsoDataGateway.server.emit(`${WebsocketTopicsEnum.REAL_TIME_FTSO_DATA.toString()}_${network}`, priceFinalized);
             });
 
             blockchainDao.hashSubmittedListener$.subscribe(async hashSubmitted => {
                 if (isEmpty(this._hashSubmittedList[network][hashSubmitted.epochId])) { this._hashSubmittedList[network][hashSubmitted.epochId] = [] }
                 this._hashSubmittedList[network][hashSubmitted.epochId].push(hashSubmitted);
-                await cacheDao.pushRealTimeFtsoData(hashSubmitted);
-                (hashSubmitted as HashSubmittedRealTimeData).type = RealTimeDataTypeEnum.hashSubmitted;
-                this._realTimeFtsoDataGateway.server.emit(`${WebsocketTopicsEnum.REAL_TIME_FTSO_DATA.toString()}_${network}`, hashSubmitted);
             });
 
             blockchainDao.rewardDistributedListener$.subscribe(async rewardDistributed => {
                 if (isEmpty(this._rewardDistributedList[network][rewardDistributed.priceEpochId])) { this._rewardDistributedList[network][rewardDistributed.priceEpochId] = [] }
                 this._rewardDistributedList[network][rewardDistributed.priceEpochId].push(rewardDistributed);
-                this._calculateProviderReward(rewardDistributed, this._ftsoFees[network], this._lastRewardEpochs[network]);
-                await cacheDao.pushRealTimeFtsoData(rewardDistributed);
-                (rewardDistributed as RewardDistributedRealTimeData).type = RealTimeDataTypeEnum.rewardDistributed;
-                this._realTimeFtsoDataGateway.server.emit(`${WebsocketTopicsEnum.REAL_TIME_FTSO_DATA.toString()}_${network}`, rewardDistributed);
             });
 
             blockchainDao.voterWhitelistListener$.subscribe(async voterWhitelist => {
@@ -221,14 +205,6 @@ export class FtsoService {
                 if (isEmpty(this._ftsoFeeList[network])) { this._ftsoFeeList[network] = [] }
                 this._ftsoFeeList[network].push(ftsoFee);
             });
-            blockchainDao.rewardEpochListener$.subscribe(async rewardEpoch => {
-                if (!this._lastRewardEpochs[network]) { this._lastRewardEpochs[network] = [] }
-                this._lastRewardEpochs[network].push(await this._epochsService.getRewardEpochDto(network, rewardEpoch.id));
-                if (this._lastRewardEpochs[network].length > 5) {
-                    this._lastRewardEpochs[network] = this._lastRewardEpochs[network].slice(2);
-                }
-            });
-
 
             await blockchainDao.startPriceFinalizedListener();
             await blockchainDao.startPricesRevealedListener();
@@ -236,8 +212,6 @@ export class FtsoService {
             await blockchainDao.startRewardDistributedListener();
             await blockchainDao.startVoterWhitelistListener();
             await blockchainDao.startFtsoFeeListener();
-            await blockchainDao.startRewardEpochListener();
-
             return Promise.resolve();
         } catch (err) {
             throw new Error(`Unable to initialize FtsoService: ${err.message}`);
@@ -267,6 +241,7 @@ export class FtsoService {
                     return cacheData;
                 }
             }
+            this.logger.log(`${network} - getFtsoFeeByRewardEpoch - ${rewardEpochId} - address: ${address}`);
 
             const rewardEpochSettings: RewardEpochSettings = await this._epochsService.getRewardEpochSettings(network);
             const rewardEpoch: RewardEpoch = await this._epochsService.getRewardEpoch(network, rewardEpochId);
@@ -374,6 +349,7 @@ export class FtsoService {
         const rewardEpochSettings: RewardEpochSettings = await this._epochsService.getRewardEpochSettings(network);
         const nextEpochId: number = rewardEpochSettings.getNextEpochId();
         let targetBlockNumber: number = 0;
+        this.logger.log(`${network} - getWhitelistedDataProvidersAddresses - ${rewardEpochId} - whitelisted: ${whitelisted}`);
         if (rewardEpochId == nextEpochId) {
             const priceEpochSettings: PriceEpochSettings = await this._epochsService.getPriceEpochSettings(network);
             const lastFinalizedPriceEpoch: PriceEpoch = await this._epochsService.getPriceEpoch(network, priceEpochSettings.getLastFinalizedEpochId());
@@ -403,11 +379,11 @@ export class FtsoService {
                 const persistenceMetadata: PersistenceMetadata[] = await persistenceDao.getPersistenceMetadata(PersistenceMetadataType.VoterWhitelist, address, 0, targetBlockNumber);
                 const missingBlocks: PersistenceMetadataScanInfo[] = new PersistenceMetadata().findMissingIntervals(persistenceMetadata, 0, targetBlockNumber);
                 if (missingBlocks.length > 0) {
-                    for (const missingBalanceBlockNumber of missingBlocks) {
-                        this.logger.log(`${network} - Fetching voter whitelist for address:'${isNotEmpty(address) ? address : '*'}'  - From block ${missingBalanceBlockNumber.from} to ${missingBalanceBlockNumber.to} - Size: ${missingBalanceBlockNumber.to - missingBalanceBlockNumber.from}`);
-                        const blockchainData: VoterWhitelist[] = await blockchainDao.getVoterWhitelist(missingBalanceBlockNumber.from, missingBalanceBlockNumber.to);
+                    for (const missingBlockNumber of missingBlocks) {
+                        this.logger.log(`${network} - Fetching voter whitelist for address:'${isNotEmpty(address) ? address : '*'}'  - From block ${missingBlockNumber.from} to ${missingBlockNumber.to} - Size: ${missingBlockNumber.to - missingBlockNumber.from}`);
+                        const blockchainData: VoterWhitelist[] = await blockchainDao.getVoterWhitelist(missingBlockNumber.from, missingBlockNumber.to);
                         await persistenceDao.storeVoterWhitelist(blockchainData);
-                        await persistenceDao.storePersistenceMetadata(PersistenceMetadataType.VoterWhitelist, address, missingBalanceBlockNumber.from, missingBalanceBlockNumber.to);
+                        await persistenceDao.storePersistenceMetadata(PersistenceMetadataType.VoterWhitelist, address, missingBlockNumber.from, missingBlockNumber.to);
                     }
                     resolve(this.getVoterWhitelist(network, address, targetBlockNumber, pageSize));
                 }
@@ -428,11 +404,14 @@ export class FtsoService {
         });
     }
 
-    private async _storeListenerEvents(network: NetworkEnum, priceEpoch: PriceEpoch, persistenceDao: IPersistenceDao, blockchainDao: IBlockchainDao, lastListenerBlock: number) {
+    private async _storeListenerEvents(network: NetworkEnum, priceEpoch: PriceEpoch, persistenceDao: IPersistenceDao, blockchainDao: IBlockchainDao, lastListenerBlock: number, rewardEpochSettings: RewardEpochSettings) {
         if (this._lastBlockNumber[network]) {
             const startBlock: number = this._lastBlockNumber[network];
             const endBlock: number = lastListenerBlock;
             const activeFtsoSymbols: number = blockchainDao.getActiveFtsoContracts();
+            if (isEmpty(this._ftsoFees[network])) {
+                this._ftsoFees[network] = await this.getFtsoFee(network, await blockchainDao.provider.getBlockNumber(), null, FtsoFeeSortEnum.timestamp, SortOrderEnum.desc, true);
+            }
             if (this._ftsoFeeList[network]) {
                 let ftsoFeeToLoad: FtsoFee[] = this._ftsoFeeList[network];
                 if (ftsoFeeToLoad.length > 0) {
@@ -441,12 +420,12 @@ export class FtsoService {
                     this.logger.log(`${network} - ${priceEpoch.id} - Stored ${storedFtsoFee} ftso fee changes from listener`);
                     await persistenceDao.storePersistenceMetadata(PersistenceMetadataType.FtsoFee, null, startBlock, endBlock);
                     this._ftsoFees[network] = await this.getFtsoFee(network, this._lastBlockNumber[network], null, FtsoFeeSortEnum.timestamp, SortOrderEnum.desc, true);
-                } else {
-                    await persistenceDao.storePersistenceMetadata(PersistenceMetadataType.FtsoFee, null, startBlock, endBlock);
                 }
-                this._ftsoFeeList[network] = [];
-                delete this._ftsoFeeList[network];
+            } else {
+                await persistenceDao.storePersistenceMetadata(PersistenceMetadataType.FtsoFee, null, startBlock, endBlock);
             }
+            this._ftsoFeeList[network] = [];
+            delete this._ftsoFeeList[network];
             if (this._priceFinalizedList[network] && this._priceFinalizedList[network][priceEpoch.id]) {
                 let finalizedPricesToLoad: PriceFinalized[] = [];
                 for (let symbol in this._priceFinalizedList[network][priceEpoch.id]) {
@@ -482,38 +461,21 @@ export class FtsoService {
                 } else {
                     await persistenceDao.storePersistenceMetadata(PersistenceMetadataType.RevealedPrice, null, startBlock, endBlock);
                 }
-                await persistenceDao.storePersistenceMetadata(PersistenceMetadataType.RevealedPrice, null, startBlock, endBlock);
                 this._priceRevealedList[network][priceEpoch.id] = null;
                 delete this._priceRevealedList[network][priceEpoch.id];
             }
 
-
-            if (this._hashSubmittedList[network] && this._hashSubmittedList[network][priceEpoch.id]) {
-                let hashSubmittedToLoad: HashSubmitted[] = this._hashSubmittedList[network][priceEpoch.id];
-                if (hashSubmittedToLoad.length > 0) {
-                    this.logger.log(`${network} - ${priceEpoch.id} -  Collected ${this._hashSubmittedList[network][priceEpoch.id].length} submitted hashes from listener`)
-                    const storedHashSubmitted: number = await persistenceDao.storeSubmittedHashes(hashSubmittedToLoad);
-                    this.logger.log(`${network} - ${priceEpoch.id} - Stored ${storedHashSubmitted} submitted hashes from listener`);
-                    await persistenceDao.storePersistenceMetadata(PersistenceMetadataType.HashSubmitted, null, startBlock, endBlock);
-                }
-            } else {
-                await persistenceDao.storePersistenceMetadata(PersistenceMetadataType.HashSubmitted, null, startBlock, endBlock);
-            }
-
-            this._hashSubmittedList[network][priceEpoch.id] = null;
-            delete this._hashSubmittedList[network][priceEpoch.id];
-
             if (this._rewardDistributedList[network] && this._rewardDistributedList[network][priceEpoch.id]) {
                 this._rewardDistributedList[network][priceEpoch.id].map(rewardDistributed => {
-                    this._calculateProviderReward(rewardDistributed, this._ftsoFees[network], this._lastRewardEpochs[network])
+                    this._calculateProviderReward(rewardDistributed, this._ftsoFees[network], rewardEpochSettings)
                 })
                 let rewardDistributedToLoad: RewardDistributed[] = this._rewardDistributedList[network][priceEpoch.id];
                 if (rewardDistributedToLoad.length > 0) {
                     this.logger.log(`${network} - ${priceEpoch.id} -  Collected ${this._rewardDistributedList[network][priceEpoch.id].length} rewards distributed from listener `)
                     const storedRewardDistributed: number = await persistenceDao.storeRewardDistributed(rewardDistributedToLoad);
                     this.logger.log(`${network} - ${priceEpoch.id} - Stored ${storedRewardDistributed} distributed rewards from listener`);
-                    await persistenceDao.storePersistenceMetadata(PersistenceMetadataType.RewardDistributed, null, startBlock, endBlock);
                 }
+                await persistenceDao.storePersistenceMetadata(PersistenceMetadataType.RewardDistributed, null, startBlock, endBlock);
             } else {
                 await persistenceDao.storePersistenceMetadata(PersistenceMetadataType.RewardDistributed, null, startBlock, endBlock);
             }
@@ -537,6 +499,7 @@ export class FtsoService {
                     resolve(cacheData);
                     return;
                 }
+                this.logger.log(`${network} - getDataProvidersInfo - ${rewardEpochId}`);
                 const rewardEpochSettings: RewardEpochSettings = await this._epochsService.getRewardEpochSettings(network);
                 let data: DataProviderInfo[] = await this.getTowoLabsFtsoInfo(network);
                 let addresses: string[] = [];
@@ -567,6 +530,7 @@ export class FtsoService {
         return new Promise<DataProviderExtendedInfo[]>(async (resolve, reject) => {
             try {
                 const cacheDao: ICacheDao = await this._networkDaoDispatcher.getCacheDao(network);
+                const startTime: number = new Date().getTime();
                 if (ServiceUtils.isServiceUnavailable(cacheDao)) {
                     throw new Error(`Service unavailable`);
                 }
@@ -575,7 +539,7 @@ export class FtsoService {
                     resolve(cacheData);
                     return;
                 }
-
+                this.logger.log(`${network} - getDataProvidersData - ${rewardEpochId}`);
                 const rewardEpochSettings: RewardEpochSettings = await this._epochsService.getRewardEpochSettings(network);
                 const currentEpochId: number = rewardEpochSettings.getCurrentEpochId();
                 const nextEpochId: number = rewardEpochSettings.getNextEpochId();
@@ -587,8 +551,8 @@ export class FtsoService {
                 const previousTotalVotePower: VotePowerDTO = await this._delegationsService.getTotalVotePowerByRewardEpoch(network, rewardEpochId > 0 ? rewardEpochId - 1 : rewardEpochId);
                 const whitelistedAddresses: string[] = await this.getWhitelistedDataProvidersAddresses(network, true, rewardEpochId);
                 const dataProvidersInfo: DataProviderInfo[] = await this.getDataProvidersInfo(network);
-                const dataProviderRewardStats: DataProviderRewardStats[] = await this.getDataProviderRewardStatsByRewardEpoch(network, null, rewardEpochId);
-                const previousDataProviderRewardStats: DataProviderRewardStats[] = await this.getDataProviderRewardStatsByRewardEpoch(network, null, rewardEpochId > 0 ? rewardEpochId - 1 : rewardEpochId);
+                const dataProviderRewardStats: DataProviderRewardStats[] = await this.getDataProviderRewardStatsByRewardEpoch(network, null, rewardEpochId + 1);
+                const previousDataProviderRewardStats: DataProviderRewardStats[] = await this.getDataProviderRewardStatsByRewardEpoch(network, null, rewardEpochId);
                 const submissionStatsRewardEpoch: DataProviderSubmissionStats[] = await this.getDataProvideSubmissionStatsByRewardEpoch(network, rewardEpochId > 0 ? rewardEpochId - 1 : rewardEpochId, null, null);
                 const ftsoFees: FtsoFee[] = await this.getFtsoFeeByRewardEpoch(network, rewardEpochId > 0 ? rewardEpochId - 1 : rewardEpochId);
                 if (rewardEpochId == nextEpochId || rewardEpochId == currentEpochId) {
@@ -617,6 +581,7 @@ export class FtsoService {
                     });
                     cacheDao.setDataProvidersData(rewardEpochId, results);
                 }
+                this.logger.log(`${network} - getDataProvidersData - ${rewardEpochId} - Duration: ${new Date().getTime() - startTime}`);
                 resolve(results);
             } catch (e) {
                 this.logger.error(`Unable to get data providers data - Reward epoch: ${rewardEpochId}: `, e.message);
@@ -928,15 +893,23 @@ export class FtsoService {
                         this.logger.log(`${network} - Fetching revealed prices for symbol: ${isNotEmpty(symbol) ? symbol : '*'} and dataProvider: ${isNotEmpty(dataProviderAddress) ? dataProviderAddress : '*'} - From block ${missingBlockNumber.from} to ${missingBlockNumber.to} - Size: ${missingBlockNumber.to - missingBlockNumber.from}`);
                         let blockchainData: PriceRevealed[] = [];
                         let blockRanges: { from: number, to: number }[] = [];
-                        if (missingBlockNumber.to - missingBlockNumber.from >= 300000) {
-                            blockRanges = Commons.divideBlocks(missingBlockNumber.from, missingBlockNumber.to, 300000);
+                        if (missingBlockNumber.to - missingBlockNumber.from >= 250000) {
+                            blockRanges = Commons.divideBlocks(missingBlockNumber.from, missingBlockNumber.to, 250000);
                         } else {
                             blockRanges = [{ from: missingBlockNumber.from, to: missingBlockNumber.to }];
                         }
                         const blockRange = blockRanges[0];
                         blockchainData.push(...await blockchainDao.getRevealedPrices(dataProviderAddress, blockRange.from, blockRange.to))
                         if (blockchainData.length > 0) {
-                            const finalizedPrices: PriceFinalized[] = (await this.getFinalizedPrices(network, null, missingBlockNumber.from, missingBlockNumber.to, 1, 1_000_000)).results;
+                            let missingBlockNumberFrom: number = missingBlockNumber.from - 1000;
+                            let missingBlockNumberTo: number = missingBlockNumber.to + 1000;
+                            if (isEmpty(this._lastBlockNumber[network])) {
+                                this._lastBlockNumber[network] = await blockchainDao.provider.getBlockNumber();
+                            }
+                            if (missingBlockNumberTo > this._lastBlockNumber[network]) {
+                                missingBlockNumberTo = this._lastBlockNumber[network];
+                            }
+                            const finalizedPrices: PriceFinalized[] = (await this.getFinalizedPrices(network, null, missingBlockNumberFrom, missingBlockNumberTo, 1, 1_000_000)).results;
                             if (isEmpty(finalizedPrices)) {
                                 throw new Error(`Unable to get revealed prices for symbol: ${isNotEmpty(symbol) ? symbol : '*'} and dataProvider: ${isNotEmpty(dataProviderAddress) ? dataProviderAddress : '*'}. Unable to retrieve finalized prices for the selected timerange.`);
                                 return;
@@ -953,11 +926,19 @@ export class FtsoService {
         if (missingBlocks.length > 0) {
             for (const missingBlockNumber of missingBlocks) {
                 this.logger.log(`${network} - Fetching revealed prices for symbol: ${isNotEmpty(symbol) ? symbol : '*'} and dataProvider: ${isNotEmpty(dataProvider) ? dataProvider : '*'} - From block ${missingBlockNumber.from} to ${missingBlockNumber.to} - Size: ${missingBlockNumber.to - missingBlockNumber.from}`);
-                const finalizedPrices: PriceFinalized[] = (await this.getFinalizedPrices(network, null, missingBlockNumber.from, missingBlockNumber.to, 1, 1_000_000)).results;
+                let missingBlockNumberFrom: number = missingBlockNumber.from - 1000;
+                let missingBlockNumberTo: number = missingBlockNumber.to + 1000;
+                if (isEmpty(this._lastBlockNumber[network])) {
+                    this._lastBlockNumber[network] = await blockchainDao.provider.getBlockNumber();
+                }
+                if (missingBlockNumberTo > this._lastBlockNumber[network]) {
+                    missingBlockNumberTo = this._lastBlockNumber[network];
+                }
+                const finalizedPrices: PriceFinalized[] = (await this.getFinalizedPrices(network, null, missingBlockNumberFrom, missingBlockNumberTo, 1, 1_000_000)).results;
                 let blockchainData: PriceRevealed[] = [];
                 let blockRanges: { from: number, to: number }[] = [];
-                if (missingBlockNumber.to - missingBlockNumber.from >= 40000) {
-                    blockRanges = Commons.divideBlocks(missingBlockNumber.from, missingBlockNumber.to, 40000);
+                if (missingBlockNumber.to - missingBlockNumber.from >= 50000) {
+                    blockRanges = Commons.divideBlocks(missingBlockNumber.from, missingBlockNumber.to, 50000);
                 } else {
                     blockRanges = [{ from: missingBlockNumber.from, to: missingBlockNumber.to }];
                 }
@@ -1078,15 +1059,8 @@ export class FtsoService {
                     if (blockchainData.length > 0) {
                         const rewardEpochSettings: RewardEpochSettings = await this._epochsService.getRewardEpochSettings(network);
                         const ftsoFee: FtsoFee[] = await this.getFtsoFee(network, endBlock, null, null, null, true);
-                        const rewardEpochTimestampMin: number = Math.min(...blockchainData.map(bd => bd.timestamp)) - (rewardEpochSettings.rewardEpochDurationMillis * 2);
-                        const rewardEpochTimestampMax: number = Math.max(...blockchainData.map(bd => bd.timestamp)) + (rewardEpochSettings.rewardEpochDurationMillis * 2);
-                        let rewardEpochs: RewardEpochDTO[] = (await this._epochsService.getRewardEpochsDto(network, rewardEpochTimestampMin, rewardEpochTimestampMax, 1, 1_000_000, EpochSortEnum.id, SortOrderEnum.asc)).results;
-                        if (rewardEpochs.length == 0) {
-                            this.logger.error(`Unable to find reward epochs for the given timerange:${rewardEpochTimestampMin} to ${rewardEpochTimestampMax}`);
-                            throw new Error(`Unable to get rewards distributed for symbol: ${isNotEmpty(symbol) ? symbol : '*'} and dataProvider: ${isNotEmpty(dataProviders) ? dataProviders : '*'}.`);
-                        }
                         blockchainData.map(rewardDistributed => {
-                            this._calculateProviderReward(rewardDistributed, ftsoFee, rewardEpochs);
+                            this._calculateProviderReward(rewardDistributed, ftsoFee, rewardEpochSettings);
                         });
                         await persistenceDao.storeRewardDistributed(blockchainData);
                     }
@@ -1114,10 +1088,10 @@ export class FtsoService {
     }
 
 
-    private _calculateProviderReward(rewardDistributed: RewardDistributed, ftsoFee: FtsoFee[], rewardEpochs: RewardEpochDTO[]) {
+    private _calculateProviderReward(rewardDistributed: RewardDistributed, ftsoFee: FtsoFee[], rewardEpochSettings: RewardEpochSettings) {
         let providerFee: FtsoFee;
         if (typeof ftsoFee != 'undefined') {
-            providerFee = ftsoFee.find(fee => fee.dataProvider == rewardDistributed.dataProvider);
+            providerFee = ftsoFee.find(fee => fee.dataProvider.toLowerCase() == rewardDistributed.dataProvider.toLowerCase());
         }
         if (typeof providerFee != 'undefined') {
             rewardDistributed.providerReward = (rewardDistributed.reward / 100) * providerFee.value;
@@ -1127,23 +1101,7 @@ export class FtsoService {
             rewardDistributed.providerReward = (rewardDistributed.reward / 100) * 20;
             rewardDistributed.reward = rewardDistributed.reward - rewardDistributed.providerReward;
         }
-        if (isNotEmpty(rewardEpochs) && rewardEpochs.length > 0) {
-            rewardEpochs.map((re, idx) => {
-                if (idx > 0) {
-                    if (rewardDistributed.blockNumber <= re.startBlockNumber && rewardDistributed.blockNumber >= rewardEpochs[idx - 1].startBlockNumber) {
-                        rewardDistributed.rewardEpochId = re.id;
-                    }
-                } else {
-                    if (rewardDistributed.blockNumber <= re.startBlockNumber) {
-                        rewardDistributed.rewardEpochId = re.id;
-                    }
-                }
-            });
-
-            if (!rewardDistributed.rewardEpochId) {
-                rewardDistributed.rewardEpochId = Math.max(...rewardEpochs.map(rewardEpoch => rewardEpoch.id)) + 1;
-            }
-        }
+        rewardDistributed.rewardEpochId = rewardEpochSettings.getEpochIdForTime(rewardDistributed.timestamp);
     }
 
     async getDataProviderRewardStatsHistory(network: NetworkEnum, dataProviderAddress: string, startTime: number, endTime: number,
@@ -1189,25 +1147,28 @@ export class FtsoService {
                     }
                     return;
                 }
+                this.logger.log(`${network} - getDataProviderRewardStatsByRewardEpoch - ${rewardEpochId} - dataProvider: ${dataProvider}`);
                 const rewardEpochSettings: RewardEpochSettings = await this._epochsService.getRewardEpochSettings(network);
-                const currentEpochId: number = rewardEpochSettings.getCurrentEpochId();
                 const nextEpochId: number = rewardEpochSettings.getNextEpochId();
-                if (rewardEpochId > nextEpochId) {
+                if (rewardEpochId > nextEpochId + 1) {
                     throw new Error(`Invalid reward epoch. Reward epoch is not finalized yet.`);
                     return;
                 }
                 let endBlockNumber: number = 0;
-                if (rewardEpochId == nextEpochId || rewardEpochId == currentEpochId) {
+                let previousRewardEpoch: RewardEpoch;
+                let votePower: VotePowerDTO[];
+                if (rewardEpochId == nextEpochId || rewardEpochId == nextEpochId + 1) {
                     endBlockNumber = Number(await blockchainDao.provider.getBlockNumber());
+                    previousRewardEpoch = await this._epochsService.getRewardEpoch(network, rewardEpochSettings.getCurrentEpochId())
+                    votePower = await this._delegationsService.getDataProviderVotePowerByAddress(network, nextEpochId);
                 } else {
                     const rewardEpoch: RewardEpoch = await this._epochsService.getRewardEpoch(network, rewardEpochId);
                     endBlockNumber = rewardEpoch.blockNumber;
+                    previousRewardEpoch = await this._epochsService.getRewardEpoch(network, rewardEpochId - 1)
+                    votePower = await this._delegationsService.getDataProviderVotePowerByAddress(network, rewardEpochId);
                 }
-
-                const previousRewardEpoch: RewardEpoch = await this._epochsService.getRewardEpoch(network, rewardEpochId - 1)
                 await this.getRewardsDistributed(network, null, null, previousRewardEpoch.blockNumber, endBlockNumber, 1, 0);
                 const dataProviderRewardStats: DataProviderRewardStats[] = await persistenceDao.getDataProviderRewardStats(null, previousRewardEpoch.blockNumber, endBlockNumber, DataProviderRewardStatsGroupByEnum.dataProvider);
-                const votePower: VotePowerDTO[] = await this._delegationsService.getDataProviderVotePowerByAddress(network, rewardEpochId);
                 if (votePower.length > 0) {
                     dataProviderRewardStats.map(DataProviderRewardStats => {
                         votePower.filter(vp => vp.address == DataProviderRewardStats.dataProvider).map(vp => {
@@ -1215,7 +1176,7 @@ export class FtsoService {
                         });
                     });
                 }
-                if (rewardEpochId == nextEpochId || rewardEpochId == currentEpochId) {
+                if (rewardEpochId == nextEpochId || rewardEpochId == nextEpochId + 1) {
                     const priceEpochSettings: PriceEpochSettings = await this._epochsService.getPriceEpochSettings(network);
                     await cacheDao.setDataProviderRewardStatsByRewardEpoch(rewardEpochId, dataProviderRewardStats, priceEpochSettings.getRevealEndTimeForEpochId(priceEpochSettings.getCurrentEpochId()));
                 } else {
@@ -1290,6 +1251,7 @@ export class FtsoService {
                     ));
                     return;
                 }
+                this.logger.log(`${network} - getDataProvideSubmissionStatsByRewardEpoch - ${rewardEpochId} - dataProvider: ${dataProvider} - symbol: ${symbol}`);
                 const rewardEpochSettings: RewardEpochSettings = await this._epochsService.getRewardEpochSettings(network);
                 const nextEpochId: number = rewardEpochSettings.getNextEpochId();
                 const previousRewardEpoch: RewardEpoch = await this._epochsService.getRewardEpoch(network, rewardEpochId - 1);
