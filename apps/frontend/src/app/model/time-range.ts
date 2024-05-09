@@ -10,8 +10,8 @@ export class TimeRangeDefinition {
     }
     getTimeRange():TimeRange {
         let timeRange: TimeRange = new TimeRange();
-        timeRange.start = new Date().getTime()-this.timeDiff;
-        timeRange.end = new Date().getTime();
+        timeRange.start = new Date().getTime()-this.timeDiff-5000;
+        timeRange.end = new Date().getTime()-5000;
         return timeRange;
     }
 }

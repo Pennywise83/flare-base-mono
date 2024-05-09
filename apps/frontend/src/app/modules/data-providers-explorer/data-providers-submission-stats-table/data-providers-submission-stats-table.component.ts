@@ -56,7 +56,7 @@ export class DataProvidersSubmissionStatsTableComponent implements OnInit, OnCha
 
 
     ngOnChanges(changes: SimpleChanges): void {
-        if ((changes.loading && changes.loading.currentValue == false) || changes.submissionStats) {
+        if ((changes.loading && changes.loading.currentValue == false) || changes.submissionStats || changes.selectedSymbol) {
             if (this.submissionStats) {
                 let dataProviders: string[] = Array.from(new Set(this.submissionStats.map(stat => stat.dataProvider)));
                 if (dataProviders.length > 1) {

@@ -122,13 +122,19 @@ export class DataProviderFeedsComponent implements OnInit, OnDestroy, OnChanges 
         return new DateRange(new Date(startTime), new Date(endTime));
     }
     handleTimeRangeChange(date: SelectedDateEvent) {
-        date.selectedOption.id
-        this.request.startTime = date.range.start.getTime();
-        this.request.endTime = date.range.end.getTime();
+        let selectedStartTime: number = new Date(date.range.start).getTime();
+        let selectedEndTime: number = new Date(date.range.end).getTime();
+        if (selectedEndTime - selectedStartTime >= this.timeRanges.find(tr => tr.id == 'last12Hours').timeDiff + 1000) {
+            selectedStartTime = selectedEndTime - this.timeRanges.find(tr => tr.id == 'last12Hours').timeDiff;
+            date.selectedOption.id = null;
+            this._uiNotificationsService.warning(`Selected time range too wide`, 'The maximum selectable interval is 12 hours')
+        }
+        this.request.startTime = selectedStartTime;
+        this.request.endTime = selectedEndTime;
         this.selectedTimeRangeDefinition = this.timeRanges.find(tr => tr.id == date.selectedOption.id);
         this.timeRanges.filter(tr => date.selectedOption.id == tr.id).map(tr => tr.isSelected = true);
         this._updateQueryParams(this.request);
-        this.refreshData(this.request);
+        /* this.refreshData(this.request); */
 
     }
     refreshData(request: FeedsRequest): void {
@@ -323,10 +329,9 @@ export class DataProviderFeedsComponent implements OnInit, OnDestroy, OnChanges 
             startTime = this.timeRanges[1].getTimeRange().start;
             endTime = this.timeRanges[1].getTimeRange().end;
         }
-        if (endTime - startTime >= this.timeRanges.find(tr => tr.id == 'lastDay').timeDiff + 1000) {
-            startTime = endTime - this.timeRanges.find(tr => tr.id == 'lastDay').timeDiff;
-            this._updateQueryParams(this.request);
-            this._uiNotificationsService.warning(`Selected time range too wide`, 'The maximum selectable interval is 24 hours')
+        if (endTime - startTime >= this.timeRanges.find(tr => tr.id == 'last12Hours').timeDiff + 1000) {
+            startTime = endTime - this.timeRanges.find(tr => tr.id == 'last12Hours').timeDiff;
+            this._uiNotificationsService.warning(`Selected time range too wide`, 'The maximum selectable interval is 12 hours')
         }
         if (!isDefined(symbol)) {
             symbol = isDefined(this._route.snapshot.queryParamMap.get('symbol')) ? this._route.snapshot.queryParamMap.get('symbol') : Utils.getChainDefinition(this.network).nativeCurrency.symbol;
@@ -384,14 +389,7 @@ export class DataProviderFeedsComponent implements OnInit, OnDestroy, OnChanges 
     filterAvailableSymbols(filter: string): void {
         this.filteredAvailableSymbols = this.availableSymbols.filter(symbol => symbol.toLowerCase().indexOf(filter.toLowerCase()) >= 0);
     }
-    setTimeRange(timeRangeDefinition: TimeRangeDefinition): void {
-        this.selectedTimeRangeDefinition = timeRangeDefinition;
-        const timeRange: TimeRange = timeRangeDefinition.getTimeRange();
-        this.request.startTime = timeRange.start;
-        this.request.endTime = timeRange.end;
-        this._updateQueryParams(this.request);
-    }
-    toggleRelativeView() {
+     toggleRelativeView() {
         this.isRelativeView = !this.isRelativeView;
         this._updateQueryParams(this.request);
     }

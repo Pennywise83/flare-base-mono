@@ -45,7 +45,8 @@
         <div class="flex flex-col flex-auto p-0 bg-card shadow rounded-lg overflow-hidden max-h-96 zoomable">
             <div class="flex flex-col h-full p-0 relative min-h-96">
                 <flare-base-data-provider-feeds-chart [availableSymbols]="availableSymbols"
-                    [isRelativeView]="isRelativeView" [dataProvidersInfoMap]="dataProvidersInfoMap"
+                    [priceEpochSettings]="priceEpochSettings" [isRelativeView]="isRelativeView"
+                    [dataProvidersInfoMap]="dataProvidersInfoMap"
                     [loading]="loadingMap.isLoading('getFinalizedPrices') || loadingMap.isLoading('getRevealedPrices') || loadingMap.isLoading('getRewardsDistributed') || loading"
                     [pricesData]="pricesData"></flare-base-data-provider-feeds-chart>
             </div>
@@ -63,7 +64,7 @@
                         [loading]="loadingMap.isLoading('getDataProviderSubmissionStats')"
                         [sortOnColumn]="request.addressList.length == 1 ? 'symbol' : 'successRate'"
                         [sortOrder]="sortOrder.desc"
-                        [tableColumns]="request.addressList.length == 1 ? ['symbol','numberOfCases','outIQR','outPct','borderIQR','borderPct','innerIQR','innerPct','successRateIQR','successRatePct','successRate'] : ['dataProvider','numberOfCases','outIQR','outPct','borderIQR','borderPct','innerIQR','innerPct','successRateIQR','successRatePct','successRate']"
+                        [tableColumns]="request.addressList.length == 1 ? ['symbol','numberOfCases','successRate','successRateIQR','successRatePct','innerIQR','innerPct','borderIQR','borderPct','outIQR','outPct'] : ['dataProvider','symbol','numberOfCases','successRate','successRateIQR','successRatePct','innerIQR','innerPct','borderIQR','borderPct','outIQR','outPct']"
                         [submissionStats]="submissionStats"></flare-base-data-providers-submission-stats-table>
                 </div>
 
@@ -101,12 +102,12 @@
 
 
     <div class="flex flex-col flex-auto p-0 pb-1 col-span-12 md:col-span-9 gap-4 md:gap-6  order-2 md:order-1">
-        <div class="flex flex-col flex-auto p-0 bg-card shadow rounded-lg overflow-hidden">
-            <div class="flex flex-col h-full p-0 relative min-h-50 overflow-y-auto overflow-x-auto">
+        <div class="flex flex-col flex-auto p-0 bg-card shadow rounded-lg">
+            <div class="flex flex-col h-full p-0 relative min-h-50 ">
                 <h3 class="shrink-0 p-4 py-4  text-lg font-medium tracking-tight leading-6 truncate truncate">
                     Distributed rewards
                 </h3>
-                <div class="flex flex-col flex-auto overflow-hidden relative">
+                <div class="flex flex-col flex-auto overflow-x-auto overflow-y-auto relative">
                     <flare-base-data-providers-distributed-rewards-table [dataProvidersInfoMap]="dataProvidersInfoMap"
                         [network]="network" [dataProvidersInfo]="dataProviderInfo"
                         [loading]="loadingMap.isLoading('getRewardsDistributed')" [pageSize]="10"

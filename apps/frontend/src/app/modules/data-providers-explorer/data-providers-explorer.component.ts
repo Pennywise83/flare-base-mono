@@ -59,7 +59,7 @@ export class DataProvidersExplorerComponent implements OnInit {
     searchFilter$ = new Subject<any>();
     searchFilter: DataProviderSearchFilter = { nameOrAddress: '', whitelisted: true, listed: true };
     dataProvidersInfo: DataProviderInfo[];
-    isNextRewardEpoch: boolean = false;
+    isCurrentRewardEpoch: boolean = false;
     delegatedVotePowerHistory: VotePowerDTO[] = [];
     votePowerChange: number = 0;
     votePowerHistoryChange: VotePowerDelegatorsChange[];
@@ -124,11 +124,16 @@ export class DataProvidersExplorerComponent implements OnInit {
                 this.availableRewardEpochs.splice(this.availableRewardEpochs.indexOf(0), 1);
                 if (this._parentParams['rewardEpoch'] == 'current') {
                     this.selectedRewardEpoch = this.rewardEpochSettings.getCurrentEpochId();
+                    this.isCurrentRewardEpoch = true;
                 } else if (parseInt(this._parentParams['rewardEpoch']) > this.rewardEpochSettings.getCurrentEpochId()) {
                     this.selectedRewardEpoch = this.rewardEpochSettings.getCurrentEpochId();
-                    this.isNextRewardEpoch = true;
                 } else {
                     this.selectedRewardEpoch = parseInt(this._parentParams['rewardEpoch']);
+                    if (this.selectedRewardEpoch == this.rewardEpochSettings.getCurrentEpochId()) {
+                        this.isCurrentRewardEpoch = true;
+                    } else {
+                        this.isCurrentRewardEpoch = false;
+                    }
                 }
             }, err => {
                 this._uiNotificationsService.error(`Unable to initialize component`, err);
@@ -248,10 +253,10 @@ export class DataProvidersExplorerComponent implements OnInit {
         let endTime: number;
         if (this.selectedRewardEpoch == this.rewardEpochSettings.getCurrentEpochId()) {
             startTime = new Date().getTime() - (60 * 60 * 1000);
-            endTime = new Date().getTime();
+            endTime = new Date().getTime()-10000;
         } else {
             startTime = this.rewardEpochSettings.getEndTimeForEpochId(this.selectedRewardEpoch) - (60 * 60 * 1000);
-            endTime = this.rewardEpochSettings.getEndTimeForEpochId(this.selectedRewardEpoch);
+            endTime = this.rewardEpochSettings.getEndTimeForEpochId(this.selectedRewardEpoch)-10000;
         }
         this._router.navigate([this._network, 'ftso', 'data-providers', 'feeds'], { queryParams: { address: address, startTime: startTime, endTime: endTime } });
     }

@@ -39,7 +39,7 @@
     [cdkConnectedOverlayOffsetX]="cdkConnectedOverlayOffsetX"
     [cdkConnectedOverlayOffsetY]="cdkConnectedOverlayOffsetY+28" (backdropClick)="toggleCustomDateRangeView()">
     <div [id]="calendarId"
-      class="custom-ckd-container custom-calendar-container bg-card rounded-md shadow-lg rounded-md  border border-gray-300 dark:border-gray-700 shadow-lg"
+      class="h-full scale-75 md:scale-100 custom-ckd-container custom-calendar-container bg-card rounded-md shadow-lg rounded-md  border border-gray-300 dark:border-gray-700 shadow-lg"
       [class]="{'without-default-opt':hideDefaultOptions}">
       <div class="row-1">
         <div class="pt-custom border-r column-1" *ngIf="!hideDefaultOptions"> <mat-action-list>

@@ -100,6 +100,7 @@ export class DataProviderDetailsComponent implements OnInit, OnDestroy {
                     return;
                 }
                 this._parseQueryParams();
+                this.selectedProviders = [];
                 this._epochsService.getRewardEpochSettings(this.network).subscribe(rewardEpochSettings => {
                     this.rewardEpochSettings = rewardEpochSettings;
                     let targetRewardEpoch: number = this.rewardEpochSettings.getCurrentEpochId();
@@ -112,14 +113,31 @@ export class DataProviderDetailsComponent implements OnInit, OnDestroy {
                     forkJoin(calls).subscribe(res => {
                         this.priceEpochSettings = res[0] as PriceEpochSettings;
                         this.dataProviderInfo = res[1] as DataProviderInfo[];
-                        this.filteredDataProvidersData = res[1] as DataProviderInfo[];;
-                        this.feedsRequest = new FeedsRequest(this.address, parseInt(this._route.snapshot.queryParamMap.get('startTime')), parseInt(this._route.snapshot.queryParamMap.get('endTime')))
+                        this.filteredDataProvidersData = res[1] as DataProviderInfo[];
+                        let startTime: number;
+                        let endTime: number;
+                        if (!this._route.snapshot.queryParamMap.get('startTime') || !this._route.snapshot.queryParamMap.get('endTime')) {
+                            if (targetRewardEpoch == this.rewardEpochSettings.getCurrentEpochId()) {
+                                startTime = new Date().getTime() - (60 * 60 * 1000);
+                                endTime = new Date().getTime() - 10000;
+                            } else {
+                                startTime = this.rewardEpochSettings.getEndTimeForEpochId(targetRewardEpoch) - (60 * 60 * 1000);
+                                endTime = this.rewardEpochSettings.getEndTimeForEpochId(targetRewardEpoch) - 10000;
+                            }
+                        } else {
+                            startTime = parseInt(this._route.snapshot.queryParamMap.get('startTime'));
+                            endTime = parseInt(this._route.snapshot.queryParamMap.get('endTime'));
+                        }
+                        this.feedsRequest = new FeedsRequest(this.address, startTime, endTime);
                         this.delegatorsRequest = new DelegatorsRequest(this.address, this.rewardEpochSettings.getEpochIdForTime(this.feedsRequest.endTime));
                         this.votePowerRequest = new VotePowerHistoryRequest(this.address, this.feedsRequest.startTime, this.feedsRequest.endTime);
                         this.rewardsHistoryRequest = new RewardsHistoryRequest(this.address, this.feedsRequest.startTime, this.feedsRequest.endTime);
                         if (!isEmpty(this.feedsRequest.address)) {
                             this.feedsRequest.addressList.map((address, idx) => {
                                 this.selectedProviders[idx] = this.dataProviderInfo.find(dpInfo => dpInfo.address == address);
+                                if (typeof this.selectedProviders[idx] == 'undefined') {
+                                    this.selectedProviders[0] = this.dataProviderInfo[Math.floor(Math.random() * this.dataProviderInfo.length)];
+                                }
                             });
                             this.address = this.selectedProviders.map(dp => dp.address).join(',');
                         } else {
@@ -132,7 +150,7 @@ export class DataProviderDetailsComponent implements OnInit, OnDestroy {
                             }
                             this.address = this.selectedProviders[0].address;
                             this.feedsRequest.address = this.selectedProviders[0].address;
-                            this.feedsRequest.startTime = this.rewardEpochSettings.getEndTimeForEpochId(targetRewardEpoch)-(60*15*1000);
+                            this.feedsRequest.startTime = this.rewardEpochSettings.getEndTimeForEpochId(targetRewardEpoch) - (60 * 15 * 1000);
                             this.feedsRequest.endTime = this.rewardEpochSettings.getEndTimeForEpochId(targetRewardEpoch);
                         }
                         this.loading = false;
@@ -150,19 +168,19 @@ export class DataProviderDetailsComponent implements OnInit, OnDestroy {
                                     break;
                                 case DataProviderSectionEnum.delegations:
                                     this.delegatorsRequest = new DelegatorsRequest(this.address.split(',')[0], this.rewardEpochSettings.getEpochIdForTime(this.feedsRequest.endTime));
-                                    Commons.setPageTitle(`Flare base - ${this.network.charAt(0).toUpperCase() + this.network.slice(1)} - Data providers explorer - Delegations - ${this.selectedProviders[0].name} -  ${this.feedsRequest.symbol}`, this._titleService, this._matomoTracker);
+                                    Commons.setPageTitle(`Flare base - ${this.network.charAt(0).toUpperCase() + this.network.slice(1)} - Data providers explorer - Delegations - ${this.selectedProviders[0].name}`, this._titleService, this._matomoTracker);
                                     this.section = DataProviderSectionEnum.delegations;
                                     break;
                                 case DataProviderSectionEnum.votepower:
                                     this.votePowerRequest = new VotePowerHistoryRequest(this.address, this.rewardEpochSettings.getStartTimeForEpochId(this.rewardEpochSettings.getEpochIdForTime(this.feedsRequest.endTime) - 60), this.feedsRequest.endTime);
                                     this.votePowerRequest.pageSize = 5000;
-                                    Commons.setPageTitle(`Flare base - ${this.network.charAt(0).toUpperCase() + this.network.slice(1)} - Data providers explorer - Vote power - ${this.selectedProviders[0].name} -  ${this.feedsRequest.symbol}`, this._titleService, this._matomoTracker);
+                                    Commons.setPageTitle(`Flare base - ${this.network.charAt(0).toUpperCase() + this.network.slice(1)} - Data providers explorer - Vote power - ${this.selectedProviders[0].name}`, this._titleService, this._matomoTracker);
                                     this.section = DataProviderSectionEnum.votepower;
                                     break;
                                 case DataProviderSectionEnum.rewards:
                                     this.rewardsHistoryRequest = new RewardsHistoryRequest(this.address, this.rewardEpochSettings.getStartTimeForEpochId(this.rewardEpochSettings.getEpochIdForTime(this.feedsRequest.endTime) - 60), this.feedsRequest.endTime);
                                     this.rewardsHistoryRequest.pageSize = 5000;
-                                    Commons.setPageTitle(`Flare base - ${this.network.charAt(0).toUpperCase() + this.network.slice(1)} - Data providers explorer - Rewards history - ${this.selectedProviders[0].name} -  ${this.feedsRequest.symbol}`, this._titleService, this._matomoTracker);
+                                    Commons.setPageTitle(`Flare base - ${this.network.charAt(0).toUpperCase() + this.network.slice(1)} - Data providers explorer - Rewards history - ${this.selectedProviders[0].name}`, this._titleService, this._matomoTracker);
                                     this.section = DataProviderSectionEnum.rewards;
                                     break;
                             }
@@ -204,8 +222,14 @@ export class DataProviderDetailsComponent implements OnInit, OnDestroy {
         this.feedsRequest.address = this.address;
         this.delegatorsRequest.address = this.feedsRequest.addressList[0];
         this.rewardsHistoryRequest.address = this.feedsRequest.addressList[0];
-        this.refreshData();
-        this._updateQueryParams();
+        if (this.section == this.sections.feeds) {
+            this._updateQueryParams();
+        } else {
+            this.refreshData();
+            this._updateQueryParams();
+        }
+
+
     }
     private _parseQueryParams(): void {
         this.network = NetworkEnum[this._parentParams['network']];

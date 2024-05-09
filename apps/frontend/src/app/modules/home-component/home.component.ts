@@ -1,5 +1,5 @@
 import { NgIf } from "@angular/common";
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, ViewEncapsulation } from "@angular/core";
+import { AfterContentInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, ViewEncapsulation } from "@angular/core";
 import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
 import { AppModule } from "app/app.module";
@@ -35,6 +35,7 @@ export class HomeComponent implements OnInit {
     ) {
 
     }
+
     ngOnInit(): void {
         this._route.paramMap.subscribe(params => {
             this.network = params.get('network');

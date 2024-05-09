@@ -204,6 +204,33 @@
                 </span>
             </td>
         </ng-container>
+        <ng-container matColumnDef="successRate6h">
+            <th mat-header-cell mat-sort-header *matHeaderCellDef class="max-w-40">
+                Success rate (6h)
+                <mat-icon class="small-icon text-gray-500" [svgIcon]="'heroicons_outline:information-circle'"
+                    matTooltip="The success rate of the data provider in the last 6 hours. The value is  represented as a percentage and calculated by the formula `(successRateIQR + successRatePct) / 2`"
+                    [matTooltipPosition]="'above'"></mat-icon>
+            </th>
+            <td mat-cell *matCellDef="let ftsoInfo">
+                <span class="flex items-center">
+                    <span>
+                        <span class="flex items-end w-0.5 h-4  rounded overflow-hidden" [ngClass]="[round(ftsoInfo.successRate6h,16) < 2 ? 'bg-red-300' : '',
+                    round(ftsoInfo.successRate6h,16) >= 2 && round(ftsoInfo.successRate6h,16) < 4 ? 'bg-orange-200' : '',
+                    round(ftsoInfo.successRate6h,16) >= 4  ? 'bg-green-200' : '',]">
+                            <span [ngClass]="[(round(ftsoInfo.successRate6h,16) == 6 ? 'h-full' : 'h-'+round(ftsoInfo.successRate6h,16)+'/6'),
+                            round(ftsoInfo.successRate6h,16) < 2 ? 'bg-red-600' : '',
+                            round(ftsoInfo.successRate6h,16) >= 2 && round(ftsoInfo.successRate6h,16) < 4 ? 'bg-orange-300' : '',
+                            round(ftsoInfo.successRate6h,16) >= 4  ? 'bg-green-400' : '',
+                        ]" class="flex w-full"></span>
+                        </span>
+                    </span>
+                    <div class="text-sm ml-2 leading-4">
+                        {{ftsoInfo.successRate6h| number:'1.2-2'}}
+                        <span class="text-secondary">%</span>
+                    </div>
+                </span>
+            </td>
+        </ng-container>
 
         <ng-container matColumnDef="successRateIQR">
             <th mat-header-cell mat-sort-header *matHeaderCellDef class="max-w-40">
@@ -231,7 +258,33 @@
                 </span>
             </td>
         </ng-container>
-
+        <ng-container matColumnDef="successRateIQR6h">
+            <th mat-header-cell mat-sort-header *matHeaderCellDef class="max-w-40">
+                Success rate IQR (6h)
+                <mat-icon class="small-icon text-gray-500" [svgIcon]="'heroicons_outline:information-circle'"
+                    matTooltip="The success rate of the data provider relative to the primary (interquartile) reward bands in the last 6 hours. The value is  represented as a percentage and calculated by the formula `(successRateIQR + successRatePct) / 2`"
+                    [matTooltipPosition]="'above'"></mat-icon>
+            </th>
+            <td mat-cell *matCellDef="let ftsoInfo">
+                <span class="flex items-center">
+                    <span>
+                        <span class="flex items-end w-0.5 h-4  rounded overflow-hidden" [ngClass]="[round(ftsoInfo.successRateIQR6h,16) < 2 ? 'bg-red-300' : '',
+                    round(ftsoInfo.successRateIQR6h,16) >= 2 && round(ftsoInfo.successRateIQR6h,16) < 4 ? 'bg-orange-200' : '',
+                    round(ftsoInfo.successRateIQR6h,16) >= 4  ? 'bg-green-200' : '',]">
+                            <span [ngClass]="[(round(ftsoInfo.successRateIQR6h,16) == 6 ? 'h-full' : 'h-'+round(ftsoInfo.successRateIQR6h,16)+'/6'),
+                            round(ftsoInfo.successRateIQR6h,16) < 2 ? 'bg-red-600' : '',
+                            round(ftsoInfo.successRateIQR6h,16) >= 2 && round(ftsoInfo.successRateIQR6h,16) < 4 ? 'bg-orange-300' : '',
+                            round(ftsoInfo.successRateIQR6h,16) >= 4  ? 'bg-green-400' : '',
+                        ]" class="flex w-full"></span>
+                        </span>
+                    </span>
+                    <div class="text-sm ml-2 leading-4">
+                        {{ftsoInfo.successRateIQR6h| number:'1.2-2'}}
+                        <span class="text-secondary">%</span>
+                    </div>
+                </span>
+            </td>
+        </ng-container>
         <ng-container matColumnDef="successRatePct">
             <th mat-header-cell mat-sort-header *matHeaderCellDef class="max-w-40">
                 Success rate Pct
@@ -258,7 +311,33 @@
                 </span>
             </td>
         </ng-container>
-
+        <ng-container matColumnDef="successRatePct6h">
+            <th mat-header-cell mat-sort-header *matHeaderCellDef class="max-w-40">
+                Success rate Pct (6h)
+                <mat-icon class="small-icon text-gray-500" [svgIcon]="'heroicons_outline:information-circle'"
+                    matTooltip="The success rate of the data provider relative to the secondary (elastic) reward bands in the last 6 hours. The value is  represented as a percentage and calculated by the formula `(successRateIQR + successRatePct) / 2`"
+                    [matTooltipPosition]="'above'"></mat-icon>
+            </th>
+            <td mat-cell *matCellDef="let ftsoInfo">
+                <span class="flex items-center">
+                    <span>
+                        <span class="flex items-end w-0.5 h-4  rounded overflow-hidden" [ngClass]="[round(ftsoInfo.successRatePct6h,16) < 2 ? 'bg-red-300' : '',
+                    round(ftsoInfo.successRatePct6h,16) >= 2 && round(ftsoInfo.successRatePct6h,16) < 4 ? 'bg-orange-200' : '',
+                    round(ftsoInfo.successRatePct6h,16) >= 4  ? 'bg-green-200' : '',]">
+                            <span [ngClass]="[(round(ftsoInfo.successRatePct6h,16) == 6 ? 'h-full' : 'h-'+round(ftsoInfo.successRatePct6h,16)+'/6'),
+                            round(ftsoInfo.successRatePct6h,16) < 2 ? 'bg-red-600' : '',
+                            round(ftsoInfo.successRatePct6h,16) >= 2 && round(ftsoInfo.successRatePct6h,16) < 4 ? 'bg-orange-300' : '',
+                            round(ftsoInfo.successRatePct6h,16) >= 4  ? 'bg-green-400' : '',
+                        ]" class="flex w-full"></span>
+                        </span>
+                    </span>
+                    <div class="text-sm ml-2 leading-4">
+                        {{ftsoInfo.successRatePct6h| number:'1.2-2'}}
+                        <span class="text-secondary">%</span>
+                    </div>
+                </span>
+            </td>
+        </ng-container>
         <ng-container matColumnDef="providerRewards">
             <th mat-header-cell mat-sort-header *matHeaderCellDef class="max-w-40">
                 Provider rewards

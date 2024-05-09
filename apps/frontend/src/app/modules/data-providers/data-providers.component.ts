@@ -19,6 +19,7 @@ import { AppModule } from "../../app.module";
 import { animations } from "../../commons/animations";
 import { LoaderComponent } from "../../commons/loader/loader.component";
 import { NoDataComponent } from "../../commons/no-data/no-data.component";
+import { isNotEmpty } from "class-validator";
 @Component({
     selector: 'flare-base-data-providers',
     templateUrl: './data-providers.component.html',
@@ -42,6 +43,8 @@ export class DataProvidersComponent implements OnInit, OnDestroy, OnChanges {
     @Output() selectedAddress: EventEmitter<string> = new EventEmitter<string>();
     @ViewChild('dataProvidersSort', { static: false }) public dataProvidersSort: MatSort;
     @Input() searchFilter: DataProviderSearchFilter;
+    @Input() sortOnColumn: string;
+    @Input() sortOrder: SortOrderEnum = SortOrderEnum.desc;
     @Input() dataProvidersTableColumns: string[] = ['name'];
     dataProvidersDataSource: MatTableDataSource<DataProviderExtendedInfo> = new MatTableDataSource();
     private _unsubscribeAll: Subject<any> = new Subject<any>();
@@ -83,10 +86,12 @@ export class DataProvidersComponent implements OnInit, OnDestroy, OnChanges {
                 delegationStats.icon = 'assets/images/unknown.png';
             });
             this._cdr.detectChanges();
-            if (this.dataProvidersSort) {
-                this.dataProvidersSort.active = 'votePower';
-                this.dataProvidersSort.direction = SortOrderEnum.desc;
+            if (this.dataProvidersSort && isNotEmpty(this.sortOnColumn) && isEmpty(this.dataProvidersSort.active)) {
+                this.dataProvidersSort.active = this.sortOnColumn;
+                this.dataProvidersSort.direction = this.sortOrder;
                 this.dataProvidersDataSource.sort = this.dataProvidersSort;
+                this.dataProvidersDataSource._updateChangeSubscription();
+                this._cdr.detectChanges();
             }
             this.dataProvidersDataSource.filterPredicate = this.customFilterPredicate;
             this._cdr.detectChanges();

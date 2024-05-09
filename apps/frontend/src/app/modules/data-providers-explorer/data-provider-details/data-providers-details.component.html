@@ -47,14 +47,14 @@
                         <ng-container *ngFor="let dpInfo of filteredDataProvidersInfo">
                             <mat-option [value]="dpInfo.address">
                                 <div class="flex items-center space-x-2">
-                                    <img class="w-8 h-8 p-1 rounded-full ring-icon" [src]="dpInfo.icon"
+                                    <img class="w-9 h-9 p-1 rounded-full ring-icon" [src]="dpInfo.icon"
                                         [alt]="dpInfo.name+' icon'">
                                     <div class="dark:text-white leading-4 text-sm">
                                         <div>
                                             <a>{{dpInfo.name}}</a>
                                         </div>
                                         <div class="text-xs text-gray-500 dark:text-gray-400">
-                                            {{dpInfo.address|addressTrim:9}}</div>
+                                            {{dpInfo.address}}</div>
 
                                     </div>
                                 </div>

@@ -7,7 +7,7 @@ import { NoDataComponent } from "app/commons/no-data/no-data.component";
 import { isNotEmpty } from "class-validator";
 import { ApexOptions, ChartComponent, NgApexchartsModule } from "ng-apexcharts";
 import { timer } from "rxjs";
-import { Commons, DataProviderInfo, NetworkEnum, PriceFinalized, PriceRevealed, RewardDistributed } from "../../../../../../../libs/commons/src";
+import { Commons, DataProviderInfo, NetworkEnum, PriceEpochSettings, PriceFinalized, PriceRevealed, RewardDistributed } from "../../../../../../../libs/commons/src";
 import { UiNotificationsService } from "app/commons/ui-notifications/ui-notifications.service";
 import { DataProviderSubmissionStats } from "../../../../../../../libs/commons/src/model/ftso/data-provider-submission-stats";
 import { MatButtonModule } from "@angular/material/button";
@@ -35,6 +35,7 @@ export class DataProviderFeedsChartComponent implements OnInit, OnDestroy, OnCha
     @Input() dataProvidersInfoMap: Record<string, DataProviderInfo>;
     @Input() availableSymbols: string[];
     chartOptions: ApexOptions = {};
+    @Input() priceEpochSettings: PriceEpochSettings;
     isFullScreen: boolean = false;
     isZoomed: boolean = false;
     @Input() isRelativeView: boolean = false;
@@ -83,6 +84,9 @@ export class DataProviderFeedsChartComponent implements OnInit, OnDestroy, OnCha
     parseChartData() {
         try {
             if (this.pricesData.revealedPrices && this.pricesData.revealedPrices.length > 0 && this.pricesData.finalizedPrices && this.pricesData.finalizedPrices.length > 0) {
+                const revealedEpochIds: number[] = [... new Set(this.pricesData.revealedPrices.map(revealedPrice => revealedPrice.epochId))];
+                let epochIdsTimestampMap: Record<number, number> = {};
+                revealedEpochIds.map(epochId => !epochIdsTimestampMap[epochId] ? epochIdsTimestampMap[epochId] = this.priceEpochSettings.getEndTimeForEpochId(epochId) : false);
                 let addresses: string[] = Array.from(new Set(this.pricesData.revealedPrices.map(rp => rp.dataProvider)));
                 let dataProvidersInfo: Record<string, DataProviderInfo> = {};
                 addresses.map(address => {
@@ -104,9 +108,10 @@ export class DataProviderFeedsChartComponent implements OnInit, OnDestroy, OnCha
                 let pointsAnnotations: any[] = [];
                 let revealedSeries: Record<string, any> = {};
                 let discreteMarkers: any[] = [];
+
                 addresses.map(address => {
                     if (!revealedSeries[address]) {
-                        revealedSeries[address] = { id: 'revealedSerie', type: 'line', name: dataProvidersInfo[address].name, data: [], originalData: [] };
+                        revealedSeries[address] = { id: 'revealedSerie', type: 'line', name: dataProvidersInfo[address] ? dataProvidersInfo[address].name : 'Unknown', data: [], originalData: [] };
                     }
                 });
                 let ftsoRangeSerie: any = { id: 'ftsoRangeSerie', type: 'rangeArea', name: "Reward band IQR", data: [], originalData: [] };
@@ -119,48 +124,49 @@ export class DataProviderFeedsChartComponent implements OnInit, OnDestroy, OnCha
                     this.pricesData.finalizedPrices.map(ftsoPrice => {
                         if (this.isRelativeView) {
                             ftsoRangeSerie.isRelative = true;
-                            ftsoRangeSerie.data.push({ zIndex: 1, x: ftsoPrice.timestamp, y: [((ftsoPrice.lowIQRRewardPrice * 100) / ftsoPrice.value).toFixed(5), ((ftsoPrice.highIQRRewardPrice * 100) / ftsoPrice.value).toFixed(5)], epochId: ftsoPrice.epochId })
-                            ftsoRangeSerie.originalData.push({ zIndex: 1, x: ftsoPrice.timestamp, y: [ftsoPrice.lowIQRRewardPrice, ftsoPrice.highIQRRewardPrice], epochId: ftsoPrice.epochId })
+                            ftsoRangeSerie.data.push({ zIndex: 1, x: epochIdsTimestampMap[ftsoPrice.epochId], y: [((ftsoPrice.lowIQRRewardPrice * 100) / ftsoPrice.value).toFixed(5), ((ftsoPrice.highIQRRewardPrice * 100) / ftsoPrice.value).toFixed(5)], epochId: ftsoPrice.epochId })
+                            ftsoRangeSerie.originalData.push({ zIndex: 1, x: epochIdsTimestampMap[ftsoPrice.epochId], y: [ftsoPrice.lowIQRRewardPrice, ftsoPrice.highIQRRewardPrice], epochId: ftsoPrice.epochId })
 
                             if (ftsoPrice.highPctRewardPrice > 0 && ftsoPrice.lowPctRewardPrice > 0) {
                                 ftsoElasticRangeSerie.isRelative = true;
-                                ftsoElasticRangeSerie.data.push({ zIndex: 1, x: ftsoPrice.timestamp, y: [((ftsoPrice.lowPctRewardPrice * 100) / ftsoPrice.value).toFixed(5), ((ftsoPrice.highPctRewardPrice * 100) / ftsoPrice.value).toFixed(5)], epochId: ftsoPrice.epochId })
-                                ftsoElasticRangeSerie.originalData.push({ zIndex: 1, x: ftsoPrice.timestamp, y: [ftsoPrice.lowPctRewardPrice, ftsoPrice.highPctRewardPrice], epochId: ftsoPrice.epochId })
+                                ftsoElasticRangeSerie.data.push({ zIndex: 1, x: epochIdsTimestampMap[ftsoPrice.epochId], y: [((ftsoPrice.lowPctRewardPrice * 100) / ftsoPrice.value).toFixed(5), ((ftsoPrice.highPctRewardPrice * 100) / ftsoPrice.value).toFixed(5)], epochId: ftsoPrice.epochId })
+                                ftsoElasticRangeSerie.originalData.push({ zIndex: 1, x: epochIdsTimestampMap[ftsoPrice.epochId], y: [ftsoPrice.lowPctRewardPrice, ftsoPrice.highPctRewardPrice], epochId: ftsoPrice.epochId })
 
                             }
                             ftsoSerie.isRelative = true;
-                            ftsoSerie.data.push({ x: ftsoPrice.timestamp, y: 100 });
-                            ftsoSerie.originalData.push({ x: ftsoPrice.timestamp, y: ftsoPrice.value });
+                            ftsoSerie.data.push({ x: epochIdsTimestampMap[ftsoPrice.epochId], y: 100 });
+                            ftsoSerie.originalData.push({ x: epochIdsTimestampMap[ftsoPrice.epochId], y: ftsoPrice.value });
                         } else {
-                            ftsoRangeSerie.data.push({ zIndex: 1, x: ftsoPrice.timestamp, y: [ftsoPrice.lowIQRRewardPrice, ftsoPrice.highIQRRewardPrice], epochId: ftsoPrice.epochId })
+                            ftsoRangeSerie.data.push({ zIndex: 1, x: epochIdsTimestampMap[ftsoPrice.epochId], y: [ftsoPrice.lowIQRRewardPrice, ftsoPrice.highIQRRewardPrice], epochId: ftsoPrice.epochId })
                             if (ftsoPrice.highPctRewardPrice > 0 && ftsoPrice.lowPctRewardPrice > 0) {
-                                ftsoElasticRangeSerie.data.push({ zIndex: 1, x: ftsoPrice.timestamp, y: [ftsoPrice.lowPctRewardPrice, ftsoPrice.highPctRewardPrice], epochId: ftsoPrice.epochId })
+                                ftsoElasticRangeSerie.data.push({ zIndex: 1, x: epochIdsTimestampMap[ftsoPrice.epochId], y: [ftsoPrice.lowPctRewardPrice, ftsoPrice.highPctRewardPrice], epochId: ftsoPrice.epochId })
                             }
-                            ftsoSerie.data.push({ x: ftsoPrice.timestamp, y: ftsoPrice.value });
+                            ftsoSerie.data.push({ x: epochIdsTimestampMap[ftsoPrice.epochId], y: ftsoPrice.value });
                         }
                         if (ftsoPrice.rewardedSymbol) {
-                            rewardedFtsoLines.push({ x: ftsoPrice.timestamp, label: `Rewarded` });
+                            rewardedFtsoLines.push({ x: epochIdsTimestampMap[ftsoPrice.epochId], label: `Rewarded` });
                         }
                     });
                 }
+
                 if (this.pricesData.revealedPrices && this.pricesData.revealedPrices.length > 0) {
                     this.pricesData.revealedPrices.map((revealedPrice) => {
                         if (this.isRelativeView) {
 
                             revealedSeries[revealedPrice.dataProvider].isRelative = true;
-                            revealedSeries[revealedPrice.dataProvider].data.push({ zIndex: 50, x: this.pricesData.finalizedPrices.find(finalizedPrice => finalizedPrice.epochId == revealedPrice.epochId).timestamp, y: ((revealedPrice.value * 100) / this.pricesData.finalizedPrices.find(finalizedPrice => finalizedPrice.epochId == revealedPrice.epochId).value).toFixed(5) });
-                            revealedSeries[revealedPrice.dataProvider].originalData.push({ zIndex: 50, x: this.pricesData.finalizedPrices.find(finalizedPrice => finalizedPrice.epochId == revealedPrice.epochId).timestamp, y: revealedPrice.value });
+                            revealedSeries[revealedPrice.dataProvider].data.push({ zIndex: 50, x: epochIdsTimestampMap[revealedPrice.epochId], y: ((revealedPrice.value * 100) / this.pricesData.finalizedPrices.find(finalizedPrice => finalizedPrice.epochId == revealedPrice.epochId).value).toFixed(5) });
+                            revealedSeries[revealedPrice.dataProvider].originalData.push({ zIndex: 50, x: epochIdsTimestampMap[revealedPrice.epochId], y: revealedPrice.value });
 
                         } else {
-                            revealedSeries[revealedPrice.dataProvider].data.push({ zIndex: 50, x: this.pricesData.finalizedPrices.find(finalizedPrice => finalizedPrice.epochId == revealedPrice.epochId).timestamp, y: revealedPrice.value });
+                            revealedSeries[revealedPrice.dataProvider].data.push({ zIndex: 50, x: epochIdsTimestampMap[revealedPrice.epochId], y: revealedPrice.value });
 
                         }
                         let reward: RewardDistributed = this.pricesData.distributedRewards.find(reward => reward.priceEpochId == revealedPrice.epochId && reward.symbol == revealedPrice.symbol);
                         if (reward && revealedPrice.isWinning) {
-                            rewardedRevealedPoints.push({ dataProviderName: dataProvidersInfo[revealedPrice.dataProvider].name, dataProvider: revealedPrice.dataProvider, x: this.pricesData.finalizedPrices.find(finalizedPrice => finalizedPrice.epochId == revealedPrice.epochId).timestamp, y: revealedPrice.value, label: 'Reward received' })
+                            rewardedRevealedPoints.push({ dataProviderName: dataProvidersInfo[revealedPrice.dataProvider].name, dataProvider: revealedPrice.dataProvider, x: epochIdsTimestampMap[revealedPrice.epochId], y: revealedPrice.value, label: 'Reward received' })
                         }
                         if (revealedPrice.isWinning && !reward) {
-                            winningRevealedPoints.push({ dataProviderName: dataProvidersInfo[revealedPrice.dataProvider].name, dataProvider: revealedPrice.dataProvider, x: this.pricesData.finalizedPrices.find(finalizedPrice => finalizedPrice.epochId == revealedPrice.epochId).timestamp, y: revealedPrice.value, label: 'Winner' })
+                            winningRevealedPoints.push({ dataProviderName: dataProvidersInfo[revealedPrice.dataProvider].name, dataProvider: revealedPrice.dataProvider, x: epochIdsTimestampMap[revealedPrice.epochId], y: revealedPrice.value, label: 'Winner' })
                         }
                     });
                 }
@@ -280,24 +286,24 @@ export class DataProviderFeedsChartComponent implements OnInit, OnDestroy, OnCha
                     });
                 });
                 chartSeries.filter(serie => serie.id == 'revealedSerie').map(serie => {
-                    serie.data = serie.data.sort((a,b) => a.x -b.x);
+                    serie.data = serie.data.sort((a, b) => a.x - b.x);
                 });
 
                 if (rewardedRevealedPoints.length > 0) {
                     rewardedRevealedPoints.filter(rs => rs != null).map(rs => {
-                            const serie = chartSeries.find(serie => serie.id == 'revealedSerie' && serie.name == rs.dataProviderName);
-                            const serieIdx = chartSeries.indexOf(chartSeries.find(serie => serie.id == 'revealedSerie' && serie.name == rs.dataProviderName));
-                            const dataPointIdx = serie.data.indexOf(serie.data.find(dataPoint => dataPoint.x == rs.x));
-                            if (serieIdx >= 0 && dataPointIdx >= 0) {
-                                discreteMarkers.push({
-                                    seriesIndex: serieIdx,
-                                    dataPointIndex: dataPointIdx,
-                                    fillColor: Utils.getColors(1)[serieIdx],
-                                    strokeColor: 'var(--ui-bg-card)',
-                                    size: 7,
-                                    shape: "square"
-                                })
-                            }
+                        const serie = chartSeries.find(serie => serie.id == 'revealedSerie' && serie.name == rs.dataProviderName);
+                        const serieIdx = chartSeries.indexOf(chartSeries.find(serie => serie.id == 'revealedSerie' && serie.name == rs.dataProviderName));
+                        const dataPointIdx = serie.data.indexOf(serie.data.find(dataPoint => dataPoint.x == rs.x));
+                        if (serieIdx >= 0 && dataPointIdx >= 0) {
+                            discreteMarkers.push({
+                                seriesIndex: serieIdx,
+                                dataPointIndex: dataPointIdx,
+                                fillColor: Utils.getColors(1)[serieIdx],
+                                strokeColor: 'var(--ui-bg-card)',
+                                size: 7,
+                                shape: "square"
+                            })
+                        }
                     });
                 }
                 if (winningRevealedPoints.length > 0) {
@@ -347,7 +353,7 @@ export class DataProviderFeedsChartComponent implements OnInit, OnDestroy, OnCha
                             (this.chartOptions.legend.markers.width as any).push(0);
                         }
                     }
-                    
+
                 } else {
                     this.chartOptions.legend.show = false;
                 }
@@ -372,6 +378,7 @@ export class DataProviderFeedsChartComponent implements OnInit, OnDestroy, OnCha
             }
         } catch (err) {
             this._uiNotificationsService.error(`Unable to draw ftso prices chart`, err.message);
+            this._initializeChart();
         }
     }
 
@@ -680,7 +687,8 @@ export class DataProviderFeedsChartComponent implements OnInit, OnDestroy, OnCha
                     style: {
                         fontFamily: 'inherit',
                         colors: 'rgba(var(--ui-text-secondary-rgb), 0.6)',
-                    }
+                    },
+                    datetimeUTC: false,
                 },
                 type: 'datetime'
             },

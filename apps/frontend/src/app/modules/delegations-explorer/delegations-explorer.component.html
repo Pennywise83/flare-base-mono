@@ -129,6 +129,7 @@
         <div class="flex flex-col h-full p-0 relative min-h-96">
             <flare-base-data-providers [searchFilter]="searchFilter"
                 [loading]="loadingMap.isLoading('getDataProvidersData')" [dataProvidersData]="dataProvidersData"
+                [sortOnColumn]="'votePower'"
                 [dataProvidersTableColumns]="['#', 'name', (isNextRewardEpoch ? 'availability6h' : 'availabilityRewardEpoch'),'numberOfDelegators', 'numberOfDelegatorsChange', 'votePowerChange', 'votePower']"
                 (selectedAddress)="handleSelectedDataProvider($event)"></flare-base-data-providers>
         </div>
