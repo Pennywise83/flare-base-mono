@@ -11,12 +11,13 @@ import { MatButtonModule } from "@angular/material/button";
 import { SatPopoverModule } from '@ncstate/sat-popover';
 import { ClaimedRewardsRequest } from "app/model/claimed-rewards-request";
 import { JazziconModule } from 'ngx-jazzicon';
-import { DataProviderInfo, DelegationsSortEnum, PaginatedResult, RewardDTO, SortOrderEnum } from "../../../../../../libs/commons/src";
+import { DataProviderInfo, DelegationsSortEnum, NetworkEnum, PaginatedResult, RewardDTO, SortOrderEnum } from "../../../../../../libs/commons/src";
 import { AppModule } from "../../app.module";
 import { animations } from "../../commons/animations";
 import { LoaderComponent } from "../../commons/loader/loader.component";
 import { NoDataComponent } from "../../commons/no-data/no-data.component";
 import { AddressTrimPipe } from "../../commons/pipes/address-trim.pipe";
+import { Utils } from "app/commons/utils";
 @Component({
     selector: 'flare-base-claimed-rewards-table',
     templateUrl: './claimed-rewards-table.component.html',
@@ -33,6 +34,7 @@ import { AddressTrimPipe } from "../../commons/pipes/address-trim.pipe";
 export class ClaimedRewardsTableComponent implements OnInit, OnChanges {
     @Input() loading: boolean;
     @Input() progress: number;
+    @Input() network: NetworkEnum;
     @Input() request: ClaimedRewardsRequest = new ClaimedRewardsRequest(null, null, null, null);
     @Output() requestEvent: EventEmitter<ClaimedRewardsRequest> = new EventEmitter<ClaimedRewardsRequest>();
     @Output() whoClaimedSelected: EventEmitter<{ value: string, targetRoute: string[] }> = new EventEmitter<{ value: string, targetRoute: string[] }>();
@@ -55,9 +57,11 @@ export class ClaimedRewardsTableComponent implements OnInit, OnChanges {
     @Input() dynamicData: boolean = false;
     @Input() pageSize: number;
     @Input() hidePageSize: boolean = false;
+    symbol: string;
+    @Input() convertedSymbol: string;
+
     constructor(
-        private _cdr: ChangeDetectorRef,
-        private _uiNotificationsService: UiNotificationsService
+        private _cdr: ChangeDetectorRef
     ) {
     }
 
@@ -73,6 +77,7 @@ export class ClaimedRewardsTableComponent implements OnInit, OnChanges {
 
     ngOnChanges(changes: SimpleChanges): void {
         if ((changes.loading && changes.loading.currentValue == false) || (changes.refreshTable)) {
+            this.symbol = Utils.getChainDefinition(this.network).nativeCurrency.symbol;
             if (!this.dataProvidersInfo) { this.dataProvidersInfo = [] }
             if (this.dataProvidersInfo && this.claimedRewardsData && this.claimedRewardsData.results) {
                 this.claimedRewardsData.results.map(claimedReward => {

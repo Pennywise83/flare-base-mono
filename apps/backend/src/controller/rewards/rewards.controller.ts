@@ -25,6 +25,7 @@ export class RewardsController {
     @ApiParam({ name: "network", enum: NetworkEnum, enumName: "NetworkEnum", required: true })
     @ApiQuery({ name: 'whoClaimed', type: String, required: false, description: 'Address that actually performed the claim.' })
     @ApiQuery({ name: 'dataProvider', type: String, required: false, description: 'Address of the data provider that accrued the reward.' })
+    @ApiQuery({ name: 'convertTo', type: String, required: false, description: 'Specifies the cryptocurrency or fiat currency to which the reward value should be converted (e.g., "USDT"). When provided, the response will include both the reward value in the native cryptocurrency and its equivalent value converted to the specified currency.' })
     @ApiQuery({ name: 'sentTo', type: String, required: false, description: 'Address that received the reward.' })
     @ApiQuery({ name: 'page', type: PageDTO })
     @ApiQuery({ name: 'pageSize', type: PageSizeDTO })
@@ -45,6 +46,7 @@ export class RewardsController {
         @Query('whoClaimed', AddressValidationPipe) whoClaimed: string,
         @Query('dataProvider', AddressValidationPipe) dataProvider: string,
         @Query('sentTo', AddressValidationPipe) sentTo: string,
+        @Query('convertTo') convertTo: string, 
         @Query('startTime', ParseIntPipe) startTime: number,
         @Query('endTime', ParseIntPipe) endTime: number,
         @Query('page', ParseIntPipe) page: number,
@@ -65,9 +67,7 @@ export class RewardsController {
                 if (startTime > endTime) {
                     throw new Error(`Wrong time range`);
                 }
-                const requestId = headers['request_id'];
-
-                const claimedRewards: PaginatedResult<RewardDTO[]> = await this._rewardsService.getRewardsDto(network, whoClaimed, dataProvider, sentTo, startTime, endTime, page, pageSize, sortField!, SortOrderEnum[sortOrder]!, requestId);
+                const claimedRewards: PaginatedResult<RewardDTO[]> = await this._rewardsService.getRewardsDto(network, whoClaimed, dataProvider, sentTo, startTime, endTime, page, pageSize, sortField!, SortOrderEnum[sortOrder]!, convertTo);
                 actionResult.status = 'OK';
                 actionResult.result = claimedRewards;
                 actionResult.duration = new Date().getTime() - actionResult.start;

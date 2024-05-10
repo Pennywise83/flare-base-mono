@@ -1,18 +1,18 @@
 {
   "/api": {
-    "target": "https://flare-base.io",
+    "target": "http://localhost:3000",
     "secure": false,
     "ws": true,
     "logLevel": "debug"
   },
   "/socket.io": {
-    "target": "https://flare-base.io",
+    "target": "http://localhost:3000",
     "secure": false,
     "ws": true,
     "logLevel": "debug"
   },
   "/images/": {
-    "target": "https://flare-base.io",
+    "target": "http://localhost:3000",
     "secure": false,
     "logLevel": "debug",
     "ws": true,

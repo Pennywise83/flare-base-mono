@@ -73,10 +73,11 @@
 </div>
 <div class="flex flex-col flex-auto overflow-y-auto overflow-x-auto relative h-full relative min-h-40 bg-card">
     <flare-base-claimed-rewards-table [claimedRewardsData]="claimedRewards" [dynamicData]="true"
-        [dataProvidersInfo]="dataProvidersInfo" [loading]="loadingMap.isLoading('tableData')"
-        [tableColumns]="tableColumns" [paginatorPosition]="'right'" [sortOnColumn]="tableRequest.sortField"
-        [pageSize]="tableRequest.pageSize" (requestEvent)="handleRequestEvent($event)" [request]="tableRequest"
-        [showTopPaginator]="true" [hidePageSize]="false" (whoClaimedSelected)="selectWhoClaimed($event)"
+        [dataProvidersInfo]="dataProvidersInfo" [loading]="loadingMap.isLoading('tableData')" [network]="network"
+        [convertedSymbol]="this.tableRequest.convertTo" [tableColumns]="tableColumns" [paginatorPosition]="'right'"
+        [sortOnColumn]="tableRequest.sortField" [pageSize]="tableRequest.pageSize"
+        (requestEvent)="handleRequestEvent($event)" [request]="tableRequest" [showTopPaginator]="true"
+        [hidePageSize]="false" (whoClaimedSelected)="selectWhoClaimed($event)"
         (dataProviderSelected)="selectDataProvider($event)" (sentToSelected)="selectReceiver($event)">
     </flare-base-claimed-rewards-table>
 </div>

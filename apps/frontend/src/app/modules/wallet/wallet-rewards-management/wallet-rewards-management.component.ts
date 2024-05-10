@@ -51,7 +51,7 @@ export class WalletRewardsManagementComponent implements OnInit {
     public loadingMap: LoadingMap;
     public claimedRewards: PaginatedResult<RewardDTO[]>;
     public dataProvidersInfo: DataProviderInfo[] = [];
-    tableColumns: string[] = ['timestamp', 'rewardEpoch', 'dataProvider', 'sentTo', 'amount'];
+    tableColumns: string[] = ['timestamp', 'rewardEpoch', 'dataProvider', 'sentTo', 'amount','convertedAmount'];
     public tableRequest: ClaimedRewardsRequest;
     selectedTimeRangeDefinition: TimeRangeDefinition;
     timeRanges: TimeRangeDefinition[] = [
@@ -83,6 +83,7 @@ export class WalletRewardsManagementComponent implements OnInit {
     }
     ngOnInit(): void {
         this.tableRequest = new ClaimedRewardsRequest(null, null, null, null);
+        this.tableRequest.convertTo = 'USDT';
         this.selectedTimeRangeDefinition = this.timeRanges[0];
 
         Utils.getParentParams(this._route).pipe(
@@ -109,6 +110,7 @@ export class WalletRewardsManagementComponent implements OnInit {
                             this.selectedAddress = this._web3Service.getConnectedAddress();
                             if (this.isWalletConnected()) {
                                 this.tableRequest = new ClaimedRewardsRequest(this.selectedAddress, null, this.selectedTimeRangeDefinition.getTimeRange().start, this.selectedTimeRangeDefinition.getTimeRange().end);
+                                this.tableRequest.convertTo = 'USDT';
                                 this.tableRequest.pageSize = 10;
                                 this._web3Service.fetchBalances(this.selectedAddress).subscribe();
                                 this._web3Service.fetchDelegatesOf(this.selectedAddress).subscribe();

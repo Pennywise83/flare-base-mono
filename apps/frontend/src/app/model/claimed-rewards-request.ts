@@ -9,6 +9,7 @@ export class ClaimedRewardsRequest extends PaginatedRequest {
     endTime: number;
     sortField: ClaimedRewardsSortEnum;
     sortOrder: SortOrderEnum;
+    convertTo: string;
     constructor(whoClaimed: string, dataProvider: string, startTime: number, endTime: number) {
         super();
         this.whoClaimed = whoClaimed;

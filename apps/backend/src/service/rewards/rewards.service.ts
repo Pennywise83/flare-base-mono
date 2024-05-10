@@ -1,4 +1,4 @@
-import { ClaimedRewardsSortEnum, NetworkEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, Reward, RewardDTO, RewardEpoch, RewardEpochDTO, RewardEpochSettings, SortOrderEnum } from "@flare-base/commons";
+import { ClaimedRewardsSortEnum, Commons, NetworkEnum, PaginatedResult, PriceEpoch, PriceEpochSettings, PriceFinalized, Reward, RewardDTO, RewardEpoch, RewardEpochDTO, RewardEpochSettings, SortOrderEnum } from "@flare-base/commons";
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { isEmpty, isNotEmpty } from "class-validator";
@@ -14,6 +14,7 @@ import { EpochsService } from "../epochs/epochs.service";
 import { NetworkDaoDispatcherService } from "../network-dao-dispatcher/network-dao-dispatcher.service";
 import { ProgressGateway } from "../progress.gateway";
 import { ServiceUtils } from "../service-utils";
+import { FtsoService } from "../ftso/ftso.service";
 
 @Injectable()
 export class RewardsService {
@@ -27,6 +28,7 @@ export class RewardsService {
         private readonly _configService: ConfigService,
         private readonly _networkDaoDispatcher: NetworkDaoDispatcherService,
         private readonly _epochsService: EpochsService,
+        private readonly _ftsoService: FtsoService
     ) {
     }
 
@@ -146,12 +148,12 @@ export class RewardsService {
         this.logger.debug(`${network} - Stored ${stored} claimed rewards from listener`);
     }
 
-    async getRewardsDto(network: NetworkEnum, whoClaimed: string, dataProvider: string, sentTo: string, startTime: number, endTime: number, page: number, pageSize: number, sortField?: ClaimedRewardsSortEnum, sortOrder?: SortOrderEnum, requestId?: string): Promise<PaginatedResult<RewardDTO[]>> {
+    async getRewardsDto(network: NetworkEnum, whoClaimed: string, dataProvider: string, sentTo: string, startTime: number, endTime: number, page: number, pageSize: number, sortField?: ClaimedRewardsSortEnum, sortOrder?: SortOrderEnum, convertTo?: string): Promise<PaginatedResult<RewardDTO[]>> {
         return new Promise<PaginatedResult<RewardDTO[]>>(async (resolve, reject) => {
             try {
                 const priceEpochSettings: PriceEpochSettings = await this._epochsService.getPriceEpochSettings(network);
                 const priceEpochEndTime: number = priceEpochSettings.getRevealEndTimeForEpochId(priceEpochSettings.getLastFinalizedEpochId());
-                const claimedRewards: PaginatedResult<Reward[]> = await this.getRewards(network, whoClaimed, dataProvider, sentTo, startTime, priceEpochEndTime, page, pageSize, sortField, sortOrder, requestId)
+                const claimedRewards: PaginatedResult<Reward[]> = await this.getRewards(network, whoClaimed, dataProvider, sentTo, startTime, priceEpochEndTime, page, pageSize, sortField, sortOrder)
                 let paginatedResults: PaginatedResult<RewardDTO[]> = new PaginatedResult<RewardDTO[]>(claimedRewards.page, claimedRewards.pageSize, claimedRewards.sortField, claimedRewards.sortOrder, claimedRewards.numResults, []);
                 if (claimedRewards.numResults == 0) {
                     resolve(paginatedResults);
@@ -163,8 +165,42 @@ export class RewardsService {
                 const rewardEpochEndTime = (await this._epochsService.getRewardEpochSettings(network)).getEndTimeForEpochId(rewardEpochTo);
                 const paginatedRewardEpochs: PaginatedResult<RewardEpochDTO[]> = await this._epochsService.getRewardEpochsDto(network, rewardEpochStartTime, rewardEpochEndTime, 1, 10000, EpochSortEnum.id, SortOrderEnum.desc);
                 const rewardEpochs: RewardEpochDTO[] = paginatedRewardEpochs.results;
+                let conversionRatesMap: Record<number, number> = {};
+                if (isNotEmpty(convertTo)) {
+                    const priceEpochSettings: PriceEpochSettings = await this._epochsService.getPriceEpochSettings(network);
+                    const lastFinalizedPriceEpochId: number = priceEpochSettings.getLastFinalizedEpochId();
+                    const priceEpochIdsMap: Record<number, number> = {};
+
+                    claimedRewards.results.forEach(claimedReward => {
+                        if (!priceEpochIdsMap[claimedReward.timestamp]) { priceEpochIdsMap[claimedReward.timestamp] = null }
+                        const epochId: number = priceEpochSettings.getEpochIdForTime(claimedReward.timestamp);
+                        priceEpochIdsMap[claimedReward.timestamp] = epochId < lastFinalizedPriceEpochId ? epochId : lastFinalizedPriceEpochId;
+                    });
+                    for (let timestamp in priceEpochIdsMap) {
+                        if (priceEpochIdsMap[timestamp] <= lastFinalizedPriceEpochId) {
+                            let convertedValueUsdt: PaginatedResult<PriceFinalized[]> = await this._ftsoService.getFinalizedPricesByEpochId(network, Commons.getNativeCurrency(network), priceEpochIdsMap[timestamp], 1, 1);
+                            let convertedValueOther: PaginatedResult<PriceFinalized[]> = null;
+                            if (!conversionRatesMap[timestamp]) { conversionRatesMap[timestamp] = null }
+                            if (convertedValueUsdt.results && convertedValueUsdt.results.length > 0) {
+                                if (convertTo.toLowerCase() != 'usdt') {
+                                    convertedValueOther = await this._ftsoService.getFinalizedPricesByEpochId(network, convertTo, priceEpochIdsMap[timestamp], 1, 1);
+                                    if (convertedValueOther.results && convertedValueOther.results.length > 0) {
+                                        conversionRatesMap[timestamp] = convertedValueUsdt.results[0].value / convertedValueOther.results[0].value;
+                                    }
+                                } else {
+                                    conversionRatesMap[timestamp] = convertedValueUsdt.results[0].value;
+                                }
+                            }
+                        }
+                    }
+                }
                 claimedRewards.results.forEach(claimedReward => {
-                    paginatedResults.results.push(new RewardDTO(claimedReward, rewardEpochs.filter(rewardEpoch => rewardEpoch.id == claimedReward.rewardEpochId)[0]));
+                    if (conversionRatesMap && conversionRatesMap[claimedReward.timestamp]) {
+                        paginatedResults.results.push(new RewardDTO(claimedReward, rewardEpochs.filter(rewardEpoch => rewardEpoch.id == claimedReward.rewardEpochId)[0], conversionRatesMap[claimedReward.timestamp]));
+                    } else {
+                        paginatedResults.results.push(new RewardDTO(claimedReward, rewardEpochs.filter(rewardEpoch => rewardEpoch.id == claimedReward.rewardEpochId)[0]));
+                    }
+
                 });
                 resolve(paginatedResults);
                 return;
@@ -174,7 +210,7 @@ export class RewardsService {
             }
         });
     }
-    async getRewards(network: NetworkEnum, whoClaimed: string, dataProvider: string, sentTo: string, startTime: number, endTime: number, page: number, pageSize: number, sortField?: ClaimedRewardsSortEnum, sortOrder?: SortOrderEnum, requestId?: string): Promise<PaginatedResult<Reward[]>> {
+    async getRewards(network: NetworkEnum, whoClaimed: string, dataProvider: string, sentTo: string, startTime: number, endTime: number, page: number, pageSize: number, sortField?: ClaimedRewardsSortEnum, sortOrder?: SortOrderEnum): Promise<PaginatedResult<Reward[]>> {
         let blockchainDao: IBlockchainDao = await this._networkDaoDispatcher.getBlockchainDao(network);
         let persistenceDao: IPersistenceDao = await this._networkDaoDispatcher.getPersistenceDao(network);
         try {
@@ -273,7 +309,7 @@ export class RewardsService {
                 await this.getRewards(network, whoClaimed, dataProvider, null, startTime, endTime, 1, 0);
                 const daoData: ClaimedRewardHistogramElement[] = await persistenceDao.getClaimedRewardsHistogram(whoClaimed, dataProvider, startTime, endTime, groupBy, aggregationInterval);
                 if (groupBy == ClaimedRewardsGroupByEnum.rewardEpochId) {
-                    const rewardEpochs: RewardEpochDTO[] = (await this._epochsService.getRewardEpochsDto(network,startTime,endTime,1,10000)).results;
+                    const rewardEpochs: RewardEpochDTO[] = (await this._epochsService.getRewardEpochsDto(network, startTime, endTime, 1, 10000)).results;
                     daoData.map(data => {
                         const tmpRewardEpoch: RewardEpochDTO = rewardEpochs.find(rewardEpoch => rewardEpoch.id == data.rewardEpochId);
                         if (isNotEmpty(tmpRewardEpoch)) {

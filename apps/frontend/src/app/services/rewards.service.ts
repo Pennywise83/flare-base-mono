@@ -15,7 +15,7 @@ export class RewardsService {
   constructor(private _http: HttpClient) { }
 
   public getClaimedRewards(network: string, request: ClaimedRewardsRequest): Observable<PaginatedResult<RewardDTO[]>> {
-    const dataUrl = `/api/rewards/getClaimedRewards/${network}?whoClaimed=${isNotEmpty(request.whoClaimed) ? request.whoClaimed : ''}&dataProvider=${isNotEmpty(request.dataProvider) ? request.dataProvider : ''}&sentTo=${isNotEmpty(request.sentTo) ? request.sentTo : ''}&startTime=${request.startTime}&endTime=${request.endTime}&page=${request.page}&pageSize=${request.pageSize}&sortField=${request.sortField}&sortOrder=${request.sortOrder}`;
+    const dataUrl = `/api/rewards/getClaimedRewards/${network}?whoClaimed=${isNotEmpty(request.whoClaimed) ? request.whoClaimed : ''}&convertTo=${isNotEmpty(request.convertTo) ? request.convertTo : ''}&dataProvider=${isNotEmpty(request.dataProvider) ? request.dataProvider : ''}&sentTo=${isNotEmpty(request.sentTo) ? request.sentTo : ''}&startTime=${request.startTime}&endTime=${request.endTime}&page=${request.page}&pageSize=${request.pageSize}&sortField=${request.sortField}&sortOrder=${request.sortOrder}`;
     const headers = new HttpHeaders().set('Accept', 'application/json');
     const requestOptions = {
       headers: headers,
@@ -37,7 +37,7 @@ export class RewardsService {
     });
   }
   public getClaimedRewardsCsv(network: string, request: ClaimedRewardsRequest): Observable<Blob> {
-    const dataUrl = `/api/rewards/getClaimedRewards/${network}?whoClaimed=${isNotEmpty(request.whoClaimed) ? request.whoClaimed : ''}&dataProvider=${isNotEmpty(request.dataProvider) ? request.dataProvider : ''}&sentTo=${isNotEmpty(request.sentTo) ? request.sentTo : ''}&startTime=${request.startTime}&endTime=${request.endTime}&page=${request.page}&pageSize=${request.pageSize}&sortField=${request.sortField}&sortOrder=${request.sortOrder}`;
+    const dataUrl = `/api/rewards/getClaimedRewards/${network}?whoClaimed=${isNotEmpty(request.whoClaimed) ? request.whoClaimed : ''}&dataProvider=${isNotEmpty(request.dataProvider) ? request.dataProvider : ''}&sentTo=${isNotEmpty(request.sentTo) ? request.sentTo : ''}&convertTo=${isNotEmpty(request.convertTo) ? request.convertTo : ''}&startTime=${request.startTime}&endTime=${request.endTime}&page=${request.page}&pageSize=${request.pageSize}&sortField=${request.sortField}&sortOrder=${request.sortOrder}`;
     const headers = new HttpHeaders().set('Accept', 'text/csv');
     const requestOptions = { headers: headers, responseType: 'blob' as 'json' };
     return new Observable<Blob>(observer => {

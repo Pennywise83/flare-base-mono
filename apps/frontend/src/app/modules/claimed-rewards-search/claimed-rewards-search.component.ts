@@ -47,7 +47,7 @@ import { DelegationsTableComponent } from "../delegations-table/delegations-tabl
 })
 export class ClaimedRewardsSearchComponent implements OnInit, OnDestroy {
     private _parentParams: { [param: string]: string };
-    private _network: NetworkEnum;
+    network: NetworkEnum;
     private _unsubscribeAll: Subject<any> = new Subject<any>();
 
     tableRequest: ClaimedRewardsRequest;
@@ -55,7 +55,7 @@ export class ClaimedRewardsSearchComponent implements OnInit, OnDestroy {
     claimedRewards: PaginatedResult<RewardDTO[]>;
     claimedRewardsDateHistogramData: ClaimedRewardHistogramElement[];
     loadingMap: LoadingMap;
-    tableColumns: string[] = ['timestamp', 'rewardEpoch', 'whoClaimed', 'dataProvider', 'sentTo', 'amount'];
+    tableColumns: string[] = ['timestamp', 'rewardEpoch', 'whoClaimed', 'dataProvider', 'sentTo', 'amount','convertedAmount'];
     dataProvidersInfo: DataProviderInfo[] = [];
     selectedTimeRangeDefinition: TimeRangeDefinition;
     timeRanges: TimeRangeDefinition[] = [
@@ -103,11 +103,12 @@ export class ClaimedRewardsSearchComponent implements OnInit, OnDestroy {
                     this._uiNotificationsService.error(`Unable to initialize component`, `Invalid parameters`);
                     return;
                 }
-                if (this._parentParams['network'] != this._network) {
-                    this._network = NetworkEnum[this._parentParams['network']];
+                if (this._parentParams['network'] != this.network) {
+                    this.network = NetworkEnum[this._parentParams['network']];
                     this.selectedTimeRangeDefinition = this.timeRanges[0];
-                    Commons.setPageTitle(`Flare base - ${this._network.charAt(0).toUpperCase() + this._network.slice(1)} - Claimed rewards search`, this._titleService, this._matomoTracker);
+                    Commons.setPageTitle(`Flare base - ${this.network.charAt(0).toUpperCase() + this.network.slice(1)} - Claimed rewards search`, this._titleService, this._matomoTracker);
                     this.tableRequest = new ClaimedRewardsRequest(null, null, null, null);
+                    this.tableRequest.convertTo = 'USDT';
                     this._parseQueryParams();
                     this._route.queryParams.pipe(takeUntil(this._unsubscribeAll)).subscribe(queryParams => {
                         this._parseQueryParams();
@@ -122,8 +123,8 @@ export class ClaimedRewardsSearchComponent implements OnInit, OnDestroy {
         this.loadingMap.setLoading('tableData', true);
         let startTime: string = this._datePipe.transform(this.tableRequest.startTime, 'YYYY-MM-dd _HH-mm-ss');
         let endTime: string = this._datePipe.transform(this.tableRequest.endTime, 'YYYY-MM-dd_HH-mm-ss');
-        this._rewardsService.getClaimedRewardsCsv(this._network, this.tableRequest).subscribe(claimedRewards => {
-            saveAs(claimedRewards, `${this._network}-ClaimedRewards-whoClaimed_${this.tableRequest.whoClaimed ? this.tableRequest.whoClaimed : 'all'}-dataProvider_${this.tableRequest.dataProvider ? this.tableRequest.dataProvider : 'all'}-sentTo_${this.tableRequest.sentTo ? this.tableRequest.sentTo : 'all'}-startTime_${startTime}-endTime_${endTime}.csv`);
+        this._rewardsService.getClaimedRewardsCsv(this.network, this.tableRequest).subscribe(claimedRewards => {
+            saveAs(claimedRewards, `${this.network}-ClaimedRewards-whoClaimed_${this.tableRequest.whoClaimed ? this.tableRequest.whoClaimed : 'all'}-dataProvider_${this.tableRequest.dataProvider ? this.tableRequest.dataProvider : 'all'}-sentTo_${this.tableRequest.sentTo ? this.tableRequest.sentTo : 'all'}-startTime_${startTime}-endTime_${endTime}.csv`);
         }, statsErr => {
             this._uiNotificationsService.error('Unable to export claimed rewards data', statsErr);
         }).add(() => {
@@ -149,9 +150,9 @@ export class ClaimedRewardsSearchComponent implements OnInit, OnDestroy {
     }
     refreshTableData(request: ClaimedRewardsRequest): void {
         this.loadingMap.setLoading('tableData', true);
-        this._ftsoService.getDataProvidersInfo(this._network).subscribe(dataProvidersInfoRes => {
+        this._ftsoService.getDataProvidersInfo(this.network).subscribe(dataProvidersInfoRes => {
             this.dataProvidersInfo = dataProvidersInfoRes;
-            this._rewardsService.getClaimedRewards(this._network, request).subscribe(claimedRewardsRes => {
+            this._rewardsService.getClaimedRewards(this.network, request).subscribe(claimedRewardsRes => {
                 this.claimedRewards = claimedRewardsRes;
             }, claimedRewardsErr => {
                 this._uiNotificationsService.error('Unable to get claimed rewards with provided search', claimedRewardsErr);
@@ -176,9 +177,9 @@ export class ClaimedRewardsSearchComponent implements OnInit, OnDestroy {
         this.loadingMap.setLoading('chartData', true);
         let chartRequest: ClaimedRewardsHistogramRequest = new ClaimedRewardsHistogramRequest(request.whoClaimed, request.dataProvider, request.startTime, request.endTime, this.histogramGroupBy);
         this._cdr.detectChanges();
-        this._ftsoService.getDataProvidersInfo(this._network).subscribe(dataProvidersInfoRes => {
+        this._ftsoService.getDataProvidersInfo(this.network).subscribe(dataProvidersInfoRes => {
             this.dataProvidersInfo = dataProvidersInfoRes;
-            this._rewardsService.getClaimedRewardsgetClaimedRewardsDateHistogram(this._network, chartRequest).subscribe(claimedRewardsRes => {
+            this._rewardsService.getClaimedRewardsgetClaimedRewardsDateHistogram(this.network, chartRequest).subscribe(claimedRewardsRes => {
                 this.claimedRewardsDateHistogramData = claimedRewardsRes;
             }, claimedRewardsErr => {
                 this._uiNotificationsService.error('Unable to get claimed rewards date histogram with provided search', claimedRewardsErr);
@@ -253,7 +254,7 @@ export class ClaimedRewardsSearchComponent implements OnInit, OnDestroy {
 
     selectWhoClaimed(whoClaimed: { value: string, targetRoute: string[] }): void {
         if (whoClaimed.targetRoute.includes('delegations')) {
-            this._router.navigate([this._network, ...whoClaimed.targetRoute], { queryParams: { from: whoClaimed.value } });
+            this._router.navigate([this.network, ...whoClaimed.targetRoute], { queryParams: { from: whoClaimed.value } });
         } else {
             this.tableRequest.whoClaimed = whoClaimed.value;
             this.tableRequest.dataProvider = null;
@@ -265,7 +266,7 @@ export class ClaimedRewardsSearchComponent implements OnInit, OnDestroy {
 
     selectReceiver(sentTo: { value: string, targetRoute: string[] }): void {
         if (sentTo.targetRoute.includes('delegations')) {
-            this._router.navigate([this._network, ...sentTo.targetRoute], { queryParams: { from: sentTo.value } });
+            this._router.navigate([this.network, ...sentTo.targetRoute], { queryParams: { from: sentTo.value } });
         } else {
             this.tableRequest.whoClaimed = null;
             this.tableRequest.dataProvider = null;
@@ -278,9 +279,9 @@ export class ClaimedRewardsSearchComponent implements OnInit, OnDestroy {
     selectDataProvider(dataProvider: { value: string, targetRoute: string[] }): void {
         if (dataProvider.targetRoute.includes('delegations')) {
             if (dataProvider.targetRoute.includes('explorer')) {
-                this._router.navigate([this._network, ...dataProvider.targetRoute]);
+                this._router.navigate([this.network, ...dataProvider.targetRoute]);
             } else if (dataProvider.targetRoute.includes('search')) {
-                this._router.navigate([this._network, ...dataProvider.targetRoute], { queryParams: { to: dataProvider.value } });
+                this._router.navigate([this.network, ...dataProvider.targetRoute], { queryParams: { to: dataProvider.value } });
             }
         } else if (dataProvider.targetRoute.includes('search')) {
             this.tableRequest.whoClaimed = null;
