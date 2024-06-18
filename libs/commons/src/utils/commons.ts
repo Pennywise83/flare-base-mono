@@ -1,10 +1,9 @@
+import { Title } from "@angular/platform-browser";
 import { SHA256 } from 'crypto-js';
+import { MatomoTracker } from 'ngx-matomo';
 import { PaginatedResult, SortOrderEnum } from "../model";
 import { AggregationInterval } from "../model/aggregation-intervals";
 import { BlockScanInfo, NetworkEnum } from "../model/blockchain";
-import { Title } from "@angular/platform-browser";
-import { MatomoTracker } from 'ngx-matomo';
-import { timer } from 'rxjs';
 
 
 export class Commons {
@@ -123,14 +122,25 @@ export class Commons {
     }
 
     static setPageTitle(title: string, titleService: Title, tracker: MatomoTracker): void {
-            titleService.setTitle(title);
-            tracker.setDocumentTitle(title);
-            tracker.trackPageView(title);
+        titleService.setTitle(title);
+        tracker.setDocumentTitle(title);
+        tracker.trackPageView(title);
     }
     static divideBlocks = (blockStart: number, blockEnd: number, blockSize: number): { from: number, to: number }[] =>
         Array.from({ length: Math.ceil((blockEnd - blockStart) / blockSize) }, (_, index) => ({
             from: blockStart + index * blockSize,
             to: Math.min(blockStart + (index + 1) * blockSize - 1, blockEnd)
         }));
+
+    static getNativeCurrency(network: NetworkEnum): string {
+        switch (network) {
+            case NetworkEnum.flare:
+                return 'FLR';
+                break;
+            case NetworkEnum.songbird:
+                return 'SGB';
+                break;
+        }
+    }
 
 }

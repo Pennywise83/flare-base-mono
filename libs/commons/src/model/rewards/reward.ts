@@ -40,18 +40,23 @@ export class ClaimedRewardHistogramElement {
     amount: number;
     @ApiProperty({ description: 'Number of claims.', example: 213 })
     count: number;
-    
+
 }
 export class RewardDTO extends Reward {
     @ApiProperty({ description: 'The start time of the reward epoch, represented as a Unix timestamp in milliseconds', example: 1688670001000 })
     rewardEpochStartTime: number;
     @ApiProperty({ description: 'The end time of the reward epoch, represented as a Unix timestamp in milliseconds', example: 1688972400000 })
     rewardEpochEndTime: number;
+    @ApiProperty({ description: 'Converted amount of claimed rewards' })
+    convertedAmount: number;
 
-    constructor(data?: Reward, rewardEpoch?: RewardEpochDTO) {
+    constructor(data?: Reward, rewardEpoch?: RewardEpochDTO, conversionRate?: number) {
         super()
         if (isNotEmpty(data) && isNotEmpty(rewardEpoch)) {
             this.amount = data?.amount!;
+            if (conversionRate) {
+                this.convertedAmount = data?.amount * conversionRate;
+            }
             this.blockNumber = data?.blockNumber!;
             this.dataProvider = data?.dataProvider!;
             this.whoClaimed = data?.whoClaimed!;
@@ -77,6 +82,7 @@ export class RewardDTO extends Reward {
             obj.sentTo = data.sentTo[idx]!;
             obj.dataProvider = data.dataProvider[idx]!;
             obj.amount = data.amount[idx]!;
+            obj.convertedAmount = data.convertedAmount[idx]!;
             results.push(obj);
         })
         return results;
@@ -93,6 +99,7 @@ export class RewardResponse {
     sentTo: (string | null)[];
     dataProvider: (string | null)[];
     amount: (number | null)[];
+    convertedAmount: (number | null)[];
 
 
     constructor(rewardList: RewardDTO[]) {
@@ -104,6 +111,7 @@ export class RewardResponse {
         this.sentTo = rewardList.map(item => isNotEmpty(item.sentTo) ? item.sentTo : null);
         this.dataProvider = rewardList.map(item => isNotEmpty(item.dataProvider) ? item.dataProvider : null);
         this.amount = rewardList.map(item => isNotEmpty(item.amount) ? item.amount : null);
+        this.convertedAmount = rewardList.map(item => isNotEmpty(item.convertedAmount) ? item.convertedAmount : null);
 
     }
 }
