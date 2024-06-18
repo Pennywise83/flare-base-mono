@@ -906,7 +906,7 @@ export class FtsoService {
                             if (isEmpty(this._lastBlockNumber[network])) {
                                 this._lastBlockNumber[network] = await blockchainDao.provider.getBlockNumber();
                             }
-                            if (missingBlockNumberTo > this._lastBlockNumber[network]) {
+                            if (missingBlockNumberTo > this._lastBlockNumber[network] && missingBlockNumberFrom < this._lastBlockNumber[network]) {
                                 missingBlockNumberTo = this._lastBlockNumber[network];
                             }
                             const finalizedPrices: PriceFinalized[] = (await this.getFinalizedPrices(network, null, missingBlockNumberFrom, missingBlockNumberTo, 1, 1_000_000)).results;
@@ -1160,7 +1160,7 @@ export class FtsoService {
                 if (rewardEpochId == nextEpochId || rewardEpochId == nextEpochId + 1) {
                     endBlockNumber = Number(await blockchainDao.provider.getBlockNumber());
                     previousRewardEpoch = await this._epochsService.getRewardEpoch(network, rewardEpochSettings.getCurrentEpochId())
-                    votePower = await this._delegationsService.getDataProviderVotePowerByAddress(network, nextEpochId);
+                    votePower = await this._delegationsService.getDataProviderVotePowerByAddress(network, rewardEpochId);
                 } else {
                     const rewardEpoch: RewardEpoch = await this._epochsService.getRewardEpoch(network, rewardEpochId);
                     endBlockNumber = rewardEpoch.blockNumber;
