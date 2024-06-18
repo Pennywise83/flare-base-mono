@@ -91,7 +91,7 @@ export class DelegationsService {
         this._lastBlockNumber[network] = actualBlockNumber;
 
         const delegationSnapshot: DelegationSnapshot[] = delegations.results.map(delegation => new DelegationSnapshot(delegation, nextEpochId));
-        await persistenceDao.storeDelegationsSnapshot(delegationSnapshot);
+        await persistenceDao.storeDelegationsSnapshot(delegationSnapshot, rewardEpochsSettings.getStartTimeForEpochId(nextEpochId));
         await persistenceDao.storePersistenceMetadata(PersistenceMetadataType.DelegationSnapshot, null, 0, actualBlockNumber, nextEpochId.toString());
 
         const persistenceMetadata: PersistenceMetadata[] = await persistenceDao.getPersistenceMetadata(PersistenceMetadataType.DelegationSnapshot, null, 0, actualBlockNumber, nextEpochId.toString());
@@ -191,7 +191,7 @@ export class DelegationsService {
         const stored: number = await persistenceDao.storeDelegations(delegationsToLoad);
         const nextEpochId: number = rewardEpochSettings.getNextEpochId();
         delegationsToLoad.map(delegation => delegationsSnapshotToLoad.push(new DelegationSnapshot(delegation, nextEpochId)));
-        await persistenceDao.storeDelegationsSnapshot(delegationsSnapshotToLoad);
+        await persistenceDao.storeDelegationsSnapshot(delegationsSnapshotToLoad, rewardEpochSettings.getStartTimeForEpochId(nextEpochId));
         await persistenceDao.storePersistenceMetadata(PersistenceMetadataType.Delegation, null, startBlock, endBlock);
         await persistenceDao.storePersistenceMetadata(PersistenceMetadataType.DelegationSnapshot, null, startBlock, endBlock, nextEpochId.toString());
 
@@ -330,13 +330,16 @@ export class DelegationsService {
                 const rewardEpochSettings: RewardEpochSettings = await this._epochsService.getRewardEpochSettings(network);
                 const nextEpochId: number = rewardEpochSettings.getNextEpochId();
                 let lastBlockNumber: number = 0;
+                let rewardEpochTimestamp: number;
                 if (isEmpty(toBlockNumber)) {
                     if (rewardEpochId == nextEpochId) {
                         const priceEpochSettings: PriceEpochSettings = await this._epochsService.getPriceEpochSettings(network);
                         const lastFinalizedPriceEpoch: PriceEpoch = await this._epochsService.getPriceEpoch(network, priceEpochSettings.getLastFinalizedEpochId());
+                        rewardEpochTimestamp = lastFinalizedPriceEpoch.timestamp;
                         lastBlockNumber = lastFinalizedPriceEpoch.blockNumber;
                     } else {
                         const rewardEpoch: RewardEpoch = await this._epochsService.getRewardEpoch(network, rewardEpochId);
+                        rewardEpochTimestamp = rewardEpoch.timestamp;
                         lastBlockNumber = rewardEpoch.votePowerBlockNumber;
                     }
                 } else {
@@ -355,7 +358,7 @@ export class DelegationsService {
                     await this.getDelegations(network, null, address, startBlockNumber, lastBlockNumber, 1, 0);
                     const delegatorsData: Delegation[] = await persistenceDao.getDelegators(address, lastBlockNumber);
                     const delegationSnapshot: DelegationSnapshot[] = delegatorsData.map(delegation => new DelegationSnapshot(delegation, rewardEpochId));
-                    await persistenceDao.storeDelegationsSnapshot(delegationSnapshot);
+                    await persistenceDao.storeDelegationsSnapshot(delegationSnapshot, rewardEpochTimestamp);
                     await persistenceDao.storePersistenceMetadata(PersistenceMetadataType.DelegationSnapshot, address, 0, lastBlockNumber, rewardEpochId.toString());
                     /*  } */
                 }
