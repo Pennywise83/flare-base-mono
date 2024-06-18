@@ -58,7 +58,7 @@ export interface IPersistenceDao {
     // Delegations
     getDelegations(from: string, to: string, epochBlocknumberFrom: number, epochBlocknumberTo: number, page: number, pageSize: number, sortField?: string, sortOrder?: SortOrderEnum): Promise<PaginatedResult<Delegation[]>>;
     storeDelegations(blockchainData: Delegation[]): Promise<number>;
-    storeDelegationsSnapshot(blockchainData: DelegationSnapshot[]): Promise<number>;
+    storeDelegationsSnapshot(blockchainData: DelegationSnapshot[], rewardEpochTimestamp: number): Promise<number>;
 
     getDelegators(to: string, blockNumber: number): Promise<Delegation[]>;
     getDelegationsSnapshot(to: string, rewardEpoch: number, page: number, pageSize: number, sortField: DelegationsSortEnum, sortOrder: SortOrderEnum): Promise<PaginatedResult<DelegationSnapshot[]>>;

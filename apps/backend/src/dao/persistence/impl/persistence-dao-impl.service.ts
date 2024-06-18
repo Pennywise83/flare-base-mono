@@ -146,7 +146,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
             await this.persistenceMetadataCleaner();
         });
     }
-    private async  persistenceMetadataCleaner(): Promise<void> {
+    private async persistenceMetadataCleaner(): Promise<void> {
         try {
             let index: string = this.getIndex(PersistenceConstants.METADATA_INDEX);
             this.logger.log(`Optimizing persistence metadata...`);
@@ -281,7 +281,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
             }
         })
     }
-    private async _bulkLoad<T>(dataset: Array<T>, indexType: string): Promise<number> {
+    private async _bulkLoad<T>(dataset: Array<T>, indexType: string, indexTimestamp?: number): Promise<number> {
         return new Promise<number>(async (resolve, reject) => {
             let start: number = new Date().getTime();
             this.logger.verbose(`Indexing ${dataset.length} elements into ${indexType} index...`);
@@ -295,7 +295,11 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
                     const bodyPromise = Promise.all(chunk.flatMap(async doc => {
                         const objId = (doc as any).objId;
                         delete (doc as any).objId;
-                        return [{ index: { _index: this.getIndexName(indexType, (doc as any).timestamp), _id: objId } }, doc];
+                        if (typeof indexTimestamp == 'undefined') {
+                            return [{ index: { _index: this.getIndexName(indexType, (doc as any).timestamp), _id: objId } }, doc];
+                        } else {
+                            return [{ index: { _index: this.getIndexName(indexType, indexTimestamp), _id: objId } }, doc];
+                        }
                     }));
                     const body = (await bodyPromise).flat();
                     const indexes: string[] = [... new Set(body.map(item => (item as any).index ? (item as any).index._index : null).filter(item => item != null))];
@@ -750,6 +754,10 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
     }
     storePersistenceMetadata(type: PersistenceMetadataType, value: string, epochBlocknumberFrom: number, epochBlocknumberTo: number, filter?: string): Promise<number> {
         return new Promise<number>(async (resolve, reject) => {
+            if (epochBlocknumberFrom > epochBlocknumberTo) {
+                this.logger.error(`${type}_${value}_${epochBlocknumberFrom}_${epochBlocknumberTo}_${filter} - Wrong block range`);
+                reject(`Wrong block range`);
+            }
             let persistenceMetadata: PersistenceMetadata = new PersistenceMetadata();
             let parsedValue: string = isNotEmpty(value) ? value.toLowerCase() : 'all';
             persistenceMetadata.type = type;
@@ -1386,7 +1394,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
             resolve(storedObjectCount);
         })
     }
-    storeDelegationsSnapshot(blockchainData: DelegationSnapshot[]): Promise<number> {
+    storeDelegationsSnapshot(blockchainData: DelegationSnapshot[], rewardEpochTimestamp: number): Promise<number> {
         return new Promise<number>(async (resolve, reject) => {
             blockchainData.forEach(delegation => {
                 delegation.from = delegation.from.toLowerCase();
@@ -1395,7 +1403,7 @@ export abstract class PersistenceDaoImpl implements IPersistenceDao {
             });
 
 
-            let storedObjectCount: number = await this._bulkLoad<DelegationSnapshot>(blockchainData, PersistenceConstants.DELEGATIONS_SNAPSHOT_INDEX);
+            let storedObjectCount: number = await this._bulkLoad<DelegationSnapshot>(blockchainData, PersistenceConstants.DELEGATIONS_SNAPSHOT_INDEX, rewardEpochTimestamp);
             resolve(storedObjectCount);
         })
     }
