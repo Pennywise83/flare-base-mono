@@ -500,6 +500,12 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
         ) => {
             let results: Balance[] = [];
             results.push(...this._parseTransactions(event.log as any));
+            this._blockNumberTimestampCache = {};
+            const balanceTimestamps: Array<number> = await this._makeBatchedCalls(5000, 10, this._getTimestampFromBlockNumber.bind(this), results.map((evt) => [evt.blockNumber]));
+            balanceTimestamps.map((balanceTimestamp, idx) => {
+                results[idx].timestamp = balanceTimestamp;
+            });
+            results.sort((a, b) => a.blockNumber - b.blockNumber);
             results.map(r => {
                 this.wrappedBalanceListener$.next(r)
             });
@@ -515,8 +521,8 @@ export abstract class BlockchainDaoImpl implements IBlockchainDao {
                 this.logger.log(`_scanBalances - getting timestamps...`)
                 this._blockNumberTimestampCache = {};
                 const balanceTimestamps: Array<number> = await this._makeBatchedCalls(5000, 10, this._getTimestampFromBlockNumber.bind(this), results.map((evt) => [evt.blockNumber]));
-                balanceTimestamps.map((delegationTimestamp, idx) => {
-                    results[idx].timestamp = delegationTimestamp;
+                balanceTimestamps.map((balanceTimestamp, idx) => {
+                    results[idx].timestamp = balanceTimestamp;
                 });
                 results.sort((a, b) => a.blockNumber - b.blockNumber);
                 resolve(results);
