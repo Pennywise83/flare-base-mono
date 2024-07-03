@@ -1157,7 +1157,7 @@ export class FtsoService {
                 let endBlockNumber: number = 0;
                 let previousRewardEpoch: RewardEpoch;
                 let votePower: VotePowerDTO[];
-                if (rewardEpochId == nextEpochId || rewardEpochId == nextEpochId + 1) {
+                if (rewardEpochId == nextEpochId || rewardEpochId == nextEpochId - 1) {
                     endBlockNumber = Number(await blockchainDao.provider.getBlockNumber());
                     previousRewardEpoch = await this._epochsService.getRewardEpoch(network, rewardEpochSettings.getCurrentEpochId())
                     votePower = await this._delegationsService.getDataProviderVotePowerByAddress(network, rewardEpochId);
@@ -1165,7 +1165,7 @@ export class FtsoService {
                     const rewardEpoch: RewardEpoch = await this._epochsService.getRewardEpoch(network, rewardEpochId);
                     endBlockNumber = rewardEpoch.blockNumber;
                     previousRewardEpoch = await this._epochsService.getRewardEpoch(network, rewardEpochId - 1)
-                    votePower = await this._delegationsService.getDataProviderVotePowerByAddress(network, rewardEpochId);
+                    votePower = await this._delegationsService.getDataProviderVotePowerByAddress(network, rewardEpochId-1);
                 }
                 await this.getRewardsDistributed(network, null, null, previousRewardEpoch.blockNumber, endBlockNumber, 1, 0);
                 const dataProviderRewardStats: DataProviderRewardStats[] = await persistenceDao.getDataProviderRewardStats(null, previousRewardEpoch.blockNumber, endBlockNumber, DataProviderRewardStatsGroupByEnum.dataProvider);
