@@ -128,7 +128,7 @@
             <flare-base-data-providers [searchFilter]="searchFilter"
                 [loading]="loadingMap.isLoading('getDataProvidersData')" [dataProvidersData]="dataProvidersData"
                 [sortOnColumn]="(isCurrentRewardEpoch ? 'successRate6h' : 'successRate')"
-                [dataProvidersTableColumns]="['#', 'name', (isCurrentRewardEpoch ? 'availability6h' : 'availabilityRewardEpoch'),(isCurrentRewardEpoch ? 'successRate6h' : 'successRate'),(isCurrentRewardEpoch ? 'successRateIQR6h' : 'successRateIQR'),(isCurrentRewardEpoch ? 'successRatePct6h' : 'successRatePct'),'rewardRate','providerRewards','delegatorsRewards', 'votePower','fee']"
+                [dataProvidersTableColumns]="isCurrentRewardEpoch ? ['#', 'name','availability6h','successRate6h','successRateIQR6h','successRatePct6h','rewardRate','providerRewards','delegatorsRewards', 'votePower','nextVotePower', 'fee'] :  ['#', 'name','availabilityRewardEpoch','successRate','successRateIQR','successRatePct','rewardRate','providerRewards','delegatorsRewards', 'votePower','fee']"
                 (selectedAddress)="handleSelectedDataProvider($event)"></flare-base-data-providers>
         </div>
     </div>
