@@ -125,6 +125,7 @@ export class DelegationsExplorerDetailsComponent implements OnInit {
                 sortOrder: this.request.sortOrder
             }
         });
+        this.request.epochId = rewardEpoch.value;
         this.refreshData();
     }
     private _getDataProvidersInfo(address: string): Observable<DataProviderInfo> {
