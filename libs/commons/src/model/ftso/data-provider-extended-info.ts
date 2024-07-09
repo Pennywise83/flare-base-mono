@@ -11,6 +11,7 @@ export class DataProviderExtendedInfo {
     listed: boolean;
     icon: string;
     nextVotePower: number;
+    nextVotePowerPercentage: number = 0;
     votePower: number;
     previousVotePower: number;
     votePowerChange: number = 0;
@@ -41,15 +42,17 @@ export class DataProviderExtendedInfo {
     constructor(
         votePower: VotePower,
         previousVotePower: VotePower,
+        nextVotePower: VotePower,
+        totalNextVotePower:VotePower,
         dataProvidersInfo: DataProviderInfo[],
         totalVotePower: VotePower,
         previousTotalVotePower: VotePower,
         whitelistedAddresses: string[],
         ftsoRewardStats: DataProviderRewardStats,
         previousFtsoRewardStats: DataProviderRewardStats,
-        ftsoSubmissionStats: DataProviderSubmissionStats,
+        dataProviderSubmissionStats: DataProviderSubmissionStats,
         ftsoFee: FtsoFee,
-        ftsoSubmissionStats6h?: DataProviderSubmissionStats
+        dataProviderSubmissionStats6h?: DataProviderSubmissionStats
 
     ) {
         this.address = votePower.address;
@@ -84,6 +87,12 @@ export class DataProviderExtendedInfo {
                 this.previousVotePowerPercentage = (previousVotePower.amount * 100) / previousTotalVotePower.amount
             }
         }
+        if (isNotEmpty(nextVotePower)) {
+            this.nextVotePower = nextVotePower.amount;
+            if (isNotEmpty(previousTotalVotePower)) {
+                this.nextVotePowerPercentage = (nextVotePower.amount * 100) / previousTotalVotePower.amount
+            }
+        }
         if (isNotEmpty(ftsoRewardStats)) {
             this.providerRewards = ftsoRewardStats.providerReward;
             this.delegatorsRewards = ftsoRewardStats.delegatorsReward;
@@ -96,17 +105,17 @@ export class DataProviderExtendedInfo {
         if (isNotEmpty(ftsoFee)) {
             this.fee = ftsoFee.value;
         }
-        if (isNotEmpty(ftsoSubmissionStats)) {
-            this.successRate = ftsoSubmissionStats.successRate;
-            this.successRateIQR = ftsoSubmissionStats.successRateIQR;
-            this.successRatePct = ftsoSubmissionStats.successRatePct;
-            this.availabilityRewardEpoch = ftsoSubmissionStats.availability;
+        if (isNotEmpty(dataProviderSubmissionStats)) {
+            this.successRate = dataProviderSubmissionStats.successRate;
+            this.successRateIQR = dataProviderSubmissionStats.successRateIQR;
+            this.successRatePct = dataProviderSubmissionStats.successRatePct;
+            this.availabilityRewardEpoch = dataProviderSubmissionStats.availability;
         }
-        if (isNotEmpty(ftsoSubmissionStats6h)) {
-            this.availability6h = ftsoSubmissionStats6h.availability;
-            this.successRate6h = ftsoSubmissionStats6h.successRate;
-            this.successRateIQR6h = ftsoSubmissionStats6h.successRateIQR;
-            this.successRatePct6h = ftsoSubmissionStats6h.successRatePct;
+        if (isNotEmpty(dataProviderSubmissionStats6h)) {
+            this.availability6h = dataProviderSubmissionStats6h.availability;
+            this.successRate6h = dataProviderSubmissionStats6h.successRate;
+            this.successRateIQR6h = dataProviderSubmissionStats6h.successRateIQR;
+            this.successRatePct6h = dataProviderSubmissionStats6h.successRatePct;
         } else {
             delete this.availability6h;
             delete this.successRate6h;

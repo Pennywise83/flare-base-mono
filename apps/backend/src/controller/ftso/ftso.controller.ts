@@ -18,6 +18,7 @@ import { PriceRevealedSortValidationPipe, SortFieldPriceRevealedDTO } from "../m
 import { RewardDistributedSortValidationPipe, SortFieldRewardDistributedDTO } from "../model/sort-field-reward-distributed-dto";
 import { RewardStatsSortValidationPipe, SortFieldRewardStatsDTO } from "../model/sort-field-reward-stats-dto";
 import { SortOrderDTO, SortOrderValidationPipe } from "../model/sort-order-dto";
+import { RewardDistributedDto } from "libs/commons/src/model/ftso/reward-distributed";
 
 @ApiTags('Ftso')
 @Controller('ftso')
@@ -465,9 +466,9 @@ export class FtsoController {
         @Res() res?
 
     ): Promise<ActionResult<PaginatedResult<RewardDistributed[]> | PaginatedResult<RewardDistributedMatrix>>> {
-        let actionResult: ActionResult<PaginatedResult<RewardDistributed[]> | PaginatedResult<RewardDistributedMatrix>> = new ActionResult();
+        let actionResult: ActionResult<PaginatedResult<RewardDistributedDto[]> | PaginatedResult<RewardDistributedMatrix>> = new ActionResult();
         const outputFormat = req.headers['accept'];
-        return new Promise<ActionResult<PaginatedResult<RewardDistributed[]> | PaginatedResult<RewardDistributedMatrix>>>(async resolve => {
+        return new Promise<ActionResult<PaginatedResult<RewardDistributedDto[]> | PaginatedResult<RewardDistributedMatrix>>>(async resolve => {
             try {
                 if (isEmpty(network)) {
                     throw new Error(`Network could not be empty`);
@@ -478,7 +479,7 @@ export class FtsoController {
                 if (endTime > new Date().getTime()) {
                     throw new Error(`Wrong time range`);
                 }
-                const paginatedResults: PaginatedResult<RewardDistributed[]> = await this._ftsoService.getRewardsDistributedDTO(network, dataProvider, symbol, startTime, endTime, page, pageSize, sortField!, SortOrderEnum[sortOrder]!)
+                const paginatedResults: PaginatedResult<RewardDistributedDto[]> = await this._ftsoService.getRewardsDistributedDTO(network, dataProvider, symbol, startTime, endTime, page, pageSize, sortField!, SortOrderEnum[sortOrder]!)
                 actionResult.status = 'OK';
                 actionResult.result = paginatedResults;
                 actionResult.duration = new Date().getTime() - actionResult.start;
